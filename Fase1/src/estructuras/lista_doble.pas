@@ -29,6 +29,10 @@ function BuscarCorreoPorAsunto(lista: TListaCorreos; clave: String): PCorreo;
 procedure MarcarComoLeido(correo: PCorreo);
 procedure EliminarCorreo(var lista: TListaCorreos; id: Integer);
 
+// 🔹 Nuevas funciones para bandeja de entrada
+function ContarNoLeidos(lista: TListaCorreos): Integer;
+procedure OrdenarCorreosPorAsunto(var lista: TListaCorreos);
+
 implementation
 
 procedure InicializarListaCorreos(var lista: TListaCorreos);
@@ -67,7 +71,11 @@ begin
   aux := lista.primero;
   while aux <> nil do
   begin
-    WriteLn('ID: ', aux^.id, ' | Estado: ', aux^.estado, ' | Asunto: ', aux^.asunto, ' | De: ', aux^.remitente, ' | Fecha: ', aux^.fecha);
+    WriteLn('ID: ', aux^.id,
+            ' | Estado: ', aux^.estado,
+            ' | Asunto: ', aux^.asunto,
+            ' | De: ', aux^.remitente,
+            ' | Fecha: ', aux^.fecha);
     aux := aux^.siguiente;
   end;
 end;
@@ -110,6 +118,48 @@ begin
 
     Dispose(aux);
   end;
+end;
+
+function ContarNoLeidos(lista: TListaCorreos): Integer;
+var
+  aux: PCorreo;
+  contador: Integer;
+begin
+  contador := 0;
+  aux := lista.primero;
+  while aux <> nil do
+  begin
+    if aux^.estado = 'NL' then
+      Inc(contador);
+    aux := aux^.siguiente;
+  end;
+  ContarNoLeidos := contador;
+end;
+
+procedure OrdenarCorreosPorAsunto(var lista: TListaCorreos);
+var
+  cambiado: Boolean;
+  aux: PCorreo;
+  temp: TCorreo;
+begin
+  if (lista.primero = nil) or (lista.primero^.siguiente = nil) then Exit;
+
+  repeat
+    cambiado := False;
+    aux := lista.primero;
+    while aux^.siguiente <> nil do
+    begin
+      if LowerCase(aux^.asunto) > LowerCase(aux^.siguiente^.asunto) then
+      begin
+        // Intercambiar datos (swap)
+        temp := aux^;
+        aux^ := aux^.siguiente^;
+        aux^.siguiente^ := temp;
+        cambiado := True;
+      end;
+      aux := aux^.siguiente;
+    end;
+  until not cambiado;
 end;
 
 end.

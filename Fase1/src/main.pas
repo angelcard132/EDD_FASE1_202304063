@@ -1,9 +1,8 @@
 program main;
 
 {$mode objfpc}{$H+}
-
 uses
-  crt, lista_simple, lista_doble, lista_circular, cola, pila;
+  crt, lista_simple, lista_doble, lista_circular, cola, pila, matriz_dispersa, json_loader;
 
 var
   usuarios: TListaUsuarios;
@@ -11,11 +10,7 @@ var
   contactos: TListaContactos;
   programados: TCola;
   papelera: TPila;
-  u: PUsuario;
-  c: PCorreo;
-  con: PContacto;
-  prog: PCorreoCola;
-  elim: PCorreoPila;
+  relaciones: TMatriz;
 
 begin
   InicializarLista(usuarios);
@@ -23,48 +18,28 @@ begin
   InicializarContactos(contactos);
   InicializarCola(programados);
   InicializarPila(papelera);
+  InicializarMatriz(relaciones);
 
-  // --- Usuarios ---
-  InsertarUsuario(usuarios, 1, 'Luis Garcia', 'auxluis', 'aux-luis@edd.com', '12345678');
-  InsertarUsuario(usuarios, 2, 'Marcos Itzep', 'auxmarcos', 'aux-marcos@edd.com', '87654321');
-  WriteLn('Usuarios registrados:');
-  MostrarUsuarios(usuarios);
+  // --- Simulación de relaciones ---
+  InsertarRelacion(relaciones, 'aux-luis@edd.com', 'aux-marcos@edd.com');
+  InsertarRelacion(relaciones, 'aux-luis@edd.com', 'aux-marcos@edd.com');
+  InsertarRelacion(relaciones, 'aux-marcos@edd.com', 'aux-luis@edd.com');
+  InsertarRelacion(relaciones, 'aux-steven@edd.com', 'aux-luis@edd.com');
 
-  // --- Correos ---
-  InsertarCorreo(correos, 1, 'auxluis', 'NL', 'Proyecto EDD', '17/08/2025', 'Hola Marcos, revisa el proyecto.', False);
-  InsertarCorreo(correos, 2, 'auxmarcos', 'NL', 'Re: Proyecto EDD', '17/08/2025', 'Hola Luis, ya lo revisé.', False);
+  WriteLn(#10, 'Relaciones de correos enviados:');
+  MostrarRelaciones(relaciones);
+      WriteLn(#10, 'Cantidad de correos no leídos: ', ContarNoLeidos(correos));
 
-  WriteLn(#10, 'Correos en bandeja de entrada:');
+  WriteLn(#10, 'Correos ordenados por asunto A-Z:');
+  OrdenarCorreosPorAsunto(correos);
   MostrarCorreos(correos);
+    WriteLn('Presione una tecla para continuar...');
 
-  // Simular eliminación de correo
-  c := BuscarCorreoPorAsunto(correos, 'Re: Proyecto');
-  if c <> nil then
-  begin
-    // Guardar en papelera antes de eliminar
-    Push(papelera, c^.id, c^.remitente, c^.asunto, c^.fecha, c^.mensaje);
-    EliminarCorreo(correos, c^.id);
-  end;
+    CargarUsuariosDesdeJSON('../assets/usuarios.json', usuarios);
+    WriteLn('Usuarios cargados desde JSON:');
+    WriteLn('Usuarios después de carga masiva:');
+    MostrarUsuarios(usuarios);
 
-  WriteLn(#10, 'Correos después de mover uno a papelera:');
-  MostrarCorreos(correos);
-
-  WriteLn(#10, 'Correos en papelera:');
-  MostrarPila(papelera);
-
-  elim := BuscarEnPapelera(papelera, 'Re:');
-  if elim <> nil then
-    WriteLn('Correo encontrado en papelera: ', elim^.asunto);
-
-  elim := Pop(papelera);
-  if elim <> nil then
-  begin
-    WriteLn(#10, 'Se eliminó definitivamente: ', elim^.asunto);
-    Dispose(elim);
-  end;
-
-  WriteLn(#10, 'Papelera después de eliminar uno:');
-  MostrarPila(papelera);
 
   ReadLn;
 end.
