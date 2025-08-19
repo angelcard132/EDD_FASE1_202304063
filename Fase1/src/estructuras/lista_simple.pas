@@ -5,7 +5,6 @@ unit lista_simple;
 interface
 
 type
-  // Nodo de usuario
   PUsuario = ^TUsuario;
   TUsuario = record
     id: Integer;
@@ -13,27 +12,28 @@ type
     usuario: String;
     email: String;
     telefono: String;
+    password: String;  // 🔹 agregado
     siguiente: PUsuario;
   end;
 
-  // Lista simple
   TListaUsuarios = record
     primero: PUsuario;
   end;
 
-procedure InicializarLista(var lista: TListaUsuarios);
-procedure InsertarUsuario(var lista: TListaUsuarios; id: Integer; nombre, usuario, email, telefono: String);
-procedure MostrarUsuarios(lista: TListaUsuarios);
-function BuscarUsuario(lista: TListaUsuarios; email: String): PUsuario;
+procedure InicializarListaUsuarios(var lista: TListaUsuarios);
+procedure InsertarUsuario(var lista: TListaUsuarios; id: Integer; nombre, usuario, email, telefono, password: String);
+procedure MostrarUsuarios(const lista: TListaUsuarios);
+function BuscarUsuarioPorEmail(const lista: TListaUsuarios; const email: String): PUsuario;
+function ObtenerSiguienteID(const lista: TListaUsuarios): Integer;
 
 implementation
 
-procedure InicializarLista(var lista: TListaUsuarios);
+procedure InicializarListaUsuarios(var lista: TListaUsuarios);
 begin
   lista.primero := nil;
 end;
 
-procedure InsertarUsuario(var lista: TListaUsuarios; id: Integer; nombre, usuario, email, telefono: String);
+procedure InsertarUsuario(var lista: TListaUsuarios; id: Integer; nombre, usuario, email, telefono, password: String);
 var
   nuevo, aux: PUsuario;
 begin
@@ -43,6 +43,7 @@ begin
   nuevo^.usuario := usuario;
   nuevo^.email := email;
   nuevo^.telefono := telefono;
+  nuevo^.password := password;
   nuevo^.siguiente := nil;
 
   if lista.primero = nil then
@@ -56,26 +57,42 @@ begin
   end;
 end;
 
-procedure MostrarUsuarios(lista: TListaUsuarios);
+procedure MostrarUsuarios(const lista: TListaUsuarios);
 var
   aux: PUsuario;
 begin
   aux := lista.primero;
   while aux <> nil do
   begin
-    WriteLn('ID: ', aux^.id, ' | Nombre: ', aux^.nombre, ' | Usuario: ', aux^.usuario, ' | Email: ', aux^.email, ' | Tel: ', aux^.telefono);
+    WriteLn('ID: ', aux^.id, ' | Nombre: ', aux^.nombre, ' | Usuario: ', aux^.usuario,
+            ' | Email: ', aux^.email, ' | Tel: ', aux^.telefono);
     aux := aux^.siguiente;
   end;
 end;
 
-function BuscarUsuario(lista: TListaUsuarios; email: String): PUsuario;
+function BuscarUsuarioPorEmail(const lista: TListaUsuarios; const email: String): PUsuario;
 var
   aux: PUsuario;
 begin
   aux := lista.primero;
-  while (aux <> nil) and (aux^.email <> email) do
+  while (aux <> nil) and (LowerCase(aux^.email) <> LowerCase(email)) do
     aux := aux^.siguiente;
-  BuscarUsuario := aux;
+  BuscarUsuarioPorEmail := aux;
+end;
+
+function ObtenerSiguienteID(const lista: TListaUsuarios): Integer;
+var
+  aux: PUsuario;
+  maxid: Integer;
+begin
+  maxid := 0;
+  aux := lista.primero;
+  while aux <> nil do
+  begin
+    if aux^.id > maxid then maxid := aux^.id;
+    aux := aux^.siguiente;
+  end;
+  ObtenerSiguienteID := maxid + 1;
 end;
 
 end.

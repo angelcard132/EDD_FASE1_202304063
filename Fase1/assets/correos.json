@@ -1,0 +1,22 @@
+{
+  "correos": [
+    {
+      "id": 1,
+      "remitente": "auxmarcos@edd.com",
+      "destinatario": "auxluis@edd.com",
+      "estado": "NL",
+      "asunto": "Tarea 1",
+      "fecha": "2025-08-17",
+      "contenido": "Adjunto tarea"
+    },
+    {
+      "id": 2,
+      "remitente": "auxsteven@edd.com",
+      "destinatario": "auxluis@edd.com",
+      "estado": "L",
+      "asunto": "Reunión",
+      "fecha": "2025-08-15",
+      "contenido": "Confirmo reunión"
+    }
+  ]
+}

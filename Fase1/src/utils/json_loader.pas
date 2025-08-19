@@ -5,20 +5,22 @@ unit json_loader;
 interface
 
 uses
-  Classes, SysUtils, fpjson, jsonparser, lista_simple;
+  Classes, SysUtils, fpjson, jsonparser, lista_simple, lista_doble;
 
-procedure CargarUsuariosDesdeJSON(ruta: String; var lista: TListaUsuarios);
+procedure CargarUsuariosDesdeJSON(const ruta: string; var lista: TListaUsuarios);
+procedure CargarCorreosDesdeJSON(const ruta: string; var lista: TListaCorreos);
 
 implementation
 
-procedure CargarUsuariosDesdeJSON(ruta: String; var lista: TListaUsuarios);
+procedure CargarUsuariosDesdeJSON(const ruta: string; var lista: TListaUsuarios);
 var
-  archivo: TFileStream;
-  jsonData: TJSONData;
-  usuariosArray: TJSONArray;
-  usuarioObj: TJSONObject;
-  i, id: Integer;
-  nombre, usuario, email, telefono: String;
+  data: TJSONData;
+  arr: TJSONArray;
+  obj: TJSONObject;
+  parser: TJSONParser;
+  i: Integer;
+  archivo: TStringStream;
+  pass: String;
 begin
   if not FileExists(ruta) then
   begin
@@ -26,23 +28,79 @@ begin
     Exit;
   end;
 
-  archivo := TFileStream.Create(ruta, fmOpenRead);
+  archivo := TStringStream.Create('');
   try
-    jsonData := GetJSON(archivo);
+    archivo.LoadFromFile(ruta);
+    parser := TJSONParser.Create(archivo.DataString);
     try
-      usuariosArray := jsonData.FindPath('usuarios') as TJSONArray;
-      for i := 0 to usuariosArray.Count - 1 do
+      data := parser.Parse;
+      arr := data.FindPath('usuarios') as TJSONArray;
+      if arr = nil then Exit;
+
+      for i := 0 to arr.Count - 1 do
       begin
-        usuarioObj := usuariosArray.Objects[i];
-        id := usuarioObj.Get('id', 0);
-        nombre := usuarioObj.Get('nombre', '');
-        usuario := usuarioObj.Get('usuario', '');
-        email := usuarioObj.Get('email', '');
-        telefono := usuarioObj.Get('telefono', '');
-        InsertarUsuario(lista, id, nombre, usuario, email, telefono);
+        obj := arr.Objects[i];
+        pass := obj.Get('password', '1234'); // 🔹 por si no viene en el JSON
+        InsertarUsuario(
+          lista,
+          obj.Get('id', 0),
+          obj.Get('nombre', ''),
+          obj.Get('usuario', ''),
+          obj.Get('email', ''),
+          obj.Get('telefono', ''),
+          pass
+        );
       end;
     finally
-      jsonData.Free;
+      parser.Free;
+      data.Free;
+    end;
+  finally
+    archivo.Free;
+  end;
+end;
+
+procedure CargarCorreosDesdeJSON(const ruta: string; var lista: TListaCorreos);
+var
+  data: TJSONData;
+  arr: TJSONArray;
+  obj: TJSONObject;
+  parser: TJSONParser;
+  i: Integer;
+  archivo: TStringStream;
+begin
+  if not FileExists(ruta) then
+  begin
+    WriteLn('El archivo JSON no existe: ', ruta);
+    Exit;
+  end;
+
+  archivo := TStringStream.Create('');
+  try
+    archivo.LoadFromFile(ruta);
+    parser := TJSONParser.Create(archivo.DataString);
+    try
+      data := parser.Parse;
+      arr := data.FindPath('correos') as TJSONArray;
+      if arr = nil then Exit;
+
+      for i := 0 to arr.Count - 1 do
+      begin
+        obj := arr.Objects[i];
+        InsertarCorreo(
+          lista,
+          obj.Get('id', 0),
+          obj.Get('remitente', ''),
+          obj.Get('estado', 'NL'),
+          obj.Get('asunto', ''),
+          obj.Get('fecha', ''),
+          obj.Get('contenido', ''),
+          False
+        );
+      end;
+    finally
+      parser.Free;
+      data.Free;
     end;
   finally
     archivo.Free;
