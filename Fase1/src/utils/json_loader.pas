@@ -7,103 +7,207 @@ interface
 uses
   Classes, SysUtils, fpjson, jsonparser, lista_simple, lista_doble;
 
-procedure CargarUsuariosDesdeJSON(const ruta: string; var lista: TListaUsuarios);
-procedure CargarCorreosDesdeJSON(const ruta: string; var lista: TListaCorreos);
+procedure CargarUsuariosDesdeJSON(const archivo: String; var lista: TListaUsuarios);
+procedure CargarCorreosDesdeJSON(const archivo: String; var lista: TListaCorreos);
+procedure CargarCorreosDesdeJSON2(const archivo: String; var lista: TListaCorreos; var usuarios: TListaUsuarios);
 
 implementation
 
-procedure CargarUsuariosDesdeJSON(const ruta: string; var lista: TListaUsuarios);
+procedure CargarUsuariosDesdeJSON(const archivo: String; var lista: TListaUsuarios);
 var
-  data: TJSONData;
+  data: TStringList;
+  json: TJSONData;
   arr: TJSONArray;
   obj: TJSONObject;
-  parser: TJSONParser;
   i: Integer;
-  archivo: TStringStream;
-  pass: String;
 begin
-  if not FileExists(ruta) then
+  if not FileExists(archivo) then
   begin
-    WriteLn('El archivo JSON no existe: ', ruta);
+    WriteLn('El archivo JSON no existe: ', archivo);
     Exit;
   end;
 
-  archivo := TStringStream.Create('');
+  data := TStringList.Create;
   try
-    archivo.LoadFromFile(ruta);
-    parser := TJSONParser.Create(archivo.DataString);
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
     try
-      data := parser.Parse;
-      arr := data.FindPath('usuarios') as TJSONArray;
-      if arr = nil then Exit;
-
-      for i := 0 to arr.Count - 1 do
+      arr := TJSONArray(json.FindPath('usuarios'));
+      if arr <> nil then
       begin
-        obj := arr.Objects[i];
-        pass := obj.Get('password', '1234'); // 🔹 por si no viene en el JSON
-        InsertarUsuario(
-          lista,
-          obj.Get('id', 0),
-          obj.Get('nombre', ''),
-          obj.Get('usuario', ''),
-          obj.Get('email', ''),
-          obj.Get('telefono', ''),
-          pass
-        );
+        WriteLn('📂 Cargando usuarios desde formato estándar...');
+        for i := 0 to arr.Count - 1 do
+        begin
+          obj := arr.Objects[i];
+          InsertarUsuario(lista,
+            obj.Get('id', 0),
+            obj.Get('nombre', ''),
+            obj.Get('usuario', ''),
+            obj.Get('email', ''),
+            obj.Get('telefono', ''),
+            obj.Get('password', '')
+          );
+          WriteLn('  ✅ Usuario cargado: ', obj.Get('email', ''));
+        end;
+        WriteLn('📊 Total usuarios cargados: ', arr.Count);
       end;
     finally
-      parser.Free;
-      data.Free;
+      json.Free;
     end;
   finally
-    archivo.Free;
+    data.Free;
   end;
 end;
 
-procedure CargarCorreosDesdeJSON(const ruta: string; var lista: TListaCorreos);
+procedure CargarCorreosDesdeJSON(const archivo: String; var lista: TListaCorreos);
 var
-  data: TJSONData;
+  data: TStringList;
+  json: TJSONData;
   arr: TJSONArray;
   obj: TJSONObject;
-  parser: TJSONParser;
   i: Integer;
-  archivo: TStringStream;
 begin
-  if not FileExists(ruta) then
+  if not FileExists(archivo) then
   begin
-    WriteLn('El archivo JSON no existe: ', ruta);
+    WriteLn('El archivo JSON no existe: ', archivo);
     Exit;
   end;
 
-  archivo := TStringStream.Create('');
+  data := TStringList.Create;
   try
-    archivo.LoadFromFile(ruta);
-    parser := TJSONParser.Create(archivo.DataString);
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
     try
-      data := parser.Parse;
-      arr := data.FindPath('correos') as TJSONArray;
-      if arr = nil then Exit;
-
-      for i := 0 to arr.Count - 1 do
+      arr := TJSONArray(json.FindPath('correos'));
+      if arr <> nil then
       begin
-        obj := arr.Objects[i];
-        InsertarCorreo(
-          lista,
-          obj.Get('id', 0),
-          obj.Get('remitente', ''),
-          obj.Get('estado', 'NL'),
-          obj.Get('asunto', ''),
-          obj.Get('fecha', ''),
-          obj.Get('contenido', ''),
-          False
-        );
+        WriteLn('📂 Cargando correos desde formato estándar...');
+        for i := 0 to arr.Count - 1 do
+        begin
+          obj := arr.Objects[i];
+          InsertarCorreo(lista,
+            obj.Get('id', 0),
+            obj.Get('remitente', ''),
+            obj.Get('destinatario', ''),
+            obj.Get('estado', 'NL'),
+            obj.Get('asunto', ''),
+            obj.Get('fecha', ''),
+            obj.Get('contenido', '')
+          );
+          WriteLn('  ✅ Correo cargado: ', obj.Get('asunto', ''));
+        end;
+        WriteLn('📊 Total correos cargados: ', arr.Count);
       end;
     finally
-      parser.Free;
-      data.Free;
+      json.Free;
     end;
   finally
-    archivo.Free;
+    data.Free;
+  end;
+end;
+
+procedure CargarCorreosDesdeJSON2(const archivo: String; var lista: TListaCorreos; var usuarios: TListaUsuarios);
+var
+  data: TStringList;
+  json: TJSONData;
+  correosArray: TJSONArray;
+  usuarioObj: TJSONObject;
+  bandejaArray: TJSONArray;
+  correoObj: TJSONObject;
+  i, j: Integer;
+  usuarioId: Integer;
+  usuario: PUsuario;
+  estado, destinatario: String;
+  totalCorreos: Integer;
+begin
+  if not FileExists(archivo) then
+  begin
+    WriteLn('El archivo JSON no existe: ', archivo);
+    Exit;
+  end;
+
+  data := TStringList.Create;
+  totalCorreos := 0;
+  try
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
+    try
+      correosArray := TJSONArray(json.FindPath('correos'));
+      if correosArray <> nil then
+      begin
+        WriteLn('📂 Cargando correos desde formato por usuario...');
+        for i := 0 to correosArray.Count - 1 do
+        begin
+          usuarioObj := correosArray.Objects[i];
+          usuarioId := usuarioObj.Get('usuario_id', 0);
+          
+          WriteLn('🔍 Buscando usuario con ID: ', usuarioId);
+          
+          // Buscar el usuario correspondiente
+          usuario := nil;
+          if usuarios.primero <> nil then
+          begin
+            usuario := usuarios.primero;
+            while (usuario <> nil) and (usuario^.id <> usuarioId) do
+              usuario := usuario^.siguiente;
+          end;
+
+          if usuario <> nil then
+          begin
+            destinatario := usuario^.email;
+            WriteLn('  📧 Procesando correos para: ', destinatario, ' (ID: ', usuarioId, ')');
+            
+            bandejaArray := TJSONArray(usuarioObj.FindPath('bandeja_entrada'));
+            if bandejaArray <> nil then
+            begin
+              WriteLn('    📥 Correos en bandeja: ', bandejaArray.Count);
+              for j := 0 to bandejaArray.Count - 1 do
+              begin
+                correoObj := bandejaArray.Objects[j];
+                
+                // Convertir estado del nuevo formato al formato interno
+                if correoObj.Get('estado', '') = 'leído' then
+                  estado := 'L'
+                else if correoObj.Get('estado', '') = 'no leído' then
+                  estado := 'NL'
+                else
+                  estado := 'NL';
+
+                InsertarCorreo(lista,
+                  correoObj.Get('id', 0),
+                  correoObj.Get('remitente', ''),
+                  destinatario,  // El destinatario es el usuario actual
+                  estado,
+                  correoObj.Get('asunto', ''),
+                  correoObj.Get('fecha', ''),
+                  correoObj.Get('mensaje', '')  // En el nuevo formato se llama 'mensaje'
+                );
+                
+                WriteLn('    ✅ Correo: ', correoObj.Get('asunto', ''), ' (', estado, ')');
+                Inc(totalCorreos);
+              end;
+            end
+            else
+            begin
+              WriteLn('    ⚠️ No se encontró bandeja_entrada para usuario ID ', usuarioId);
+            end;
+          end
+          else
+          begin
+            WriteLn('  ⚠️ Usuario con ID ', usuarioId, ' no encontrado en la lista');
+          end;
+        end;
+        WriteLn('📊 Total correos cargados desde formato por usuario: ', totalCorreos);
+      end
+      else
+      begin
+        WriteLn('⚠️ No se encontró el array "correos" en el JSON');
+      end;
+    finally
+      json.Free;
+    end;
+  finally
+    data.Free;
   end;
 end;
 

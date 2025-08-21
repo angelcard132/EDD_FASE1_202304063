@@ -5,7 +5,7 @@ unit login;
 interface
 
 uses
-  glib2, gtk2, menu_root, menu_usuario, lista_simple, json_loader, registro_usuario;
+  glib2, gtk2, SysUtils, menu_root, menu_usuario, lista_simple, json_loader, registro_usuario, globals;
 
 procedure MostrarLogin;
 
@@ -36,12 +36,14 @@ begin
   if (u <> nil) and (u^.password = pass) then
   begin
     WriteLn('Login USUARIO OK: ', u^.email);
-    MostrarMenuUsuario; // Más adelante le pasamos el usuario para filtrar bandeja
+    CambiarUsuarioActivo(u^);  // Usar función que reinicia contactos
+    MostrarMenuUsuario(u^);  // 🔹 ahora le pasamos el usuario logueado
   end
   else
   begin
     WriteLn('Credenciales inválidas');
   end;
+  
 end;
 
 procedure on_register_clicked(widget: PGtkWidget; data: gpointer); cdecl;
@@ -58,10 +60,37 @@ var
 begin
   gtk_init(@argc, @argv);
 
-  // Inicializar y cargar usuarios desde JSON
-  InicializarListaUsuarios(Usuarios);
-  // Ajusta la ruta según tu estructura (si estás corriendo desde src/, ../assets/usuarios.json es correcto)
-  CargarUsuariosDesdeJSON('../assets/usuarios.json', Usuarios);
+  // Cargar usuarios en la lista global para que esté disponible en toda la app
+  // Intentar cargar desde usuarios2.json (formato completo) primero
+  if FileExists('../assets/usuarios2.json') then
+  begin
+    WriteLn('🔄 Cargando usuarios desde usuarios2.json...');
+    CargarUsuariosDesdeJSON('../assets/usuarios2.json', UsuariosGlobal);
+  end
+  else if FileExists('../assets/usuarios.json') then
+  begin
+    WriteLn('🔄 Cargando usuarios desde usuarios.json...');
+    CargarUsuariosDesdeJSON('../assets/usuarios.json', UsuariosGlobal);
+  end
+  else
+  begin
+    WriteLn('⚠️ No se encontraron archivos de usuarios');
+  end;
+
+  // También cargar en la lista local para compatibilidad
+  Usuarios := UsuariosGlobal;
+
+  // Cargar correos inmediatamente después de cargar usuarios
+  if FileExists('../assets/correos2.json') then
+  begin
+    WriteLn('🔄 Cargando correos desde correos2.json...');
+    CargarCorreosDesdeJSON2('../assets/correos2.json', CorreosGlobal, UsuariosGlobal);
+  end
+  else if FileExists('../assets/correos.json') then
+  begin
+    WriteLn('🔄 Cargando correos desde correos.json...');
+    CargarCorreosDesdeJSON('../assets/correos.json', CorreosGlobal);
+  end;
 
   // Ventana
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
