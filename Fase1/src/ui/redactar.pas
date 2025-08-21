@@ -20,6 +20,7 @@ var
   para, asunto, contenido, fecha: String;
   buffer: PGtkTextBuffer;
   startIter, endIter: TGtkTextIter;
+  nuevoId: Integer;
 begin
   para   := gtk_entry_get_text(GTK_ENTRY(entryPara));
   asunto := gtk_entry_get_text(GTK_ENTRY(entryAsunto));
@@ -37,22 +38,43 @@ begin
     Exit;
   end;
 
+  // Validar que el destinatario exista
+  if BuscarUsuarioPorEmail(UsuariosGlobal, para) = nil then
+  begin
+    WriteLn('⚠️ El destinatario ', para, ' no existe en el sistema');
+    Exit;
+  end;
+
   // Asegurar lista global inicializada
   if (CorreosGlobal.primero = nil) and (CorreosGlobal.ultimo = nil) then
     InicializarListaCorreos(CorreosGlobal);
 
+  // Generar ID único
+  nuevoId := Random(1000000);
+
   // Insertar correo en la lista global
   InsertarCorreo(CorreosGlobal,
-    Random(1000000),         // ID sencillo
+    nuevoId,                 // ID único
     UsuarioActivo.email,     // remitente
     para,                    // destinatario
-    'NL',                    // estado inicial
+    'NL',                    // estado inicial (no leído)
     asunto,                  // asunto
     fecha,                   // fecha
     contenido                // contenido
   );
 
-  WriteLn('✅ Correo enviado de ', UsuarioActivo.email, ' a ', para);
+  WriteLn('✅ Correo enviado exitosamente:');
+  WriteLn('   ID: ', nuevoId);
+  WriteLn('   De: ', UsuarioActivo.email);
+  WriteLn('   Para: ', para);
+  WriteLn('   Asunto: ', asunto);
+  WriteLn('   Estado: NL (No leído)');
+  WriteLn('   Fecha: ', fecha);
+  
+  // Limpiar campos después de enviar
+  gtk_entry_set_text(GTK_ENTRY(entryPara), '');
+  gtk_entry_set_text(GTK_ENTRY(entryAsunto), '');
+  gtk_text_buffer_set_text(buffer, '', -1);
 end;
 
 procedure MostrarRedactar;

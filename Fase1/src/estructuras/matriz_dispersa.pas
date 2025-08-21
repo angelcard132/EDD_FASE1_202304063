@@ -24,9 +24,26 @@ type
     columnas: THeader;
   end;
 
+  PNodoMatriz = ^TNodoMatriz;
+  TNodoMatriz = record
+    fila: Integer;
+    columna: Integer;
+    datos: String;  // puede almacenar información como "último mensaje", "total mensajes", etc.
+    siguiente: PNodoMatriz;
+    abajo: PNodoMatriz;
+  end;
+
+  TMatrizDispersa = record
+    raiz: PNodoMatriz;
+  end;
+
 procedure InicializarMatriz(var matriz: TMatriz);
 procedure InsertarRelacion(var matriz: TMatriz; remitente, receptor: String);
 procedure MostrarRelaciones(matriz: TMatriz);
+procedure InicializarMatrizDispersa(var matriz: TMatrizDispersa);
+procedure InsertarEnMatriz(var matriz: TMatrizDispersa; fila, columna: Integer; datos: String);
+function BuscarEnMatriz(matriz: TMatrizDispersa; fila, columna: Integer): PNodoMatriz;
+procedure MostrarMatriz(matriz: TMatrizDispersa);
 
 implementation
 
@@ -145,4 +162,31 @@ begin
   end;
 end;
 
-end.
+// --- Operaciones de la matriz dispersa ---
+
+procedure InicializarMatrizDispersa(var matriz: TMatrizDispersa);
+begin
+  matriz.raiz := nil;
+end;
+
+procedure InsertarEnMatriz(var matriz: TMatrizDispersa; fila, columna: Integer; datos: String);
+var
+  nuevo: PNodoMatriz;
+begin
+  // Para simplificar, solo insertamos sin ordenar por ahora
+  New(nuevo);
+  nuevo^.fila := fila;
+  nuevo^.columna := columna;
+  nuevo^.datos := datos;
+  nuevo^.siguiente := matriz.raiz;
+  nuevo^.abajo := nil;
+  matriz.raiz := nuevo;
+end;
+
+function BuscarEnMatriz(matriz: TMatrizDispersa; fila, columna: Integer): PNodoMatriz;
+var
+  aux: PNodoMatriz;
+begin
+  aux := matriz.raiz;
+  while aux <> nil do
+  begin

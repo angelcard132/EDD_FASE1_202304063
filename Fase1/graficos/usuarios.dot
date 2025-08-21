@@ -1,0 +1,53 @@
+digraph ListaUsuarios {
+  rankdir=LR;
+  node [shape=record, style=filled, fillcolor=lightblue];
+  edge [color=blue, style=bold];
+
+  // Título
+  titulo [label="LISTA SIMPLE - USUARIOS", shape=box, style=filled, fillcolor=yellow];
+
+  usuario0 [label="ID: 1|Nombre: Luis Garcia|Usuario: lgarcia|Email: lgarcia@edd.com|Tel: 12345678"];
+  usuario1 [label="ID: 2|Nombre: Marcos Itzep|Usuario: mitzep|Email: mitzep@edd.com|Tel: 87654321"];
+  usuario2 [label="ID: 3|Nombre: Greg Kroah-Hartman|Usuario: gkroah-hartman|Email: gkroah-hartman@edd.com|Tel: 31628954"];
+  usuario3 [label="ID: 4|Nombre: Mark Shuttleworth|Usuario: mshuttleworth|Email: mshuttleworth@edd.com|Tel: 76018423"];
+  usuario4 [label="ID: 5|Nombre: Steven Mejia|Usuario: smejia|Email: smejia@edd.com|Tel: 23419875"];
+  usuario5 [label="ID: 6|Nombre: Brian Fox|Usuario: bfox|Email: bfox@edd.com|Tel: 64578231"];
+  usuario6 [label="ID: 7|Nombre: Jon Corbet|Usuario: jcorbet|Email: jcorbet@edd.com|Tel: 75849231"];
+  usuario7 [label="ID: 8|Nombre: Karen Sandler|Usuario: ksandler|Email: ksandler@edd.com|Tel: 89514362"];
+  usuario8 [label="ID: 9|Nombre: Mitchell Baker|Usuario: mbaker|Email: mbaker@edd.com|Tel: 19384756"];
+  usuario9 [label="ID: 10|Nombre: Ian Murdock|Usuario: imurdock|Email: imurdock@edd.com|Tel: 41235678"];
+  usuario10 [label="ID: 11|Nombre: Linus Torvalds|Usuario: ltorvalds|Email: ltorvalds@edd.com|Tel: 56473829"];
+  usuario11 [label="ID: 12|Nombre: Richard Stallman|Usuario: rstallman|Email: rstallman@edd.com|Tel: 67894512"];
+  usuario12 [label="ID: 13|Nombre: Guido van Rossum|Usuario: gvanrossum|Email: gvanrossum@edd.com|Tel: 47852169"];
+  usuario13 [label="ID: 14|Nombre: Ken Thompson|Usuario: kthompson|Email: kthompson@edd.com|Tel: 39584721"];
+  usuario14 [label="ID: 15|Nombre: Dennis Ritchie|Usuario: dritchie|Email: dritchie@edd.com|Tel: 98451237"];
+  usuario15 [label="ID: 16|Nombre: Ada Lovelace|Usuario: alovelace|Email: alovelace@edd.com|Tel: 51238976"];
+  usuario16 [label="ID: 17|Nombre: Grace Hopper|Usuario: ghopper|Email: ghopper@edd.com|Tel: 72349518"];
+  usuario17 [label="ID: 18|Nombre: James Gosling|Usuario: jgosling|Email: jgosling@edd.com|Tel: 83749265"];
+  usuario18 [label="ID: 19|Nombre: Barbara Liskov|Usuario: bliskov|Email: bliskov@edd.com|Tel: 91347582"];
+  usuario19 [label="ID: 20|Nombre: Donald Knuth|Usuario: dknuth|Email: dknuth@edd.com|Tel: 18273645"];
+
+  // Conexiones
+  titulo -> usuario0;
+  usuario0 -> usuario1;
+  usuario1 -> usuario2;
+  usuario2 -> usuario3;
+  usuario3 -> usuario4;
+  usuario4 -> usuario5;
+  usuario5 -> usuario6;
+  usuario6 -> usuario7;
+  usuario7 -> usuario8;
+  usuario8 -> usuario9;
+  usuario9 -> usuario10;
+  usuario10 -> usuario11;
+  usuario11 -> usuario12;
+  usuario12 -> usuario13;
+  usuario13 -> usuario14;
+  usuario14 -> usuario15;
+  usuario15 -> usuario16;
+  usuario16 -> usuario17;
+  usuario17 -> usuario18;
+  usuario18 -> usuario19;
+  usuario17 -> null [style=dashed];
+  null [label="NULL", shape=box, style=filled, fillcolor=gray];
+}

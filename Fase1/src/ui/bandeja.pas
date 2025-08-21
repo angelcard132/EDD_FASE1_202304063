@@ -125,6 +125,7 @@ var
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
   aux: PCorreo;
+  correosEncontrados: Integer;
   
   procedure OnEliminarClicked(widget: PGtkWidget; data: gpointer); cdecl;
   var
@@ -168,28 +169,6 @@ var
   end;
 
 begin
-  // Si no hay correos cargados aún, intenta cargarlos del JSON una sola vez
-  if (CorreosGlobal.primero = nil) and (CorreosGlobal.ultimo = nil) then
-  begin
-    // Intentar cargar desde correos2.json (formato por usuario) primero
-    if FileExists('../assets/correos2.json') then
-    begin
-      WriteLn('🔄 Intentando cargar correos desde correos2.json...');
-      // Necesitamos la lista de usuarios para hacer la relación usuario_id -> email
-      // Obtenemos la lista desde login si está disponible
-      CargarCorreosDesdeJSON2('../assets/correos2.json', CorreosGlobal, UsuariosGlobal);
-    end
-    else if FileExists('../assets/correos.json') then
-    begin
-      WriteLn('🔄 Cargando correos desde correos.json...');
-      CargarCorreosDesdeJSON('../assets/correos.json', CorreosGlobal);
-    end
-    else
-    begin
-      WriteLn('⚠️ No se encontraron archivos de correos');
-    end;
-  end;
-
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), PChar('Bandeja de Entrada - ' + LimpiarUTF8(usuario.email)));
   gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
@@ -231,11 +210,13 @@ begin
   g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarClicked), treeview);
   gtk_box_pack_start(GTK_BOX(hboxBotones), btnEliminar, FALSE, FALSE, 5);
 
-  // Insertar SOLO correos para el usuario activo (destinatario)
+  // Insertar SOLO correos para el usuario activo (destinatario) que NO estén eliminados
+  correosEncontrados := 0;
   aux := CorreosGlobal.primero;
   while aux <> nil do
   begin
-    if LowerCase(aux^.destinatario) = LowerCase(usuario.email) then
+    // Mostrar correos destinados a este usuario que no estén eliminados
+    if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
     begin
       gtk_list_store_append(store, @iter);
       gtk_list_store_set(store, @iter,
@@ -244,9 +225,12 @@ begin
         2, PChar(LimpiarUTF8(aux^.fecha)),
         3, PChar(LimpiarUTF8(aux^.estado)),
         -1);
+      Inc(correosEncontrados);
     end;
     aux := aux^.siguiente;
   end;
+
+  WriteLn('📧 Correos en bandeja para ', usuario.email, ': ', correosEncontrados);
 
   // Doble clic en una fila → abre detalle
   g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnRowActivated), nil);

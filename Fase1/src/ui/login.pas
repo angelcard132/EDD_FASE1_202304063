@@ -60,7 +60,7 @@ var
 begin
   gtk_init(@argc, @argv);
 
-  // Cargar usuarios en la lista global para que esté disponible en toda la app
+  // Cargar SOLO usuarios en la lista global para que esté disponible en toda la app
   // Intentar cargar desde usuarios2.json (formato completo) primero
   if FileExists('../assets/usuarios2.json') then
   begin
@@ -80,17 +80,7 @@ begin
   // También cargar en la lista local para compatibilidad
   Usuarios := UsuariosGlobal;
 
-  // Cargar correos inmediatamente después de cargar usuarios
-  if FileExists('../assets/correos2.json') then
-  begin
-    WriteLn('🔄 Cargando correos desde correos2.json...');
-    CargarCorreosDesdeJSON2('../assets/correos2.json', CorreosGlobal, UsuariosGlobal);
-  end
-  else if FileExists('../assets/correos.json') then
-  begin
-    WriteLn('🔄 Cargando correos desde correos.json...');
-    CargarCorreosDesdeJSON('../assets/correos.json', CorreosGlobal);
-  end;
+  WriteLn('✅ Sistema iniciado - Los correos se crearán cuando los usuarios los envíen');
 
   // Ventana
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);

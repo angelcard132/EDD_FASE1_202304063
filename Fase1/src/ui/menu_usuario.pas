@@ -5,7 +5,7 @@ unit menu_usuario;
 interface
 
 uses
-  glib2, gtk2, bandeja, redactar, lista_doble, lista_simple, globals, enviados, papelera, programar_correo, agregar_contacto, perfil;
+  glib2, gtk2, bandeja, redactar, lista_doble, lista_simple, globals, enviados, papelera, programar_correo, agregar_contacto, perfil, graphviz;
 
 procedure MostrarMenuUsuario(const usuario: TUsuario);
 
@@ -48,9 +48,14 @@ begin
   MostrarPerfil();
 end;
 
+procedure OnGenerarGraficosClicked(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  GenerarTodosLosGraficos;
+end;
+
 procedure MostrarMenuUsuario(const usuario: TUsuario);
 var
-  window, vbox, btnBandeja, btnEnviados, btnRedactar, btnPapelera, btnProgramar, btnContactos, btnPerfil: PGtkWidget;
+  window, vbox, btnBandeja, btnEnviados, btnRedactar, btnPapelera, btnProgramar, btnContactos, btnPerfil, btnGraficos: PGtkWidget;
 begin
   // Guardar el usuario activo en un lugar GLOBAL (puntero estable)
   UsuarioActivo := usuario;
@@ -61,7 +66,7 @@ begin
 
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), PChar('Menú Usuario - ' + UsuarioActivo.email));
-  gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
+  gtk_window_set_default_size(GTK_WINDOW(window), 300, 250);
 
   vbox := gtk_vbox_new(FALSE, 5);
   gtk_container_add(GTK_CONTAINER(window), vbox);
@@ -94,6 +99,10 @@ begin
   btnPerfil := gtk_button_new_with_label('👤 Perfil');
   g_signal_connect(btnPerfil, 'clicked', G_CALLBACK(@OnPerfilClicked), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnPerfil, FALSE, FALSE, 5);
+  // Botón: Generar Gráficos
+  btnGraficos := gtk_button_new_with_label('📊 Reportes');
+  g_signal_connect(btnGraficos, 'clicked', G_CALLBACK(@OnGenerarGraficosClicked), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnGraficos, FALSE, FALSE, 5);
 
   gtk_widget_show_all(window);
 end;
