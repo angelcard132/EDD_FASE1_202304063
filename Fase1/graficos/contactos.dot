@@ -4,11 +4,8 @@ digraph ListaContactos {
   edge [color=orange, style=bold];
 
   // Título
-  titulo [label="LISTA CIRCULAR - CONTACTOS\\nUsuario: mshuttleworth@edd.com", shape=box, style=filled, fillcolor=yellow];
+  titulo [label="LISTA CIRCULAR - CONTACTOS\\nUsuario: smejia@edd.com", shape=box, style=filled, fillcolor=yellow];
 
-  contacto0 [label="ID: 602763|Nombre: melvin|Email: melvin@edd.com"];
-
-  // Conexiones circulares
-  titulo -> contacto0;
-  contacto0 -> contacto0 [label="sig", color=red, style=dashed];
+  vacia [label="Lista Vacía", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
 }

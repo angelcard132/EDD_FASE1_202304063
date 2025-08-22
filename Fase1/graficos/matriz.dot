@@ -6,59 +6,6 @@ digraph MatrizDispersa {
   // Título
   titulo [label="MATRIZ DISPERSA - CORREOS ENVIADOS\\nFilas: Destinatarios | Columnas: Remitentes", shape=box, style=filled, fillcolor=yellow];
 
-  // Encabezados de columnas (Remitentes que enviaron correos)
-  subgraph cluster_remitentes {
-    label="REMITENTES (Columnas)";
-    style=filled;
-    fillcolor=lightblue;
-    rank=same;
-    rem0 [label="smejia@edd.com", fillcolor=lightblue];
-    rem1 [label="mshuttleworth@edd.com", fillcolor=lightblue];
-  }
-
-  // Filas de la matriz (Destinatarios que recibieron correos)
-  subgraph cluster_fila0 {
-    label="mshuttleworth@edd.com";
-    style=filled;
-    fillcolor=lightgreen;
-    rank=same;
-    dest0 [label="mshuttleworth@edd.com", fillcolor=lightgreen];
-    celda0_0 [label="1", fillcolor=orange, style="filled,bold"];
-    celda0_1 [label="0", fillcolor=white];
-  }
-
-  subgraph cluster_fila1 {
-    label="bfox@edd.com";
-    style=filled;
-    fillcolor=lightgreen;
-    rank=same;
-    dest1 [label="bfox@edd.com", fillcolor=lightgreen];
-    celda1_0 [label="1", fillcolor=orange, style="filled,bold"];
-    celda1_1 [label="0", fillcolor=white];
-  }
-
-  subgraph cluster_fila2 {
-    label="smejia@edd.com";
-    style=filled;
-    fillcolor=lightgreen;
-    rank=same;
-    dest2 [label="smejia@edd.com", fillcolor=lightgreen];
-    celda2_0 [label="0", fillcolor=white];
-    celda2_1 [label="1", fillcolor=orange, style="filled,bold"];
-  }
-
-  // Conexiones de estructura
-  titulo -> dest0;
-  dest0 -> celda0_0 [style=invisible];
-  celda0_0 -> celda0_1 [style=invisible];
-  dest1 -> celda1_0 [style=invisible];
-  celda1_0 -> celda1_1 [style=invisible];
-  dest2 -> celda2_0 [style=invisible];
-  celda2_0 -> celda2_1 [style=invisible];
-  dest0 -> dest1 [style=invisible];
-  dest1 -> dest2 [style=invisible];
-
-  // Leyenda
-  leyenda [label="Números indican cantidad de\\ncorreos ENVIADOS entre usuarios", shape=box, style=filled, fillcolor=lightyellow];
-  titulo -> leyenda [style=dashed];
+  vacia [label="No hay correos enviados para generar matriz", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
 }

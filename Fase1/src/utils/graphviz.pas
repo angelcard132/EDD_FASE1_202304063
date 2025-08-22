@@ -15,6 +15,10 @@ procedure GenerarGraficoPapelera(const archivo: String);
 procedure GenerarGraficoMatrizDispersa(const archivo: String);
 procedure GenerarTodosLosGraficos;
 
+// Funciones públicas para menu_root
+function EjecutarComando(const comando: String): Boolean;
+function ComprobarGraphviz: Boolean;
+
 implementation
 
 function LimpiarTextoGraphviz(const texto: String): String;

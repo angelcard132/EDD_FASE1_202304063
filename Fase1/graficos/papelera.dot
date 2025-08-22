@@ -4,7 +4,7 @@ digraph Papelera {
   edge [color=red, style=bold];
 
   // Título
-  titulo [label="PILA (LIFO) - PAPELERA\\nUsuario: mshuttleworth@edd.com", shape=box, style=filled, fillcolor=yellow];
+  titulo [label="PILA (LIFO) - PAPELERA\\nUsuario: smejia@edd.com", shape=box, style=filled, fillcolor=yellow];
 
   tope [label="TOPE", shape=box, style=filled, fillcolor=red];
 
