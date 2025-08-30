@@ -343,8 +343,8 @@ end;
 procedure GenerarGraficoPapelera(const archivo: String);
 var
   f: TextFile;
-  aux: PCorreo;
-  contador, correosEliminados: Integer;
+  aux: PCorreoPila;
+  contador: Integer;
 begin
   AssignFile(f, archivo);
   Rewrite(f);
@@ -361,19 +361,7 @@ begin
   WriteLn(f, '  tope [label="TOPE", shape=box, style=filled, fillcolor=red];');
   WriteLn(f, '');
   
-  // Contar correos eliminados
-  correosEliminados := 0;
-  aux := CorreosGlobal.primero;
-  while aux <> nil do
-  begin
-    if (aux^.estado = 'DEL') and 
-       ((LowerCase(aux^.destinatario) = LowerCase(UsuarioActivo.email)) or 
-        (LowerCase(aux^.remitente) = LowerCase(UsuarioActivo.email))) then
-      Inc(correosEliminados);
-    aux := aux^.siguiente;
-  end;
-  
-  if correosEliminados = 0 then
+  if PapeleraUsuarioActivo.tope = nil then
   begin
     WriteLn(f, '  vacia [label="Papelera Vacía", shape=box, style=filled, fillcolor=gray];');
     WriteLn(f, '  titulo -> vacia;');
@@ -381,42 +369,37 @@ begin
   end
   else
   begin
-    aux := CorreosGlobal.primero;
+    aux := PapeleraUsuarioActivo.tope;
     contador := 0;
     
-    // Generar nodos de correos eliminados
+    // Generar nodos de correos en la pila (LIFO)
     while aux <> nil do
     begin
-      if (aux^.estado = 'DEL') and 
-         ((LowerCase(aux^.destinatario) = LowerCase(UsuarioActivo.email)) or 
-          (LowerCase(aux^.remitente) = LowerCase(UsuarioActivo.email))) then
-      begin
-        WriteLn(f, '  eliminado', contador, ' [label="ID: ', aux^.id,
-                '|De: ', LimpiarTextoGraphviz(aux^.remitente),
-                '|Para: ', LimpiarTextoGraphviz(aux^.destinatario),
-                '|Asunto: ', LimpiarTextoGraphviz(aux^.asunto),
-                '|ELIMINADO"];');
-        Inc(contador);
-      end;
+      WriteLn(f, '  eliminado', contador, ' [label="ID: ', aux^.id,
+              '|De: ', LimpiarTextoGraphviz(aux^.remitente),
+              '|Asunto: ', LimpiarTextoGraphviz(aux^.asunto),
+              '|Fecha: ', LimpiarTextoGraphviz(aux^.fecha),
+              '|EN PILA"];');
       aux := aux^.siguiente;
+      Inc(contador);
     end;
     
     WriteLn(f, '');
     WriteLn(f, '  // Conexiones de pila (LIFO)');
     WriteLn(f, '  titulo -> tope;');
-    WriteLn(f, '  tope -> eliminado', contador - 1, ' [color=red];');
+    WriteLn(f, '  tope -> eliminado0 [color=red];');
     
     // Conexiones de pila (último eliminado arriba)
-    for contador := contador - 1 downto 1 do
-      WriteLn(f, '  eliminado', contador, ' -> eliminado', contador - 1, ';');
+    for contador := 0 to contador - 2 do
+      WriteLn(f, '  eliminado', contador, ' -> eliminado', contador + 1, ';');
       
-    WriteLn(f, '  eliminado0 -> null [style=dashed];');
+    WriteLn(f, '  eliminado', contador - 1, ' -> null [style=dashed];');
     WriteLn(f, '  null [label="NULL", shape=box, style=filled, fillcolor=gray];');
   end;
   
   WriteLn(f, '}');
   CloseFile(f);
-  WriteLn('📊 Gráfico de papelera generado: ', archivo);
+  WriteLn('📊 Gráfico de papelera (pila) generado: ', archivo);
 end;
 
 procedure GenerarGraficoMatrizDispersa(const archivo: String);
@@ -715,6 +698,23 @@ begin
   WriteLn('📁 Archivos disponibles en: ', carpeta);
   WriteLn('');
   WriteLn('📄 Archivos .dot (código fuente):');
+  WriteLn('   - usuarios.dot');
+  WriteLn('   - correos.dot');
+  WriteLn('   - contactos.dot');
+  WriteLn('   - cola.dot');
+  WriteLn('   - papelera.dot');
+  WriteLn('   - matriz.dot');
+  WriteLn('');
+  WriteLn('🖼️ Archivos .png (imágenes):');
+  WriteLn('   - usuarios.png');
+  WriteLn('   - correos.png');
+  WriteLn('   - contactos.png');
+  WriteLn('   - cola.png');
+  WriteLn('   - papelera.png');
+  WriteLn('   - matriz.png');
+end;
+
+end.
   WriteLn('   - usuarios.dot');
   WriteLn('   - correos.dot');
   WriteLn('   - contactos.dot');

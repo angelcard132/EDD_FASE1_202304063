@@ -5,7 +5,7 @@ unit bandeja;
 interface
 
 uses
-  glib2, gtk2, lista_doble, lista_simple, json_loader, SysUtils, papelera, globals, redactar;
+  glib2, gtk2, lista_doble, lista_simple, json_loader, SysUtils, papelera, globals, redactar, pila;
 
 procedure MostrarBandeja(const usuario: TUsuario);
 
@@ -135,8 +135,9 @@ var
     path: PGtkTreePath;
     indices: PGint;
     indice: Integer;
-    aux: PCorreo;
+    aux, anterior: PCorreo;
     contador: Integer;
+    encontrado: Boolean;
   begin
     selection := gtk_tree_view_get_selection(GTK_TREE_VIEW(data));
     if gtk_tree_selection_get_selected(selection, @model, @iter) then
@@ -149,21 +150,46 @@ var
       
       // Buscar el correo por posición en la lista filtrada
       aux := CorreosGlobal.primero;
+      anterior := nil;
       contador := 0;
+      encontrado := False;
+      
       while aux <> nil do
       begin
-        if LowerCase(aux^.destinatario) = LowerCase(usuario.email) then
+        if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
         begin
           if contador = indice then
           begin
-            aux^.estado := 'DEL';
-            // Actualizar solo esta fila en la tabla
-            gtk_list_store_set(PGtkListStore(model), @iter, 3, PChar('DEL'), -1);
+            encontrado := True;
             Break;
           end;
           Inc(contador);
         end;
+        anterior := aux;
         aux := aux^.siguiente;
+      end;
+      
+      if encontrado and (aux <> nil) then
+      begin
+        // Mover correo a la pila de papelera
+        Push(PapeleraUsuarioActivo, aux^.id, aux^.remitente, aux^.asunto, aux^.fecha, aux^.contenido);
+        
+        // Remover de la lista global
+        if anterior = nil then
+          CorreosGlobal.primero := aux^.siguiente
+        else
+          anterior^.siguiente := aux^.siguiente;
+          
+        if aux = CorreosGlobal.ultimo then
+          CorreosGlobal.ultimo := anterior;
+        
+        WriteLn('📧 Correo movido a papelera: ', aux^.asunto);
+        
+        // Liberar memoria del nodo original
+        Dispose(aux);
+        
+        // Actualizar la tabla removiendo la fila
+        gtk_list_store_remove(PGtkListStore(model), @iter);
       end;
     end;
   end;
@@ -205,8 +231,8 @@ begin
   hboxBotones := gtk_hbox_new(FALSE, 5);
   gtk_box_pack_start(GTK_BOX(vbox), hboxBotones, FALSE, FALSE, 5);
 
-  // Botón Eliminar
-  btnEliminar := gtk_button_new_with_label('Eliminar Correo');
+  // Botón Mover a Papelera
+  btnEliminar := gtk_button_new_with_label('🗑️ Mover a Papelera');
   g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarClicked), treeview);
   gtk_box_pack_start(GTK_BOX(hboxBotones), btnEliminar, FALSE, FALSE, 5);
 

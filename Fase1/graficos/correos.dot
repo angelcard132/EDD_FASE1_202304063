@@ -6,6 +6,12 @@ digraph ListaCorreos {
   // Título
   titulo [label="LISTA DOBLEMENTE ENLAZADA - CORREOS", shape=box, style=filled, fillcolor=yellow];
 
-  vacia [label="Lista Vacía", shape=box, style=filled, fillcolor=red];
-  titulo -> vacia;
+  correo0 [label="ID: 548813|De: smejia@edd.com|Para: jgosling@edd.com|Asunto: prueba|Estado: NL|Fecha: 24-8-25"];
+  correo1 [label="ID: 592844|De: smejia@edd.com|Para: bfox@edd.com|Asunto: asdasd|Estado: L|Fecha: 24-8-25"];
+
+  // Conexiones hacia adelante
+  titulo -> correo0;
+  correo0 -> correo1 [label="sig"];
+  correo-1 -> null [style=dashed];
+  null [label="NULL", shape=box, style=filled, fillcolor=gray];
 }

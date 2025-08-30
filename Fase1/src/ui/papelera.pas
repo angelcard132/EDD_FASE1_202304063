@@ -5,44 +5,17 @@ unit papelera;
 interface
 
 uses
-  glib2, gtk2, SysUtils, lista_doble, globals;
+  glib2, gtk2, SysUtils, pila, globals;
 
 procedure MostrarPapelera;
 
 implementation
 
-function LimpiarUTF8Papelera(const texto: String): String;
+procedure MostrarDetalleCorreoPapelera(correoPila: PCorreoPila);
 var
-  i: Integer;
-  resultado: String;
-begin
-  resultado := '';
-  for i := 1 to Length(texto) do
-  begin
-    if Ord(texto[i]) < 128 then  // Solo caracteres ASCII seguros
-      resultado := resultado + texto[i]
-    else
-      resultado := resultado + '?';  // Reemplazar caracteres problemáticos
-  end;
-  Result := resultado;
-end;
-
-procedure MostrarDetalleCorreo(correo: PCorreo);
-var
-  window, vbox, labelInfo, textView, scroll, btnRestaurar: PGtkWidget;
+  window, vbox, labelInfo, textView, scroll: PGtkWidget;
   buffer: PGtkTextBuffer;
   detalle: String;
-  
-  procedure OnRestaurarClicked(widget: PGtkWidget; data: gpointer); cdecl;
-  begin
-    if correo <> nil then
-    begin
-      correo^.estado := 'NL';  // Restaurar correo
-      WriteLn('✅ Correo restaurado: ', correo^.asunto);
-      gtk_widget_destroy(window);
-    end;
-  end;
-
 begin
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), 'Detalle del Correo (Papelera)');
@@ -53,11 +26,10 @@ begin
   gtk_container_add(GTK_CONTAINER(window), vbox);
 
   detalle :=
-    'De: ' + LimpiarUTF8Papelera(correo^.remitente) + LineEnding +
-    'Para: ' + LimpiarUTF8Papelera(correo^.destinatario) + LineEnding +
-    'Asunto: ' + LimpiarUTF8Papelera(correo^.asunto) + LineEnding +
-    'Fecha: ' + LimpiarUTF8Papelera(correo^.fecha) + LineEnding +
-    'Estado: ELIMINADO';
+    'De: ' + correoPila^.remitente + LineEnding +
+    'Asunto: ' + correoPila^.asunto + LineEnding +
+    'Fecha: ' + correoPila^.fecha + LineEnding +
+    'Estado: EN PAPELERA';
 
   labelInfo := gtk_label_new(PChar(detalle));
   gtk_label_set_selectable(GTK_LABEL(labelInfo), True);
@@ -71,17 +43,12 @@ begin
   gtk_text_view_set_editable(GTK_TEXT_VIEW(textView), FALSE);
   buffer := gtk_text_view_get_buffer(GTK_TEXT_VIEW(textView));
   
-  if correo^.contenido <> '' then
-    gtk_text_buffer_set_text(buffer, PChar(LimpiarUTF8Papelera(correo^.contenido)), -1)
+  if correoPila^.mensaje <> '' then
+    gtk_text_buffer_set_text(buffer, PChar(correoPila^.mensaje), -1)
   else
     gtk_text_buffer_set_text(buffer, PChar('(Sin contenido)'), -1);
-
+    
   gtk_container_add(GTK_CONTAINER(scroll), textView);
-
-  // Botón para restaurar
-  btnRestaurar := gtk_button_new_with_label('↩ Restaurar Correo');
-  g_signal_connect(btnRestaurar, 'clicked', G_CALLBACK(@OnRestaurarClicked), nil);
-  gtk_box_pack_start(GTK_BOX(vbox), btnRestaurar, FALSE, FALSE, 5);
 
   gtk_widget_show_all(window);
 end;
@@ -90,97 +57,89 @@ procedure OnRowActivated(treeview: PGtkTreeView; path: PGtkTreePath; column: PGt
 var
   model: PGtkTreeModel;
   iter: TGtkTreeIter;
-  pRem: Pgchar = nil;
-  pAsu: Pgchar = nil;
-  pFec: Pgchar = nil;
-  sRem, sAsu, sFec: String;
-  aux: PCorreo;
+  pId: Pgchar = nil;
+  sId: String;
+  idCorreo: Integer;
+  aux: PCorreoPila;
 begin
   model := gtk_tree_view_get_model(treeview);
   if gtk_tree_model_get_iter(model, @iter, path) then
   begin
     try
-      gtk_tree_model_get(model, @iter, 0, @pRem, 1, @pAsu, 2, @pFec, -1);
-      if pRem <> nil then sRem := LimpiarUTF8Papelera(StrPas(pRem));
-      if pAsu <> nil then sAsu := LimpiarUTF8Papelera(StrPas(pAsu));
-      if pFec <> nil then sFec := LimpiarUTF8Papelera(StrPas(pFec));
-
-      aux := CorreosGlobal.primero;
-      while aux <> nil do
+      gtk_tree_model_get(model, @iter, 0, @pId, -1);
+      if pId <> nil then sId := StrPas(pId);
+      
+      if TryStrToInt(sId, idCorreo) then
       begin
-        if (LimpiarUTF8Papelera(aux^.remitente) = sRem) and 
-           (LimpiarUTF8Papelera(aux^.asunto) = sAsu) and 
-           (LimpiarUTF8Papelera(aux^.fecha) = sFec) and 
-           (aux^.estado = 'DEL') then
+        // Buscar el correo en la pila por ID
+        aux := PapeleraUsuarioActivo.tope;
+        while aux <> nil do
         begin
-          MostrarDetalleCorreo(aux);
-          // Actualizar estado en la tabla si fue restaurado
-          gtk_list_store_set(PGtkListStore(model), @iter, 3, PChar(aux^.estado), -1);
-          Break;
+          if aux^.id = idCorreo then
+          begin
+            MostrarDetalleCorreoPapelera(aux);
+            Break;
+          end;
+          aux := aux^.siguiente;
         end;
-        aux := aux^.siguiente;
       end;
     finally
-      if pRem <> nil then g_free(pRem);
-      if pAsu <> nil then g_free(pAsu);
-      if pFec <> nil then g_free(pFec);
+      if pId <> nil then g_free(pId);
     end;
   end;
 end;
 
 procedure MostrarPapelera;
 var
-  window, vbox, scroll, treeview, lblUsuario, hboxBotones, btnActualizar: PGtkWidget;
+  window, vbox, scroll, treeview, lblUsuario, hboxBotones, btnVaciar: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
-  aux: PCorreo;
+  aux: PCorreoPila;
   tituloUsuario: String;
   correosPapelera: Integer;
   
-  procedure OnActualizarClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  procedure OnVaciarPapeleraClicked(widget: PGtkWidget; data: gpointer); cdecl;
   var
-    aux: PCorreo;
-    nuevaStore: PGtkListStore;
-    iter: TGtkTreeIter;
+    aux: PCorreoPila;
+    eliminados: Integer;
   begin
-    // Limpiar y recargar la tabla
-    nuevaStore := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    eliminados := 0;
     
-    aux := CorreosGlobal.primero;
-    while aux <> nil do
+    WriteLn('🗑️ Vaciando papelera...');
+    
+    // Vaciar completamente la pila
+    while PapeleraUsuarioActivo.tope <> nil do
     begin
-      // Mostrar correos eliminados que involucren al usuario actual (enviados o recibidos)
-      if (aux^.estado = 'DEL') and 
-         ((LowerCase(aux^.destinatario) = LowerCase(UsuarioActivo.email)) or 
-          (LowerCase(aux^.remitente) = LowerCase(UsuarioActivo.email))) then
+      aux := Pop(PapeleraUsuarioActivo);
+      if aux <> nil then
       begin
-        gtk_list_store_append(nuevaStore, @iter);
-        gtk_list_store_set(nuevaStore, @iter,
-          0, PChar(LimpiarUTF8Papelera(aux^.remitente)),
-          1, PChar(LimpiarUTF8Papelera(aux^.asunto)),
-          2, PChar(LimpiarUTF8Papelera(aux^.fecha)),
-          3, PChar('ELIMINADO'),
-          -1);
+        WriteLn('  🗑️ Eliminado permanentemente: ', aux^.asunto);
+        Inc(eliminados);
+        Dispose(aux);
       end;
-      aux := aux^.siguiente;
     end;
     
-    gtk_tree_view_set_model(GTK_TREE_VIEW(treeview), GTK_TREE_MODEL(nuevaStore));
-    WriteLn('🔄 Papelera actualizada');
+    WriteLn('📊 Total correos eliminados permanentemente: ', eliminados);
+    
+    // Limpiar la tabla
+    store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    gtk_tree_view_set_model(GTK_TREE_VIEW(treeview), GTK_TREE_MODEL(store));
+    
+    WriteLn('✅ Papelera vaciada completamente');
   end;
 
 begin
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(window), 'Papelera');
+  gtk_window_set_title(GTK_WINDOW(window), 'Papelera (Pila LIFO)');
   gtk_window_set_default_size(GTK_WINDOW(window), 650, 400);
 
   vbox := gtk_vbox_new(FALSE, 5);
   gtk_container_add(GTK_CONTAINER(window), vbox);
 
   // Mostrar a qué usuario pertenece la papelera
-  tituloUsuario := 'Papelera de: ' + UsuarioActivo.email;
+  tituloUsuario := 'Papelera de: ' + UsuarioActivo.email + ' (Estructura: Pila LIFO)';
   lblUsuario := gtk_label_new(PChar('<b>' + tituloUsuario + '</b>'));
   gtk_label_set_use_markup(GTK_LABEL(lblUsuario), TRUE);
   gtk_box_pack_start(GTK_BOX(vbox), lblUsuario, FALSE, FALSE, 5);
@@ -188,23 +147,64 @@ begin
   scroll := gtk_scrolled_window_new(nil, nil);
   gtk_box_pack_start(GTK_BOX(vbox), scroll, TRUE, TRUE, 0);
 
-  // 4 columnas: Remitente | Asunto | Fecha | Estado
+  // 4 columnas: ID | Remitente | Asunto | Fecha
   store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
   treeview := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
 
   renderer := gtk_cell_renderer_text_new;
-  column := gtk_tree_view_column_new_with_attributes('Remitente', renderer, 'text', 0, nil);
+  column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 80);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+  renderer := gtk_cell_renderer_text_new;
+  column := gtk_tree_view_column_new_with_attributes('Remitente', renderer, 'text', 1, nil);
   gtk_tree_view_column_set_min_width(column, 150);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
-  column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 1, nil);
+  column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 2, nil);
   gtk_tree_view_column_set_min_width(column, 200);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
-  column := gtk_tree_view_column_new_with_attributes('Fecha', renderer, 'text', 2, nil);
+  column := gtk_tree_view_column_new_with_attributes('Fecha', renderer, 'text', 3, nil);
   gtk_tree_view_column_set_min_width(column, 100);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+  gtk_container_add(GTK_CONTAINER(scroll), treeview);
+
+  // Botones
+  hboxBotones := gtk_hbox_new(FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), hboxBotones, FALSE, FALSE, 5);
+
+  btnVaciar := gtk_button_new_with_label('🗑️ Vaciar Papelera');
+  g_signal_connect(btnVaciar, 'clicked', G_CALLBACK(@OnVaciarPapeleraClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxBotones), btnVaciar, FALSE, FALSE, 5);
+
+  // Llenar la tabla con correos de la pila (LIFO - último eliminado arriba)
+  correosPapelera := 0;
+  aux := PapeleraUsuarioActivo.tope;
+  while aux <> nil do
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+      0, PChar(IntToStr(aux^.id)),
+      1, PChar(aux^.remitente),
+      2, PChar(aux^.asunto),
+      3, PChar(aux^.fecha),
+      -1);
+    aux := aux^.siguiente;
+    Inc(correosPapelera);
+  end;
+
+  WriteLn('🗑️ Correos en papelera para ', UsuarioActivo.email, ': ', correosPapelera);
+
+  g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnRowActivated), nil);
+
+  gtk_widget_show_all(window);
+end;
+
+end.
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;

@@ -1,0 +1,54 @@
+digraph ListaDoble {
+    rankdir=LR;
+    node [shape=record, style=filled, fillcolor=lightgreen];
+    edge [color=darkgreen];
+
+    // TÃ­tulo
+    title [label="Lista Doblemente Enlazada de Correos", shape=plaintext, fontsize=16, fontweight=bold];
+
+    correo0 [label="ID: 101|De: soporte@edd.com|Para: lgarcia@edd.com|Asunto: Bienvenido Luis|Estado: NL"];
+    correo1 [label="ID: 102|De: ventas@edd.com|Para: lgarcia@edd.com|Asunto: Promociones del mes|Estado: NL"];
+    correo2 [label="ID: 201|De: noticias@edd.com|Para: mitzep@edd.com|Asunto: Resumen semanal|Estado: NL"];
+    correo3 [label="ID: 202|De: soporte@edd.com|Para: mitzep@edd.com|Asunto: Actualización de seguridad|Estado: NL"];
+    correo4 [label="ID: 203|De: eventos@edd.com|Para: mitzep@edd.com|Asunto: Invitación a webinar|Estado: NL"];
+    correo5 [label="ID: 301|De: gkroah-hartman@linuxfoundation.org|Para: gkroah-hartman@edd.com|Asunto: Revisión de Kernel|Estado: NL"];
+    correo6 [label="ID: 302|De: soporte@edd.com|Para: gkroah-hartman@edd.com|Asunto: Verificación de cuenta|Estado: NL"];
+    correo7 [label="ID: 401|De: eventos@edd.com|Para: mshuttleworth@edd.com|Asunto: Conferencia en línea|Estado: NL"];
+    correo8 [label="ID: 501|De: rrhh@edd.com|Para: smejia@edd.com|Asunto: Revisión de desempeño|Estado: NL"];
+    correo9 [label="ID: 502|De: soporte@edd.com|Para: smejia@edd.com|Asunto: Mantenimiento programado|Estado: NL"];
+    correo10 [label="ID: 601|De: bfox@edd.com|Para: bfox@edd.com|Asunto: Scripts actualizados|Estado: NL"];
+    correo11 [label="ID: 701|De: jcorbet@lwn.net|Para: jcorbet@edd.com|Asunto: Publicación pendiente|Estado: NL"];
+    correo12 [label="ID: 801|De: ksandler@sfconservancy.org|Para: ksandler@edd.com|Asunto: Colaboración comunitaria|Estado: NL"];
+    correo13 [label="ID: 901|De: mbaker@mozilla.org|Para: mbaker@edd.com|Asunto: Plan estratégico|Estado: NL"];
+    correo14 [label="ID: 1001|De: imurdock@debian.org|Para: imurdock@edd.com|Asunto: Reunión de Debian|Estado: NL"];
+
+    // Conexiones hacia adelante
+    correo0 -> correo1 [label="sig"];
+    correo1 -> correo2 [label="sig"];
+    correo2 -> correo3 [label="sig"];
+    correo3 -> correo4 [label="sig"];
+    correo4 -> correo5 [label="sig"];
+    correo5 -> correo6 [label="sig"];
+    correo6 -> correo7 [label="sig"];
+    correo7 -> correo8 [label="sig"];
+    correo8 -> correo9 [label="sig"];
+    correo9 -> correo10 [label="sig"];
+    correo10 -> correo11 [label="sig"];
+    correo11 -> correo12 [label="sig"];
+    correo12 -> correo13 [label="sig"];
+    correo13 -> correo14 [label="sig"];
+
+    // Conexiones hacia atrÃ¡s
+    correo1 -> correo0 [label="ant", color=red, style=dashed];
+    correo2 -> correo1 [label="ant", color=red, style=dashed];
+    correo3 -> correo2 [label="ant", color=red, style=dashed];
+    correo4 -> correo3 [label="ant", color=red, style=dashed];
+    correo5 -> correo4 [label="ant", color=red, style=dashed];
+    correo6 -> correo5 [label="ant", color=red, style=dashed];
+    correo7 -> correo6 [label="ant", color=red, style=dashed];
+    correo8 -> correo7 [label="ant", color=red, style=dashed];
+    correo9 -> correo8 [label="ant", color=red, style=dashed];
+    correo10 -> correo9 [label="ant", color=red, style=dashed];
+    correo11 -> correo10 [label="ant", color=red, style=dashed];
+    correo12 -> correo11 [label="ant", color=red, style=dashed];
+}

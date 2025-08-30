@@ -1,0 +1,17 @@
+digraph ListaDobleCorreos {
+    rankdir=LR;
+    node [shape=record, style=filled, fillcolor=lightgreen];
+    edge [color=darkgreen];
+
+    // Título
+    title [label="Correos de: bfox@edd.com", shape=plaintext, fontsize=16, fontweight=bold];
+
+    correo0 [label="ID: 601|De: bfox@edd.com|Asunto: Scripts actualizados|Estado: L"];
+
+    // Estadísticas
+    stats [label="Total de correos en bandeja: 1", shape=plaintext, fontsize=12, fontcolor=blue];
+
+    // Conexiones hacia adelante
+
+    // Conexiones hacia atrás
+}
