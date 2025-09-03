@@ -5,7 +5,7 @@ unit graphviz;
 interface
 
 uses
-  SysUtils, Classes, Process, lista_simple, lista_doble, lista_circular, cola, pila, globals;
+  SysUtils, Classes, Process, lista_simple, lista_doble, lista_circular, cola, pila, globals, comunidades;
 
 procedure GenerarGraficoUsuarios(const archivo: String);
 procedure GenerarGraficoCorreos(const archivo: String);
@@ -13,6 +13,7 @@ procedure GenerarGraficoContactos(const archivo: String);
 procedure GenerarGraficoCola(const archivo: String);
 procedure GenerarGraficoPapelera(const archivo: String);
 procedure GenerarGraficoMatrizDispersa(const archivo: String);
+procedure GenerarGraficoComunidades(const archivo: String);
 procedure GenerarTodosLosGraficos;
 
 // Funciones públicas para menu_root
@@ -610,12 +611,122 @@ begin
   WriteLn('📊 Gráfico de matriz dispersa (correos enviados) generado: ', archivo);
 end;
 
+procedure GenerarGraficoComunidades(const archivo: String);
+var
+  f: TextFile;
+  auxComunidad: PComunidad;
+  auxMiembro: PMiembroComunidad;
+  contadorComunidades, contadorMiembros: Integer;
+begin
+  AssignFile(f, archivo);
+  Rewrite(f);
+  
+  WriteLn(f, 'digraph Comunidades {');
+  WriteLn(f, '  rankdir=LR;');
+  WriteLn(f, '  node [shape=record, style=filled];');
+  WriteLn(f, '  edge [color=blue, style=bold];');
+  WriteLn(f, '');
+  WriteLn(f, '  // Título');
+  WriteLn(f, '  titulo [label="LISTA DE LISTAS - COMUNIDADES", shape=box, style=filled, fillcolor=yellow];');
+  WriteLn(f, '');
+  
+  if ComunidadesGlobal.primero = nil then
+  begin
+    WriteLn(f, '  vacia [label="No hay comunidades creadas", shape=box, style=filled, fillcolor=red];');
+    WriteLn(f, '  titulo -> vacia;');
+  end
+  else
+  begin
+    auxComunidad := ComunidadesGlobal.primero;
+    contadorComunidades := 0;
+    
+    // Generar nodos de comunidades (lista principal)
+    WriteLn(f, '  // Lista principal de comunidades');
+    while auxComunidad <> nil do
+    begin
+      WriteLn(f, '  comunidad', contadorComunidades, ' [label="COMUNIDAD\\nID: ', auxComunidad^.id,
+              '\\nNombre: ', LimpiarTextoGraphviz(auxComunidad^.nombre),
+              '\\nMiembros: ', ContarMiembrosComunidad(auxComunidad),
+              '", fillcolor=lightblue];');
+      
+      // Generar sublista de miembros para esta comunidad
+      if auxComunidad^.miembros.primero <> nil then
+      begin
+        WriteLn(f, '');
+        WriteLn(f, '  // Sublista de miembros de la comunidad ', contadorComunidades);
+        WriteLn(f, '  subgraph cluster_miembros', contadorComunidades, ' {');
+        WriteLn(f, '    label="Miembros de: ', LimpiarTextoGraphviz(auxComunidad^.nombre), '";');
+        WriteLn(f, '    style=filled;');
+        WriteLn(f, '    fillcolor=lightgreen;');
+        WriteLn(f, '    node [fillcolor=white];');
+        
+        auxMiembro := auxComunidad^.miembros.primero;
+        contadorMiembros := 0;
+        
+        while auxMiembro <> nil do
+        begin
+          WriteLn(f, '    miembro', contadorComunidades, '_', contadorMiembros, 
+                  ' [label="ID: ', auxMiembro^.usuario^.id,
+                  '\\nNombre: ', LimpiarTextoGraphviz(auxMiembro^.usuario^.nombre),
+                  '\\nEmail: ', LimpiarTextoGraphviz(auxMiembro^.usuario^.email),
+                  '"];');
+          auxMiembro := auxMiembro^.siguiente;
+          Inc(contadorMiembros);
+        end;
+        
+        // Conexiones dentro de la sublista de miembros
+        if contadorMiembros > 0 then
+        begin
+          WriteLn(f, '    // Conexiones de la sublista');
+          for contadorMiembros := 0 to contadorMiembros - 2 do
+            WriteLn(f, '    miembro', contadorComunidades, '_', contadorMiembros, 
+                    ' -> miembro', contadorComunidades, '_', contadorMiembros + 1, ';');
+        end;
+        
+        WriteLn(f, '  }');
+        WriteLn(f, '');
+        
+        // Conexión de la comunidad a su primer miembro
+        WriteLn(f, '  comunidad', contadorComunidades, ' -> miembro', contadorComunidades, '_0 [color=red, style=dashed];');
+      end
+      else
+      begin
+        // Comunidad sin miembros
+        WriteLn(f, '  vacia', contadorComunidades, ' [label="Sin miembros", shape=box, style=filled, fillcolor=gray];');
+        WriteLn(f, '  comunidad', contadorComunidades, ' -> vacia', contadorComunidades, ' [color=red, style=dashed];');
+      end;
+      
+      auxComunidad := auxComunidad^.siguiente;
+      Inc(contadorComunidades);
+    end;
+    
+    WriteLn(f, '');
+    WriteLn(f, '  // Conexiones de la lista principal');
+    WriteLn(f, '  titulo -> comunidad0 [color=blue];');
+    
+    for contadorComunidades := 0 to contadorComunidades - 2 do
+      WriteLn(f, '  comunidad', contadorComunidades, ' -> comunidad', contadorComunidades + 1, ' [color=blue];');
+      
+    WriteLn(f, '  comunidad', contadorComunidades - 1, ' -> null [style=dashed];');
+    WriteLn(f, '  null [label="NULL", shape=box, style=filled, fillcolor=gray];');
+    
+    WriteLn(f, '');
+    WriteLn(f, '  // Leyenda');
+    WriteLn(f, '  leyenda [label="Azul: Lista principal\\nRojo: Enlace a sublistas\\nVerde: Sublistas de miembros", shape=box, style=filled, fillcolor=lightyellow];');
+    WriteLn(f, '  titulo -> leyenda [style=dotted];');
+  end;
+  
+  WriteLn(f, '}');
+  CloseFile(f);
+  WriteLn('📊 Gráfico de comunidades (lista de listas) generado: ', archivo);
+end;
+
 procedure GenerarTodosLosGraficos;
 var
   carpeta: String;
   comando: String;
-  archivos: array[0..5] of String;
-  nombres: array[0..5] of String;
+  archivos: array[0..6] of String;
+  nombres: array[0..6] of String;
   i: Integer;
   exito: Boolean;
 begin
@@ -636,6 +747,7 @@ begin
   GenerarGraficoCola(carpeta + 'cola.dot');
   GenerarGraficoPapelera(carpeta + 'papelera.dot');
   GenerarGraficoMatrizDispersa(carpeta + 'matriz.dot');
+  GenerarGraficoComunidades(carpeta + 'comunidades.dot');
   
   WriteLn('');
   
@@ -654,6 +766,7 @@ begin
     WriteLn('   dot -Tpng cola.dot -o cola.png');
     WriteLn('   dot -Tpng papelera.dot -o papelera.png');
     WriteLn('   dot -Tpng matriz.dot -o matriz.png');
+    WriteLn('   dot -Tpng comunidades.dot -o comunidades.png');
     Exit;
   end;
   
@@ -666,6 +779,7 @@ begin
   archivos[3] := 'cola';
   archivos[4] := 'papelera';
   archivos[5] := 'matriz';
+  archivos[6] := 'comunidades';
   
   nombres[0] := 'Lista Simple - Usuarios';
   nombres[1] := 'Lista Doble - Correos';
@@ -673,9 +787,10 @@ begin
   nombres[3] := 'Cola - Programados';
   nombres[4] := 'Pila - Papelera';
   nombres[5] := 'Matriz Dispersa - Relaciones';
+  nombres[6] := 'Lista de Listas - Comunidades';
   
   // Generar archivos PNG
-  for i := 0 to 5 do
+  for i := 0 to 6 do
   begin
     Write('  📊 Generando ', nombres[i], '... ');
     
@@ -704,6 +819,7 @@ begin
   WriteLn('   - cola.dot');
   WriteLn('   - papelera.dot');
   WriteLn('   - matriz.dot');
+  WriteLn('   - comunidades.dot');
   WriteLn('');
   WriteLn('🖼️ Archivos .png (imágenes):');
   WriteLn('   - usuarios.png');
@@ -712,23 +828,7 @@ begin
   WriteLn('   - cola.png');
   WriteLn('   - papelera.png');
   WriteLn('   - matriz.png');
-end;
-
-end.
-  WriteLn('   - usuarios.dot');
-  WriteLn('   - correos.dot');
-  WriteLn('   - contactos.dot');
-  WriteLn('   - cola.dot');
-  WriteLn('   - papelera.dot');
-  WriteLn('   - matriz.dot');
-  WriteLn('');
-  WriteLn('🖼️ Archivos .png (imágenes):');
-  WriteLn('   - usuarios.png');
-  WriteLn('   - correos.png');
-  WriteLn('   - contactos.png');
-  WriteLn('   - cola.png');
-  WriteLn('   - papelera.png');
-  WriteLn('   - matriz.png');
+  WriteLn('   - comunidades.png');
 end;
 
 end.

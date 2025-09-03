@@ -1,0 +1,54 @@
+digraph Comunidades {
+  rankdir=LR;
+  node [shape=record, style=filled];
+  edge [color=blue, style=bold];
+
+  // Título
+  titulo [label="LISTA DE LISTAS - COMUNIDADES", shape=box, style=filled, fillcolor=yellow];
+
+  // Lista principal de comunidades
+  comunidad0 [label="COMUNIDAD\\nID: 1\\nNombre: carros\\nMiembros: 1", fillcolor=lightblue];
+
+  // Sublista de miembros de la comunidad 0
+  subgraph cluster_miembros0 {
+    label="Miembros de: carros";
+    style=filled;
+    fillcolor=lightgreen;
+    node [fillcolor=white];
+    miembro0_0 [label="ID: 6\\nNombre: Brian Fox\\nEmail: bfox@edd.com"];
+    // Conexiones de la sublista
+  }
+
+  comunidad0 -> miembro0_0 [color=red, style=dashed];
+  comunidad1 [label="COMUNIDAD\\nID: 2\\nNombre: compras\\nMiembros: 0", fillcolor=lightblue];
+  vacia1 [label="Sin miembros", shape=box, style=filled, fillcolor=gray];
+  comunidad1 -> vacia1 [color=red, style=dashed];
+  comunidad2 [label="COMUNIDAD\\nID: 3\\nNombre: internet\\nMiembros: 1", fillcolor=lightblue];
+
+  // Sublista de miembros de la comunidad 2
+  subgraph cluster_miembros2 {
+    label="Miembros de: internet";
+    style=filled;
+    fillcolor=lightgreen;
+    node [fillcolor=white];
+    miembro2_0 [label="ID: 5\\nNombre: Steven Mejia\\nEmail: smejia@edd.com"];
+    // Conexiones de la sublista
+  }
+
+  comunidad2 -> miembro2_0 [color=red, style=dashed];
+  comunidad3 [label="COMUNIDAD\\nID: 4\\nNombre: youtube\\nMiembros: 0", fillcolor=lightblue];
+  vacia3 [label="Sin miembros", shape=box, style=filled, fillcolor=gray];
+  comunidad3 -> vacia3 [color=red, style=dashed];
+
+  // Conexiones de la lista principal
+  titulo -> comunidad0 [color=blue];
+  comunidad0 -> comunidad1 [color=blue];
+  comunidad1 -> comunidad2 [color=blue];
+  comunidad2 -> comunidad3 [color=blue];
+  comunidad1 -> null [style=dashed];
+  null [label="NULL", shape=box, style=filled, fillcolor=gray];
+
+  // Leyenda
+  leyenda [label="Azul: Lista principal\\nRojo: Enlace a sublistas\\nVerde: Sublistas de miembros", shape=box, style=filled, fillcolor=lightyellow];
+  titulo -> leyenda [style=dotted];
+}

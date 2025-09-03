@@ -91,7 +91,7 @@ end;
 
 procedure MostrarPapelera;
 var
-  window, vbox, scroll, treeview, lblUsuario, hboxBotones, btnVaciar: PGtkWidget;
+  window, vbox, scroll, treeview, lblUsuario, hboxBotones, btnVaciar, btnActualizar: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -99,6 +99,30 @@ var
   aux: PCorreoPila;
   tituloUsuario: String;
   correosPapelera: Integer;
+  
+  procedure ActualizarTabla;
+  begin
+    // Limpiar tabla actual
+    gtk_list_store_clear(store);
+    
+    // Llenar la tabla con correos de la pila (LIFO - último eliminado arriba)
+    correosPapelera := 0;
+    aux := PapeleraUsuarioActivo.tope;
+    while aux <> nil do
+    begin
+      gtk_list_store_append(store, @iter);
+      gtk_list_store_set(store, @iter,
+        0, PChar(IntToStr(aux^.id)),
+        1, PChar(aux^.remitente),
+        2, PChar(aux^.asunto),
+        3, PChar(aux^.fecha),
+        -1);
+      aux := aux^.siguiente;
+      Inc(correosPapelera);
+    end;
+    
+    WriteLn('🗑️ Papelera actualizada: ', correosPapelera, ' correos para ', UsuarioActivo.email);
+  end;
   
   procedure OnVaciarPapeleraClicked(widget: PGtkWidget; data: gpointer); cdecl;
   var
@@ -123,11 +147,16 @@ var
     
     WriteLn('📊 Total correos eliminados permanentemente: ', eliminados);
     
-    // Limpiar la tabla
-    store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(treeview), GTK_TREE_MODEL(store));
+    // Actualizar la interfaz limpiando la tabla
+    ActualizarTabla;
     
     WriteLn('✅ Papelera vaciada completamente');
+  end;
+  
+  procedure OnActualizarClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  begin
+    WriteLn('🔄 Actualizando vista de papelera...');
+    ActualizarTabla;
   end;
 
 begin
@@ -177,53 +206,24 @@ begin
   hboxBotones := gtk_hbox_new(FALSE, 5);
   gtk_box_pack_start(GTK_BOX(vbox), hboxBotones, FALSE, FALSE, 5);
 
+  btnActualizar := gtk_button_new_with_label('🔄 Actualizar');
+  g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxBotones), btnActualizar, FALSE, FALSE, 5);
+
   btnVaciar := gtk_button_new_with_label('🗑️ Vaciar Papelera');
   g_signal_connect(btnVaciar, 'clicked', G_CALLBACK(@OnVaciarPapeleraClicked), nil);
   gtk_box_pack_start(GTK_BOX(hboxBotones), btnVaciar, FALSE, FALSE, 5);
 
-  // Llenar la tabla con correos de la pila (LIFO - último eliminado arriba)
-  correosPapelera := 0;
-  aux := PapeleraUsuarioActivo.tope;
-  while aux <> nil do
-  begin
-    gtk_list_store_append(store, @iter);
-    gtk_list_store_set(store, @iter,
-      0, PChar(IntToStr(aux^.id)),
-      1, PChar(aux^.remitente),
-      2, PChar(aux^.asunto),
-      3, PChar(aux^.fecha),
-      -1);
-    aux := aux^.siguiente;
-    Inc(correosPapelera);
-  end;
+  // Cargar correos iniciales en la tabla
+  ActualizarTabla;
 
-  WriteLn('🗑️ Correos en papelera para ', UsuarioActivo.email, ': ', correosPapelera);
-
+  // Doble clic en una fila → abre detalle
   g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnRowActivated), nil);
 
   gtk_widget_show_all(window);
 end;
 
 end.
-  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-  renderer := gtk_cell_renderer_text_new;
-  column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
-  gtk_tree_view_column_set_min_width(column, 100);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-  gtk_container_add(GTK_CONTAINER(scroll), treeview);
-
-  // Botones
-  hboxBotones := gtk_hbox_new(FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), hboxBotones, FALSE, FALSE, 5);
-
-  btnActualizar := gtk_button_new_with_label('🔄 Actualizar');
-  g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarClicked), nil);
-  gtk_box_pack_start(GTK_BOX(hboxBotones), btnActualizar, FALSE, FALSE, 5);
-
-  // Llenar la tabla con correos eliminados del usuario actual
-  correosPapelera := 0;
   aux := CorreosGlobal.primero;
   while aux <> nil do
   begin

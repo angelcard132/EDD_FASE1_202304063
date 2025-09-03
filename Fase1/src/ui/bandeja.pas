@@ -5,7 +5,7 @@ unit bandeja;
 interface
 
 uses
-  glib2, gtk2, lista_doble, lista_simple, json_loader, SysUtils, papelera, globals, redactar, pila;
+  glib2, gtk2, lista_doble, lista_simple, json_loader, SysUtils, StrUtils, papelera, globals, redactar, pila;
 
 procedure MostrarBandeja(const usuario: TUsuario);
 
@@ -119,7 +119,8 @@ end;
 
 procedure MostrarBandeja(const usuario: TUsuario);
 var
-  window, vbox, hboxBotones, scroll, treeview, btnEliminar: PGtkWidget;
+  window, vbox, hboxBotones, hboxOrden, scroll, treeview, btnEliminar: PGtkWidget;
+  lblOrden, btnOrdenAZ, btnOrdenZA, btnOrdenFechaAsc, btnOrdenFechaDesc: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -127,80 +128,258 @@ var
   aux: PCorreo;
   correosEncontrados: Integer;
   
+  procedure ActualizarTablaOrdenada(ordenarPor: String; ascendente: Boolean);
+  var
+    listaCorreos: array of PCorreo;
+    i, j, totalCorreos: Integer;
+    temp: PCorreo;
+    intercambio: Boolean;
+    comparacion: Integer;
+  begin
+    // Limpiar tabla actual
+    gtk_list_store_clear(store);
+    
+    // Recopilar correos del usuario en array
+    SetLength(listaCorreos, 0);
+    aux := CorreosGlobal.primero;
+    while aux <> nil do
+    begin
+      if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
+      begin
+        SetLength(listaCorreos, Length(listaCorreos) + 1);
+        listaCorreos[High(listaCorreos)] := aux;
+      end;
+      aux := aux^.siguiente;
+    end;
+    
+    totalCorreos := Length(listaCorreos);
+    if totalCorreos = 0 then Exit;
+    
+    // Ordenamiento burbuja
+    for i := 0 to totalCorreos - 2 do
+    begin
+      intercambio := False;
+      for j := 0 to totalCorreos - i - 2 do
+      begin
+        // Determinar comparación según el criterio
+        if ordenarPor = 'asunto' then
+          comparacion := CompareText(listaCorreos[j]^.asunto, listaCorreos[j + 1]^.asunto)
+        else if ordenarPor = 'remitente' then
+          comparacion := CompareText(listaCorreos[j]^.remitente, listaCorreos[j + 1]^.remitente)
+        else if ordenarPor = 'fecha' then
+          comparacion := CompareText(listaCorreos[j]^.fecha, listaCorreos[j + 1]^.fecha)
+        else
+          comparacion := 0;
+        
+        // Aplicar dirección de ordenamiento
+        if not ascendente then
+          comparacion := -comparacion;
+        
+        if comparacion > 0 then
+        begin
+          temp := listaCorreos[j];
+          listaCorreos[j] := listaCorreos[j + 1];
+          listaCorreos[j + 1] := temp;
+          intercambio := True;
+        end;
+      end;
+      if not intercambio then Break; // Ya está ordenado
+    end;
+    
+    // Llenar tabla con datos ordenados
+    for i := 0 to totalCorreos - 1 do
+    begin
+      gtk_list_store_append(store, @iter);
+      gtk_list_store_set(store, @iter,
+        0, PChar(LimpiarUTF8(listaCorreos[i]^.remitente)),
+        1, PChar(LimpiarUTF8(listaCorreos[i]^.asunto)),
+        2, PChar(LimpiarUTF8(listaCorreos[i]^.fecha)),
+        3, PChar(LimpiarUTF8(listaCorreos[i]^.estado)),
+        -1);
+    end;
+    
+    if ascendente then
+      WriteLn('📧 Correos ordenados por ', ordenarPor, ' (A-Z): ', totalCorreos, ' correos')
+    else
+      WriteLn('📧 Correos ordenados por ', ordenarPor, ' (Z-A): ', totalCorreos, ' correos');
+  end;
+  
+  procedure OnOrdenAZClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  begin
+    WriteLn('🔤 Ordenando por asunto A-Z...');
+    ActualizarTablaOrdenada('asunto', True);
+  end;
+  
+  procedure OnOrdenZAClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  begin
+    WriteLn('🔤 Ordenando por asunto Z-A...');
+    ActualizarTablaOrdenada('asunto', False);
+  end;
+  
+  procedure OnOrdenFechaAscClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  begin
+    WriteLn('📅 Ordenando por fecha (más antiguos primero)...');
+    ActualizarTablaOrdenada('fecha', True);
+  end;
+  
+  procedure OnOrdenFechaDescClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  begin
+    WriteLn('📅 Ordenando por fecha (más recientes primero)...');
+    ActualizarTablaOrdenada('fecha', False);
+  end;
+  
+  procedure CargarCorreosIniciales;
+  begin
+    // Cargar correos sin ordenamiento (orden original)
+    aux := CorreosGlobal.primero;
+    correosEncontrados := 0;
+    while aux <> nil do
+    begin
+      if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
+      begin
+        gtk_list_store_append(store, @iter);
+        gtk_list_store_set(store, @iter,
+          0, PChar(LimpiarUTF8(aux^.remitente)),
+          1, PChar(LimpiarUTF8(aux^.asunto)),
+          2, PChar(LimpiarUTF8(aux^.fecha)),
+          3, PChar(LimpiarUTF8(aux^.estado)),
+          -1);
+        Inc(correosEncontrados);
+      end;
+      aux := aux^.siguiente;
+    end;
+    WriteLn('📧 Correos en bandeja para ', usuario.email, ': ', correosEncontrados);
+  end;
+
   procedure OnEliminarClicked(widget: PGtkWidget; data: gpointer); cdecl;
   var
     selection: PGtkTreeSelection;
     model: PGtkTreeModel;
     iter: TGtkTreeIter;
-    path: PGtkTreePath;
-    indices: PGint;
-    indice: Integer;
+    pRem, pAsu, pFec: Pgchar;
+    sRem, sAsu, sFec: String;
     aux, anterior: PCorreo;
-    contador: Integer;
     encontrado: Boolean;
   begin
     selection := gtk_tree_view_get_selection(GTK_TREE_VIEW(data));
-    if gtk_tree_selection_get_selected(selection, @model, @iter) then
+    if not gtk_tree_selection_get_selected(selection, @model, @iter) then
     begin
-      // Obtener el índice de la fila seleccionada
-      path := gtk_tree_model_get_path(model, @iter);
-      indices := gtk_tree_path_get_indices(path);
-      indice := indices^;
-      gtk_tree_path_free(path);
+      WriteLn('⚠️ Selecciona un correo para mover a papelera');
+      Exit;
+    end;
+
+    // Obtener datos de la fila seleccionada
+    pRem := nil; pAsu := nil; pFec := nil;
+    try
+      gtk_tree_model_get(model, @iter, 0, @pRem, 1, @pAsu, 2, @pFec, -1);
       
-      // Buscar el correo por posición en la lista filtrada
+      if (pRem = nil) or (pAsu = nil) or (pFec = nil) then
+      begin
+        WriteLn('❌ Error obteniendo datos del correo seleccionado');
+        Exit;
+      end;
+      
+      sRem := StrPas(pRem);
+      sAsu := StrPas(pAsu);
+      sFec := StrPas(pFec);
+      
+      WriteLn('🔍 Buscando correo: ', sRem, ' -> ', sAsu, ' (', sFec, ')');
+      
+      // Buscar el correo en la lista global usando los datos exactos
       aux := CorreosGlobal.primero;
       anterior := nil;
-      contador := 0;
       encontrado := False;
       
       while aux <> nil do
       begin
-        if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
+        if (LimpiarUTF8(aux^.remitente) = sRem) and 
+           (LimpiarUTF8(aux^.asunto) = sAsu) and 
+           (LimpiarUTF8(aux^.fecha) = sFec) and
+           (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and
+           (aux^.estado <> 'DEL') then
         begin
-          if contador = indice then
-          begin
-            encontrado := True;
-            Break;
-          end;
-          Inc(contador);
+          encontrado := True;
+          Break;
         end;
         anterior := aux;
         aux := aux^.siguiente;
       end;
       
-      if encontrado and (aux <> nil) then
+      if not encontrado or (aux = nil) then
       begin
-        // Mover correo a la pila de papelera
-        Push(PapeleraUsuarioActivo, aux^.id, aux^.remitente, aux^.asunto, aux^.fecha, aux^.contenido);
-        
-        // Remover de la lista global
-        if anterior = nil then
-          CorreosGlobal.primero := aux^.siguiente
-        else
-          anterior^.siguiente := aux^.siguiente;
-          
-        if aux = CorreosGlobal.ultimo then
-          CorreosGlobal.ultimo := anterior;
-        
-        WriteLn('📧 Correo movido a papelera: ', aux^.asunto);
-        
-        // Liberar memoria del nodo original
-        Dispose(aux);
-        
-        // Actualizar la tabla removiendo la fila
-        gtk_list_store_remove(PGtkListStore(model), @iter);
+        WriteLn('❌ No se encontró el correo en la lista global');
+        Exit;
       end;
+      
+      WriteLn('✅ Correo encontrado: ID ', aux^.id, ' - ', aux^.asunto);
+      
+      // Mover correo a la pila de papelera
+      Push(PapeleraUsuarioActivo, aux^.id, aux^.remitente, aux^.asunto, aux^.fecha, aux^.contenido);
+      WriteLn('📧 Correo agregado a papelera: ', aux^.asunto);
+      
+      // Remover de la lista global de forma segura
+      if anterior = nil then
+      begin
+        // Es el primer elemento
+        CorreosGlobal.primero := aux^.siguiente;
+        if CorreosGlobal.ultimo = aux then
+          CorreosGlobal.ultimo := nil;
+      end
+      else
+      begin
+        // No es el primer elemento
+        anterior^.siguiente := aux^.siguiente;
+        if CorreosGlobal.ultimo = aux then
+          CorreosGlobal.ultimo := anterior;
+      end;
+      
+      // Liberar memoria del nodo original
+      Dispose(aux);
+      
+      // Remover de la tabla GTK
+      gtk_list_store_remove(PGtkListStore(model), @iter);
+      
+      WriteLn('✅ Correo movido a papelera exitosamente');
+      
+    finally
+      // Liberar memoria de glib
+      if pRem <> nil then g_free(pRem);
+      if pAsu <> nil then g_free(pAsu);
+      if pFec <> nil then g_free(pFec);
     end;
   end;
 
 begin
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), PChar('Bandeja de Entrada - ' + LimpiarUTF8(usuario.email)));
-  gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
+  gtk_window_set_default_size(GTK_WINDOW(window), 700, 500);
 
   vbox := gtk_vbox_new(FALSE, 5);
   gtk_container_add(GTK_CONTAINER(window), vbox);
+
+  // Sección de ordenamiento
+  hboxOrden := gtk_hbox_new(FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), hboxOrden, FALSE, FALSE, 5);
+  
+  lblOrden := gtk_label_new('<b>Ordenar por:</b>');
+  gtk_label_set_use_markup(GTK_LABEL(lblOrden), TRUE);
+  gtk_box_pack_start(GTK_BOX(hboxOrden), lblOrden, FALSE, FALSE, 10);
+  
+  btnOrdenAZ := gtk_button_new_with_label('📝 Asunto A-Z');
+  g_signal_connect(btnOrdenAZ, 'clicked', G_CALLBACK(@OnOrdenAZClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxOrden), btnOrdenAZ, FALSE, FALSE, 5);
+  
+  btnOrdenZA := gtk_button_new_with_label('📝 Asunto Z-A');
+  g_signal_connect(btnOrdenZA, 'clicked', G_CALLBACK(@OnOrdenZAClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxOrden), btnOrdenZA, FALSE, FALSE, 5);
+  
+  btnOrdenFechaAsc := gtk_button_new_with_label('📅 Fecha ↑');
+  g_signal_connect(btnOrdenFechaAsc, 'clicked', G_CALLBACK(@OnOrdenFechaAscClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxOrden), btnOrdenFechaAsc, FALSE, FALSE, 5);
+  
+  btnOrdenFechaDesc := gtk_button_new_with_label('📅 Fecha ↓');
+  g_signal_connect(btnOrdenFechaDesc, 'clicked', G_CALLBACK(@OnOrdenFechaDescClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hboxOrden), btnOrdenFechaDesc, FALSE, FALSE, 5);
 
   scroll := gtk_scrolled_window_new(nil, nil);
   gtk_box_pack_start(GTK_BOX(vbox), scroll, TRUE, TRUE, 0);
@@ -211,52 +390,36 @@ begin
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Remitente', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 150);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 1, nil);
+  gtk_tree_view_column_set_min_width(column, 200);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Fecha', renderer, 'text', 2, nil);
+  gtk_tree_view_column_set_min_width(column, 100);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 80);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   gtk_container_add(GTK_CONTAINER(scroll), treeview);
 
-  // Contenedor para botones
+  // Contenedor para botones de acción
   hboxBotones := gtk_hbox_new(FALSE, 5);
   gtk_box_pack_start(GTK_BOX(vbox), hboxBotones, FALSE, FALSE, 5);
 
-  // Botón Mover a Papelera
   btnEliminar := gtk_button_new_with_label('🗑️ Mover a Papelera');
   g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarClicked), treeview);
   gtk_box_pack_start(GTK_BOX(hboxBotones), btnEliminar, FALSE, FALSE, 5);
 
-  // Insertar SOLO correos para el usuario activo (destinatario) que NO estén eliminados
-  correosEncontrados := 0;
-  aux := CorreosGlobal.primero;
-  while aux <> nil do
-  begin
-    // Mostrar correos destinados a este usuario que no estén eliminados
-    if (LowerCase(aux^.destinatario) = LowerCase(usuario.email)) and (aux^.estado <> 'DEL') then
-    begin
-      gtk_list_store_append(store, @iter);
-      gtk_list_store_set(store, @iter,
-        0, PChar(LimpiarUTF8(aux^.remitente)),
-        1, PChar(LimpiarUTF8(aux^.asunto)),
-        2, PChar(LimpiarUTF8(aux^.fecha)),
-        3, PChar(LimpiarUTF8(aux^.estado)),
-        -1);
-      Inc(correosEncontrados);
-    end;
-    aux := aux^.siguiente;
-  end;
-
-  WriteLn('📧 Correos en bandeja para ', usuario.email, ': ', correosEncontrados);
+  // Cargar correos iniciales (sin ordenamiento)
+  CargarCorreosIniciales;
 
   // Doble clic en una fila → abre detalle
   g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnRowActivated), nil);
