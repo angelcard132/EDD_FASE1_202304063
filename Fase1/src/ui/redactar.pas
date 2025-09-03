@@ -5,7 +5,7 @@ unit redactar;
 interface
 
 uses
-  glib2, gtk2, SysUtils, lista_doble, lista_simple, globals;
+  glib2, gtk2, SysUtils, lista_doble, lista_simple, lista_circular, globals;
 
 procedure MostrarRedactar;
 
@@ -21,6 +21,8 @@ var
   buffer: PGtkTextBuffer;
   startIter, endIter: TGtkTextIter;
   nuevoId: Integer;
+  esUsuarioRegistrado: Boolean;
+  contacto: PContacto;
 begin
   para   := gtk_entry_get_text(GTK_ENTRY(entryPara));
   asunto := gtk_entry_get_text(GTK_ENTRY(entryAsunto));
@@ -38,11 +40,36 @@ begin
     Exit;
   end;
 
-  // Validar que el destinatario exista
-  if BuscarUsuarioPorEmail(UsuariosGlobal, para) = nil then
+  // Validar formato básico de email
+  if Pos('@', para) = 0 then
   begin
-    WriteLn('⚠️ El destinatario ', para, ' no existe en el sistema');
+    WriteLn('⚠️ El email del destinatario no tiene formato válido');
     Exit;
+  end;
+
+  // Verificar si el destinatario es un usuario registrado o un contacto
+  esUsuarioRegistrado := BuscarUsuarioPorEmail(UsuariosGlobal, para) <> nil;
+  contacto := BuscarContacto(ContactosUsuarioActivo, para);
+
+  // VALIDACIÓN ESTRICTA: Solo permitir envío a usuarios registrados o contactos
+  if not esUsuarioRegistrado and (contacto = nil) then
+  begin
+    WriteLn('❌ ERROR: No se puede enviar el correo');
+    WriteLn('⚠️ El destinatario "', para, '" no está registrado en el sistema ni en tus contactos');
+    WriteLn('💡 Para enviar correos debes:');
+    WriteLn('   1. Que el destinatario sea un usuario registrado en el sistema, O');
+    WriteLn('   2. Agregar el contacto a tu lista personal desde "👥 Agregar Contacto"');
+    Exit;
+  end;
+
+  // Mostrar información del destinatario válido
+  if esUsuarioRegistrado then
+  begin
+    WriteLn('📧 Enviando correo a usuario registrado: ', para);
+  end
+  else if contacto <> nil then
+  begin
+    WriteLn('📧 Enviando correo a contacto: ', contacto^.nombre, ' (', para, ')');
   end;
 
   // Asegurar lista global inicializada
@@ -52,7 +79,7 @@ begin
   // Generar ID único
   nuevoId := Random(1000000);
 
-  // Insertar correo en la lista global
+  // Insertar correo en la lista global (solo destinatarios válidos)
   InsertarCorreo(CorreosGlobal,
     nuevoId,                 // ID único
     UsuarioActivo.email,     // remitente
@@ -80,7 +107,93 @@ end;
 procedure MostrarRedactar;
 var
   window, vbox, hbox, lbl: PGtkWidget;
-  scroll, btnEnviar: PGtkWidget;
+  scroll, btnEnviar, btnContactos: PGtkWidget;
+  
+  procedure OnSeleccionarContactoClicked(widget: PGtkWidget; data: gpointer); cdecl;
+  var
+    dialogWindow, vboxDialog, scrollDialog, treeview: PGtkWidget;
+    store: PGtkListStore;
+    column: PGtkTreeViewColumn;
+    renderer: PGtkCellRenderer;
+    iter: TGtkTreeIter;
+    aux: PContacto;
+    contador: Integer;
+    
+    procedure OnContactoSeleccionado(treeview: PGtkTreeView; path: PGtkTreePath; column: PGtkTreeViewColumn; user_data: gpointer); cdecl;
+    var
+      model: PGtkTreeModel;
+      iter: TGtkTreeIter;
+      pEmail: Pgchar = nil;
+      email: String;
+    begin
+      model := gtk_tree_view_get_model(treeview);
+      if gtk_tree_model_get_iter(model, @iter, path) then
+      begin
+        try
+          gtk_tree_model_get(model, @iter, 2, @pEmail, -1);
+          if pEmail <> nil then
+          begin
+            email := StrPas(pEmail);
+            gtk_entry_set_text(GTK_ENTRY(entryPara), PChar(email));
+            WriteLn('📧 Contacto seleccionado: ', email);
+            gtk_widget_destroy(dialogWindow);
+          end;
+        finally
+          if pEmail <> nil then g_free(pEmail);
+        end;
+      end;
+    end;
+
+  begin
+    dialogWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(dialogWindow), 'Seleccionar Contacto');
+    gtk_window_set_default_size(GTK_WINDOW(dialogWindow), 400, 300);
+    gtk_window_set_modal(GTK_WINDOW(dialogWindow), TRUE);
+
+    vboxDialog := gtk_vbox_new(FALSE, 5);
+    gtk_container_add(GTK_CONTAINER(dialogWindow), vboxDialog);
+
+    scrollDialog := gtk_scrolled_window_new(nil, nil);
+    gtk_box_pack_start(GTK_BOX(vboxDialog), scrollDialog, TRUE, TRUE, 5);
+
+    store := gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    treeview := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+
+    renderer := gtk_cell_renderer_text_new;
+    column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+    renderer := gtk_cell_renderer_text_new;
+    column := gtk_tree_view_column_new_with_attributes('Nombre', renderer, 'text', 1, nil);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+    renderer := gtk_cell_renderer_text_new;
+    column := gtk_tree_view_column_new_with_attributes('Email', renderer, 'text', 2, nil);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+    gtk_container_add(GTK_CONTAINER(scrollDialog), treeview);
+
+    // Llenar con contactos
+    if ContactosUsuarioActivo.primero <> nil then
+    begin
+      aux := ContactosUsuarioActivo.primero;
+      contador := 0;
+      repeat
+        gtk_list_store_append(store, @iter);
+        gtk_list_store_set(store, @iter,
+          0, PChar(IntToStr(aux^.id)),
+          1, PChar(aux^.nombre),
+          2, PChar(aux^.email),
+          -1);
+        aux := aux^.siguiente;
+        Inc(contador);
+      until (aux = ContactosUsuarioActivo.primero) or (contador >= 50);
+    end;
+
+    g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnContactoSeleccionado), nil);
+    gtk_widget_show_all(dialogWindow);
+  end;
+
 begin
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), 'Redactar Correo');
@@ -95,6 +208,12 @@ begin
   gtk_box_pack_start(GTK_BOX(hbox), lbl, FALSE, FALSE, 5);
   entryPara := gtk_entry_new;
   gtk_box_pack_start(GTK_BOX(hbox), entryPara, TRUE, TRUE, 5);
+  
+  // Botón para seleccionar contacto
+  btnContactos := gtk_button_new_with_label('👥');
+  g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnSeleccionarContactoClicked), nil);
+  gtk_box_pack_start(GTK_BOX(hbox), btnContactos, FALSE, FALSE, 5);
+  
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
 
   // Asunto:

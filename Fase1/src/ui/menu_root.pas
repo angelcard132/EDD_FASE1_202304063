@@ -5,7 +5,7 @@ unit menu_root;
 interface
 
 uses
-  glib2, gtk2, SysUtils, graphviz;
+  glib2, gtk2, SysUtils, graphviz, comunidadesui;
 
 procedure MostrarMenuRoot;
 
@@ -120,15 +120,20 @@ begin
   WriteLn('🎯 Reporte de relaciones completado');
 end;
 
+procedure on_comunidades_clicked(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarComunidades;
+end;
+
 procedure MostrarMenuRoot;
 var
   window: PGtkWidget;
   vbox: PGtkWidget;
-  btnCarga, btnRepUsuarios, btnRepRelaciones: PGtkWidget;
+  btnCarga, btnRepUsuarios, btnRepRelaciones, btnComunidades: PGtkWidget;
 begin
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), 'EDDMail - Root Menu');
-  gtk_window_set_default_size(GTK_WINDOW(window), 300, 200);
+  gtk_window_set_default_size(GTK_WINDOW(window), 300, 250);
 
   vbox := gtk_vbox_new(FALSE, 10);
   gtk_container_add(GTK_CONTAINER(window), vbox);
@@ -145,7 +150,12 @@ begin
   g_signal_connect(btnRepRelaciones, 'clicked', G_CALLBACK(@on_reporte_relaciones_clicked), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnRepRelaciones, FALSE, FALSE, 0);
 
+  btnComunidades := gtk_button_new_with_label('🏢 Gestión de Comunidades');
+  g_signal_connect(btnComunidades, 'clicked', G_CALLBACK(@on_comunidades_clicked), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnComunidades, FALSE, FALSE, 0);
+
   gtk_widget_show_all(window);
 end;
 
+end.
 end.

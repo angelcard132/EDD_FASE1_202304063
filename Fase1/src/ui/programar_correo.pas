@@ -5,7 +5,7 @@ unit programar_correo;
 interface
 
 uses
-  glib2, gtk2, SysUtils, DateUtils, cola, globals, lista_doble;
+  glib2, gtk2, SysUtils, DateUtils, cola, globals, lista_doble, lista_simple, lista_circular;
 
 procedure MostrarProgramarCorreo;
 
@@ -31,6 +31,8 @@ var
   buffer: PGtkTextBuffer;
   startIter, endIter: TGtkTextIter;
   dia, mes, ano: Integer;
+  esUsuarioRegistrado: Boolean;
+  contacto: PContacto;
 begin
   para := gtk_entry_get_text(GTK_ENTRY(entryPara));
   asunto := gtk_entry_get_text(GTK_ENTRY(entryAsunto));
@@ -47,6 +49,25 @@ begin
   if (Trim(para) = '') or (Trim(asunto) = '') or (Trim(contenido) = '') then
   begin
     WriteLn('⚠️ Todos los campos son obligatorios');
+    Exit;
+  end;
+
+  // Validar formato básico de email
+  if Pos('@', para) = 0 then
+  begin
+    WriteLn('⚠️ El email del destinatario no tiene formato válido');
+    Exit;
+  end;
+
+  // VALIDACIÓN ESTRICTA: Solo permitir programar a usuarios registrados o contactos
+  esUsuarioRegistrado := BuscarUsuarioPorEmail(UsuariosGlobal, para) <> nil;
+  contacto := BuscarContacto(ContactosUsuarioActivo, para);
+
+  if not esUsuarioRegistrado and (contacto = nil) then
+  begin
+    WriteLn('❌ ERROR: No se puede programar el correo');
+    WriteLn('⚠️ El destinatario "', para, '" no está registrado en el sistema ni en tus contactos');
+    WriteLn('💡 Para programar correos debes agregar el contacto primero desde "👥 Agregar Contacto"');
     Exit;
   end;
 
@@ -69,7 +90,12 @@ begin
     contenido                // mensaje
   );
 
-  WriteLn('✅ Correo programado para el ', fechaProgramada);
+  if esUsuarioRegistrado then
+    WriteLn('✅ Correo programado para usuario registrado: ', para)
+  else
+    WriteLn('✅ Correo programado para contacto: ', contacto^.nombre, ' (', para, ')');
+    
+  WriteLn('📅 Fecha de envío programada: ', fechaProgramada);
   WriteLn('   De: ', UsuarioActivo.email, ' Para: ', para);
 
   // Limpiar campos
