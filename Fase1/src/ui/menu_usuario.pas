@@ -50,7 +50,8 @@ end;
 
 procedure OnGenerarGraficosClicked(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  GenerarTodosLosGraficos;
+  WriteLn('👤 USUARIO: Generando reportes para ', UsuarioActivo.email, '...');
+  GenerarGraficosUsuario;
 end;
 
 procedure MostrarMenuUsuario(const usuario: TUsuario);
@@ -100,7 +101,7 @@ begin
   g_signal_connect(btnPerfil, 'clicked', G_CALLBACK(@OnPerfilClicked), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnPerfil, FALSE, FALSE, 5);
   // Botón: Generar Gráficos
-  btnGraficos := gtk_button_new_with_label('📊 Reportes');
+  btnGraficos := gtk_button_new_with_label('📊 Reportes (Usuario)');
   g_signal_connect(btnGraficos, 'clicked', G_CALLBACK(@OnGenerarGraficosClicked), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnGraficos, FALSE, FALSE, 5);
 

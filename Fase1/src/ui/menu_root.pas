@@ -22,16 +22,16 @@ var
   comando: String;
   exito: Boolean;
 begin
-  WriteLn('📊 Generando reporte de usuarios...');
+  WriteLn('📊 ROOT: Generando reporte de usuarios...');
   
-  carpeta := '../graficos/';
+  carpeta := '../graficos/root/';
   
   // Crear carpeta si no existe
   if not DirectoryExists(carpeta) then
     ForceDirectories(carpeta);
   
   // Generar archivo .dot de usuarios
-  GenerarGraficoUsuarios(carpeta + 'usuarios.dot');
+  GenerarGraficoUsuarios(carpeta + 'usuarios_root.dot');
   
   // Verificar si Graphviz está disponible
   if ComprobarGraphviz then
@@ -39,33 +39,33 @@ begin
     WriteLn('🖼️ Generando imagen PNG de usuarios...');
     
     {$IFDEF WINDOWS}
-    comando := 'dot -Tpng "' + carpeta + 'usuarios.dot" -o "' + carpeta + 'usuarios.png"';
+    comando := 'dot -Tpng "' + carpeta + 'usuarios_root.dot" -o "' + carpeta + 'usuarios_root.png"';
     {$ELSE}
-    comando := 'dot -Tpng "' + carpeta + 'usuarios.dot" -o "' + carpeta + 'usuarios.png"';
+    comando := 'dot -Tpng "' + carpeta + 'usuarios_root.dot" -o "' + carpeta + 'usuarios_root.png"';
     {$ENDIF}
     
     exito := EjecutarComando(comando);
     
     if exito then
     begin
-      WriteLn('✅ Reporte de usuarios generado exitosamente');
+      WriteLn('✅ Reporte de usuarios ROOT generado exitosamente');
       WriteLn('📁 Archivos disponibles:');
-      WriteLn('   - ', carpeta, 'usuarios.dot');
-      WriteLn('   - ', carpeta, 'usuarios.png');
+      WriteLn('   - ', carpeta, 'usuarios_root.dot');
+      WriteLn('   - ', carpeta, 'usuarios_root.png');
     end
     else
     begin
       WriteLn('❌ Error generando imagen PNG');
-      WriteLn('📄 Archivo .dot generado: ', carpeta, 'usuarios.dot');
+      WriteLn('📄 Archivo .dot generado: ', carpeta, 'usuarios_root.dot');
     end;
   end
   else
   begin
     WriteLn('⚠️ Graphviz no disponible - solo se generó el archivo .dot');
-    WriteLn('📄 Archivo disponible: ', carpeta, 'usuarios.dot');
+    WriteLn('📄 Archivo disponible: ', carpeta, 'usuarios_root.dot');
   end;
   
-  WriteLn('🎯 Reporte de usuarios completado');
+  WriteLn('🎯 Reporte de usuarios ROOT completado');
 end;
 
 procedure on_reporte_relaciones_clicked(widget: PGtkWidget; data: gpointer); cdecl;
@@ -74,16 +74,16 @@ var
   comando: String;
   exito: Boolean;
 begin
-  WriteLn('📊 Generando reporte de relaciones (matriz dispersa)...');
+  WriteLn('📊 ROOT: Generando reporte de relaciones (matriz dispersa)...');
   
-  carpeta := '../graficos/';
+  carpeta := '../graficos/root/';
   
   // Crear carpeta si no existe
   if not DirectoryExists(carpeta) then
     ForceDirectories(carpeta);
   
   // Generar archivo .dot de matriz dispersa
-  GenerarGraficoMatrizDispersa(carpeta + 'matriz.dot');
+  GenerarGraficoMatrizDispersa(carpeta + 'matriz_root.dot');
   
   // Verificar si Graphviz está disponible
   if ComprobarGraphviz then
@@ -91,33 +91,33 @@ begin
     WriteLn('🖼️ Generando imagen PNG de matriz dispersa...');
     
     {$IFDEF WINDOWS}
-    comando := 'dot -Tpng "' + carpeta + 'matriz.dot" -o "' + carpeta + 'matriz.png"';
+    comando := 'dot -Tpng "' + carpeta + 'matriz_root.dot" -o "' + carpeta + 'matriz_root.png"';
     {$ELSE}
-    comando := 'dot -Tpng "' + carpeta + 'matriz.dot" -o "' + carpeta + 'matriz.png"';
+    comando := 'dot -Tpng "' + carpeta + 'matriz_root.dot" -o "' + carpeta + 'matriz_root.png"';
     {$ENDIF}
     
     exito := EjecutarComando(comando);
     
     if exito then
     begin
-      WriteLn('✅ Reporte de relaciones generado exitosamente');
+      WriteLn('✅ Reporte de relaciones ROOT generado exitosamente');
       WriteLn('📁 Archivos disponibles:');
-      WriteLn('   - ', carpeta, 'matriz.dot');
-      WriteLn('   - ', carpeta, 'matriz.png');
+      WriteLn('   - ', carpeta, 'matriz_root.dot');
+      WriteLn('   - ', carpeta, 'matriz_root.png');
     end
     else
     begin
       WriteLn('❌ Error generando imagen PNG');
-      WriteLn('📄 Archivo .dot generado: ', carpeta, 'matriz.dot');
+      WriteLn('📄 Archivo .dot generado: ', carpeta, 'matriz_root.dot');
     end;
   end
   else
   begin
     WriteLn('⚠️ Graphviz no disponible - solo se generó el archivo .dot');
-    WriteLn('📄 Archivo disponible: ', carpeta, 'matriz.dot');
+    WriteLn('📄 Archivo disponible: ', carpeta, 'matriz_root.dot');
   end;
   
-  WriteLn('🎯 Reporte de relaciones completado');
+  WriteLn('🎯 Reporte de relaciones ROOT completado');
 end;
 
 procedure on_reporte_comunidades_clicked(widget: PGtkWidget; data: gpointer); cdecl;
@@ -126,16 +126,16 @@ var
   comando: String;
   exito: Boolean;
 begin
-  WriteLn('📊 Generando reporte de comunidades (lista de listas)...');
+  WriteLn('📊 ROOT: Generando reporte de comunidades (lista de listas)...');
   
-  carpeta := '../graficos/';
+  carpeta := '../graficos/root/';
   
   // Crear carpeta si no existe
   if not DirectoryExists(carpeta) then
     ForceDirectories(carpeta);
   
   // Generar archivo .dot de comunidades
-  GenerarGraficoComunidades(carpeta + 'comunidades.dot');
+  GenerarGraficoComunidades(carpeta + 'comunidades_root.dot');
   
   // Verificar si Graphviz está disponible
   if ComprobarGraphviz then
@@ -143,33 +143,33 @@ begin
     WriteLn('🖼️ Generando imagen PNG de comunidades...');
     
     {$IFDEF WINDOWS}
-    comando := 'dot -Tpng "' + carpeta + 'comunidades.dot" -o "' + carpeta + 'comunidades.png"';
+    comando := 'dot -Tpng "' + carpeta + 'comunidades_root.dot" -o "' + carpeta + 'comunidades_root.png"';
     {$ELSE}
-    comando := 'dot -Tpng "' + carpeta + 'comunidades.dot" -o "' + carpeta + 'comunidades.png"';
+    comando := 'dot -Tpng "' + carpeta + 'comunidades_root.dot" -o "' + carpeta + 'comunidades_root.png"';
     {$ENDIF}
     
     exito := EjecutarComando(comando);
     
     if exito then
     begin
-      WriteLn('✅ Reporte de comunidades generado exitosamente');
+      WriteLn('✅ Reporte de comunidades ROOT generado exitosamente');
       WriteLn('📁 Archivos disponibles:');
-      WriteLn('   - ', carpeta, 'comunidades.dot');
-      WriteLn('   - ', carpeta, 'comunidades.png');
+      WriteLn('   - ', carpeta, 'comunidades_root.dot');
+      WriteLn('   - ', carpeta, 'comunidades_root.png');
     end
     else
     begin
       WriteLn('❌ Error generando imagen PNG');
-      WriteLn('📄 Archivo .dot generado: ', carpeta, 'comunidades.dot');
+      WriteLn('📄 Archivo .dot generado: ', carpeta, 'comunidades_root.dot');
     end;
   end
   else
   begin
     WriteLn('⚠️ Graphviz no disponible - solo se generó el archivo .dot');
-    WriteLn('📄 Archivo disponible: ', carpeta, 'comunidades.dot');
+    WriteLn('📄 Archivo disponible: ', carpeta, 'comunidades_root.dot');
   end;
   
-  WriteLn('🎯 Reporte de comunidades completado');
+  WriteLn('🎯 Reporte de comunidades ROOT completado');
 end;
 
 procedure on_comunidades_clicked(widget: PGtkWidget; data: gpointer); cdecl;
@@ -179,7 +179,8 @@ end;
 
 procedure on_todos_reportes_clicked(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  GenerarTodosLosGraficos;
+  WriteLn('🔧 ROOT: Generando todos los reportes...');
+  GenerarGraficosRoot;
 end;
 
 procedure MostrarMenuRoot;
@@ -216,14 +217,8 @@ begin
   g_signal_connect(btnComunidades, 'clicked', G_CALLBACK(@on_comunidades_clicked), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnComunidades, FALSE, FALSE, 0);
 
-  btnRepTodos := gtk_button_new_with_label('📈 Generar Todos los Reportes');
+  btnRepTodos := gtk_button_new_with_label('📈 Generar Todos los Reportes (ROOT)');
   g_signal_connect(btnRepTodos, 'clicked', G_CALLBACK(@on_todos_reportes_clicked), nil);
-  gtk_box_pack_start(GTK_BOX(vbox), btnRepTodos, FALSE, FALSE, 0);
-
-  gtk_widget_show_all(window);
-end;
-
-end.
   gtk_box_pack_start(GTK_BOX(vbox), btnRepTodos, FALSE, FALSE, 0);
 
   gtk_widget_show_all(window);

@@ -1,0 +1,11 @@
+digraph Comunidades {
+  rankdir=LR;
+  node [shape=record, style=filled];
+  edge [color=blue, style=bold];
+
+  // Título
+  titulo [label="LISTA DE LISTAS - COMUNIDADES", shape=box, style=filled, fillcolor=yellow];
+
+  vacia [label="No hay comunidades creadas", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
+}

@@ -1,0 +1,11 @@
+digraph ListaCorreos {
+  rankdir=LR;
+  node [shape=record, style=filled, fillcolor=lightgreen];
+  edge [color=green, style=bold];
+
+  // Título
+  titulo [label="LISTA DOBLEMENTE ENLAZADA - CORREOS", shape=box, style=filled, fillcolor=yellow];
+
+  vacia [label="Lista Vacía", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
+}

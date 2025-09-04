@@ -1,0 +1,11 @@
+digraph MatrizDispersa {
+  rankdir=TB;
+  node [shape=record, style=filled];
+  edge [color=purple, style=bold];
+
+  // Título
+  titulo [label="MATRIZ DISPERSA - CORREOS ENVIADOS\\nFilas: Destinatarios | Columnas: Remitentes", shape=box, style=filled, fillcolor=yellow];
+
+  vacia [label="No hay correos enviados para generar matriz", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
+}

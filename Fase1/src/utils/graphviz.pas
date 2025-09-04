@@ -15,6 +15,9 @@ procedure GenerarGraficoPapelera(const archivo: String);
 procedure GenerarGraficoMatrizDispersa(const archivo: String);
 procedure GenerarGraficoComunidades(const archivo: String);
 procedure GenerarTodosLosGraficos;
+procedure GenerarGraficosRoot;
+procedure GenerarGraficosUsuario;
+procedure GenerarGraficosEnCarpeta(const carpeta: String);  // Agregada esta línea
 
 // Funciones públicas para menu_root
 function EjecutarComando(const comando: String): Boolean;
@@ -722,32 +725,62 @@ begin
 end;
 
 procedure GenerarTodosLosGraficos;
+begin
+  GenerarGraficosEnCarpeta('../graficos/general/');
+end;
+
+procedure GenerarGraficosRoot;
+begin
+  GenerarGraficosEnCarpeta('../graficos/root/');
+end;
+
+procedure GenerarGraficosUsuario;
+begin
+  GenerarGraficosEnCarpeta('../graficos/usuarios/');
+end;
+
+procedure GenerarGraficosEnCarpeta(const carpeta: String);
 var
-  carpeta: String;
   comando: String;
   archivos: array[0..6] of String;
   nombres: array[0..6] of String;
   i: Integer;
   exito: Boolean;
+  tipoUsuario, sufijo: String;
 begin
-  carpeta := '../graficos/';
-  
   // Crear carpeta si no existe
   if not DirectoryExists(carpeta) then
     ForceDirectories(carpeta);
+  
+  // Determinar tipo de usuario y sufijo según la carpeta
+  if Pos('root', carpeta) > 0 then
+  begin
+    tipoUsuario := 'ROOT';
+    sufijo := '_root';
+  end
+  else if Pos('usuarios', carpeta) > 0 then
+  begin
+    tipoUsuario := 'USUARIO (' + UsuarioActivo.email + ')';
+    sufijo := '_usuario';
+  end
+  else
+  begin
+    tipoUsuario := 'GENERAL';
+    sufijo := '';
+  end;
     
-  WriteLn('🎨 Generando todos los gráficos Graphviz...');
+  WriteLn('🎨 Generando gráficos para: ', tipoUsuario);
   WriteLn('📁 Carpeta: ', carpeta);
   WriteLn('');
   
-  // Generar archivos .dot
-  GenerarGraficoUsuarios(carpeta + 'usuarios.dot');
-  GenerarGraficoCorreos(carpeta + 'correos.dot');
-  GenerarGraficoContactos(carpeta + 'contactos.dot');
-  GenerarGraficoCola(carpeta + 'cola.dot');
-  GenerarGraficoPapelera(carpeta + 'papelera.dot');
-  GenerarGraficoMatrizDispersa(carpeta + 'matriz.dot');
-  GenerarGraficoComunidades(carpeta + 'comunidades.dot');
+  // Generar archivos .dot con sufijo
+  GenerarGraficoUsuarios(carpeta + 'usuarios' + sufijo + '.dot');
+  GenerarGraficoCorreos(carpeta + 'correos' + sufijo + '.dot');
+  GenerarGraficoContactos(carpeta + 'contactos' + sufijo + '.dot');
+  GenerarGraficoCola(carpeta + 'cola' + sufijo + '.dot');
+  GenerarGraficoPapelera(carpeta + 'papelera' + sufijo + '.dot');
+  GenerarGraficoMatrizDispersa(carpeta + 'matriz' + sufijo + '.dot');
+  GenerarGraficoComunidades(carpeta + 'comunidades' + sufijo + '.dot');
   
   WriteLn('');
   
@@ -760,26 +793,26 @@ begin
     WriteLn('');
     WriteLn('💡 Una vez instalado Graphviz, puedes generar imágenes manualmente con:');
     WriteLn('   cd ', carpeta);
-    WriteLn('   dot -Tpng usuarios.dot -o usuarios.png');
-    WriteLn('   dot -Tpng correos.dot -o correos.png');
-    WriteLn('   dot -Tpng contactos.dot -o contactos.png');
-    WriteLn('   dot -Tpng cola.dot -o cola.png');
-    WriteLn('   dot -Tpng papelera.dot -o papelera.png');
-    WriteLn('   dot -Tpng matriz.dot -o matriz.png');
-    WriteLn('   dot -Tpng comunidades.dot -o comunidades.png');
+    WriteLn('   dot -Tpng usuarios', sufijo, '.dot -o usuarios', sufijo, '.png');
+    WriteLn('   dot -Tpng correos', sufijo, '.dot -o correos', sufijo, '.png');
+    WriteLn('   dot -Tpng contactos', sufijo, '.dot -o contactos', sufijo, '.png');
+    WriteLn('   dot -Tpng cola', sufijo, '.dot -o cola', sufijo, '.png');
+    WriteLn('   dot -Tpng papelera', sufijo, '.dot -o papelera', sufijo, '.png');
+    WriteLn('   dot -Tpng matriz', sufijo, '.dot -o matriz', sufijo, '.png');
+    WriteLn('   dot -Tpng comunidades', sufijo, '.dot -o comunidades', sufijo, '.png');
     Exit;
   end;
   
   WriteLn('🖼️ Generando imágenes PNG...');
   
   // Configurar arrays con nombres de archivos
-  archivos[0] := 'usuarios';
-  archivos[1] := 'correos';
-  archivos[2] := 'contactos';
-  archivos[3] := 'cola';
-  archivos[4] := 'papelera';
-  archivos[5] := 'matriz';
-  archivos[6] := 'comunidades';
+  archivos[0] := 'usuarios' + sufijo;
+  archivos[1] := 'correos' + sufijo;
+  archivos[2] := 'contactos' + sufijo;
+  archivos[3] := 'cola' + sufijo;
+  archivos[4] := 'papelera' + sufijo;
+  archivos[5] := 'matriz' + sufijo;
+  archivos[6] := 'comunidades' + sufijo;
   
   nombres[0] := 'Lista Simple - Usuarios';
   nombres[1] := 'Lista Doble - Correos';
@@ -809,26 +842,16 @@ begin
   end;
   
   WriteLn('');
-  WriteLn('🎯 Proceso completado!');
+  WriteLn('🎯 Proceso completado para ', tipoUsuario, '!');
   WriteLn('📁 Archivos disponibles en: ', carpeta);
   WriteLn('');
   WriteLn('📄 Archivos .dot (código fuente):');
-  WriteLn('   - usuarios.dot');
-  WriteLn('   - correos.dot');
-  WriteLn('   - contactos.dot');
-  WriteLn('   - cola.dot');
-  WriteLn('   - papelera.dot');
-  WriteLn('   - matriz.dot');
-  WriteLn('   - comunidades.dot');
+  WriteLn('   - usuarios', sufijo, '.dot, correos', sufijo, '.dot, contactos', sufijo, '.dot');
+  WriteLn('   - cola', sufijo, '.dot, papelera', sufijo, '.dot, matriz', sufijo, '.dot, comunidades', sufijo, '.dot');
   WriteLn('');
   WriteLn('🖼️ Archivos .png (imágenes):');
-  WriteLn('   - usuarios.png');
-  WriteLn('   - correos.png');
-  WriteLn('   - contactos.png');
-  WriteLn('   - cola.png');
-  WriteLn('   - papelera.png');
-  WriteLn('   - matriz.png');
-  WriteLn('   - comunidades.png');
+  WriteLn('   - usuarios', sufijo, '.png, correos', sufijo, '.png, contactos', sufijo, '.png');
+  WriteLn('   - cola', sufijo, '.png, papelera', sufijo, '.png, matriz', sufijo, '.png, comunidades', sufijo, '.png');
 end;
 
 end.
