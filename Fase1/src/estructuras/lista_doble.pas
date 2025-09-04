@@ -9,7 +9,7 @@ type
   TCorreo = record
     id: Integer;
     remitente: String;
-    destinatario: String;   // 🔹 nuevo campo
+    destinatario: String;   
     estado: String;
     asunto: String;
     fecha: String;
@@ -41,7 +41,7 @@ begin
   New(nuevo);
   nuevo^.id := id;
   nuevo^.remitente := remitente;
-  nuevo^.destinatario := destinatario;  // 🔹 guardar destinatario
+  nuevo^.destinatario := destinatario;  
   nuevo^.estado := estado;
   nuevo^.asunto := asunto;
   nuevo^.fecha := fecha;

@@ -61,11 +61,10 @@ begin
   gtk_init(@argc, @argv);
 
   // Cargar SOLO usuarios en la lista global para que esté disponible en toda la app
-  // Intentar cargar desde usuarios2.json (formato completo) primero
-  if FileExists('../assets/usuarios2.json') then
+  if FileExists('../assets/usuarios3.json') then
   begin
-    WriteLn('🔄 Cargando usuarios desde usuarios2.json...');
-    CargarUsuariosDesdeJSON('../assets/usuarios2.json', UsuariosGlobal);
+    WriteLn('🔄 Cargando usuarios desde usuarios3.json...');
+    CargarUsuariosDesdeJSON('../assets/usuarios3.json', UsuariosGlobal);
   end
   else if FileExists('../assets/usuarios.json') then
   begin
