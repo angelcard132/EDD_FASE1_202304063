@@ -12,19 +12,20 @@ procedure MostrarAgregarContacto;
 implementation
 
 var
-  entryNombre, entryUsuario, entryEmail, entryTelefono: PGtkWidget;
+  entryNombre, entryUsuario, entryEmail, entryTelefono, entryNombreUsuario: PGtkWidget;
 
 procedure OnAgregarClicked(widget: PGtkWidget; data: gpointer); cdecl;
 var
-  nombre, usuario, email, telefono: String;
+  nombre, usuario, email, nombreUsuario, telefono: String;
   nuevoId: Integer;
 begin
   nombre := gtk_entry_get_text(GTK_ENTRY(entryNombre));
   usuario := gtk_entry_get_text(GTK_ENTRY(entryUsuario));
   email := gtk_entry_get_text(GTK_ENTRY(entryEmail));
   telefono := gtk_entry_get_text(GTK_ENTRY(entryTelefono));
+  nombreUsuario := gtk_entry_get_text(GTK_ENTRY(entryNombreUsuario));
 
-  if (Trim(nombre) = '') or (Trim(usuario) = '') or (Trim(email) = '') or (Trim(telefono) = '') then
+  if (Trim(nombre) = '') or (Trim(usuario) = '') or (Trim(email) = '') or (Trim(telefono) = '') or (Trim(nombreUsuario) = '') then
   begin
     WriteLn('⚠️ Todos los campos son obligatorios');
     Exit;
@@ -44,18 +45,26 @@ begin
     Exit;
   end;
 
+  //Validar duplicados por nombre de usuario
+  if BuscarContactoPorUsuario(ContactosUsuarioActivo, usuario) <> nil then
+  begin
+    WriteLn('⚠️ El contacto con usuario ', usuario, ' ya existe en tu lista');
+    Exit;
+  end;
+
   // Generar ID único
   nuevoId := Random(1000000);
 
   // Insertar contacto en la lista del usuario actual
-  InsertarContacto(ContactosUsuarioActivo, nuevoId, nombre, email);
+  InsertarContacto(ContactosUsuarioActivo, nuevoId, nombre, email, nombreUsuario);
 
   WriteLn('✅ Contacto agregado exitosamente para ', UsuarioActivo.email);
-  WriteLn('   Nombre: ', nombre, ' | Usuario: ', usuario, ' | Email: ', email, ' | Tel: ', telefono);
+  WriteLn('   Nombre: ', nombre, ' | Usuario: ', usuario, ' | Email: ', email, ' | Tel: ', telefono, ' | Nombre de Usuario: ', nombreUsuario);
 
   // Limpiar campos
   gtk_entry_set_text(GTK_ENTRY(entryNombre), '');
   gtk_entry_set_text(GTK_ENTRY(entryUsuario), '');
+  gtk_entry_set_text(GTK_ENTRY(entryNombreUsuario), '');
   gtk_entry_set_text(GTK_ENTRY(entryEmail), '');
   gtk_entry_set_text(GTK_ENTRY(entryTelefono), '');
 end;
@@ -87,8 +96,8 @@ begin
   scroll := gtk_scrolled_window_new(nil, nil);
   gtk_box_pack_start(GTK_BOX(vbox), scroll, TRUE, TRUE, 0);
 
-  // 3 columnas: ID | Nombre | Email
-  store := gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  // 4 columnas: ID | Nombre | Email | Usuario
+  store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
   treeview := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
 
   renderer := gtk_cell_renderer_text_new;
@@ -98,12 +107,17 @@ begin
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Nombre', renderer, 'text', 1, nil);
-  gtk_tree_view_column_set_min_width(column, 200);
+  gtk_tree_view_column_set_min_width(column, 150);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   renderer := gtk_cell_renderer_text_new;
   column := gtk_tree_view_column_new_with_attributes('Email', renderer, 'text', 2, nil);
   gtk_tree_view_column_set_min_width(column, 250);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+  renderer := gtk_cell_renderer_text_new;
+  column := gtk_tree_view_column_new_with_attributes('Usuario', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 150);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
   gtk_container_add(GTK_CONTAINER(scroll), treeview);
@@ -119,6 +133,7 @@ begin
         0, PChar(IntToStr(aux^.id)),
         1, PChar(aux^.nombre),
         2, PChar(aux^.email),
+        3, PChar(aux^.nombreUsuario),
         -1);
       aux := aux^.siguiente;
       Inc(contador);
@@ -168,6 +183,15 @@ begin
   gtk_box_pack_start(GTK_BOX(hbox), lbl, FALSE, FALSE, 5);
   entryUsuario := gtk_entry_new;
   gtk_box_pack_start(GTK_BOX(hbox), entryUsuario, TRUE, TRUE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+  // Nombre de Usuario:
+  hbox := gtk_hbox_new(FALSE, 5);
+  lbl := gtk_label_new('Nombre de Usuario:');
+  gtk_widget_set_size_request(lbl, 120, -1);
+  gtk_box_pack_start(GTK_BOX(hbox), lbl, FALSE, FALSE, 5);
+  entryNombreUsuario := gtk_entry_new;
+  gtk_box_pack_start(GTK_BOX(hbox), entryNombreUsuario, TRUE, TRUE, 5);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
 
   // Email:

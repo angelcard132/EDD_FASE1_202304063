@@ -4,7 +4,7 @@ digraph ColaCorreos {
   edge [color=blue, style=bold];
 
   // Título
-  titulo [label="COLA (FIFO) - CORREOS PROGRAMADOS\\nUsuario: smejia@edd.com", shape=box, style=filled, fillcolor=yellow];
+  titulo [label="COLA (FIFO) - CORREOS PROGRAMADOS\\nUsuario: lgarcia@edd.com", shape=box, style=filled, fillcolor=yellow];
 
   frente [label="FRENTE", shape=box, style=filled, fillcolor=green];
   final [label="FINAL", shape=box, style=filled, fillcolor=red];

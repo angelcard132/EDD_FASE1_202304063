@@ -1,0 +1,17 @@
+digraph BST {
+  node [shape=circle, style=filled, color=lightblue];
+  "35 Chicky" -> "22 Elane";
+  "22 Elane" -> "16 Thomasa";
+  "16 Thomasa" -> "13 Tamas";
+  "13 Tamas" -> "1 Stanton";
+  "13 Tamas" -> "14 Elwood";
+  "16 Thomasa" -> "19 Saxe";
+  "22 Elane" -> "23 Kennedy";
+  "23 Kennedy" -> "28 Enoch";
+  "28 Enoch" -> "30 Ramsay";
+  "35 Chicky" -> "60 Norine";
+  "60 Norine" -> "50 Linzy";
+  "50 Linzy" -> "49 Carrissa";
+  "49 Carrissa" -> "43 Lexine";
+  "60 Norine" -> "82 Lyndell";
+}

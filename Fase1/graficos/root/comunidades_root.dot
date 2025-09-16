@@ -6,6 +6,47 @@ digraph Comunidades {
   // Título
   titulo [label="LISTA DE LISTAS - COMUNIDADES", shape=box, style=filled, fillcolor=yellow];
 
-  vacia [label="No hay comunidades creadas", shape=box, style=filled, fillcolor=red];
-  titulo -> vacia;
+  // Lista principal de comunidades
+  comunidad0 [label="COMUNIDAD\\nID: 1\\nNombre: Juegos\\nMiembros: 1", fillcolor=lightblue];
+
+  // Sublista de miembros de la comunidad 0
+  subgraph cluster_miembros0 {
+    label="Miembros de: Juegos";
+    style=filled;
+    fillcolor=lightgreen;
+    node [fillcolor=white];
+    miembro0_0 [label="ID: 11\\nNombre: erickkk\\nEmail: erick@edd.com"];
+    // Conexiones de la sublista
+  }
+
+  comunidad0 -> miembro0_0 [color=red, style=dashed];
+  comunidad1 [label="COMUNIDAD\\nID: 2\\nNombre: Peliculas\\nMiembros: 2", fillcolor=lightblue];
+
+  // Sublista de miembros de la comunidad 1
+  subgraph cluster_miembros1 {
+    label="Miembros de: Peliculas";
+    style=filled;
+    fillcolor=lightgreen;
+    node [fillcolor=white];
+    miembro1_0 [label="ID: 1\\nNombre: Luis Garcia\\nEmail: lgarcia@edd.com"];
+    miembro1_1 [label="ID: 9\\nNombre: Mitchell Baker\\nEmail: mbaker@edd.com"];
+    // Conexiones de la sublista
+    miembro1_0 -> miembro1_1;
+  }
+
+  comunidad1 -> miembro1_0 [color=red, style=dashed];
+  comunidad2 [label="COMUNIDAD\\nID: 3\\nNombre: Tareas\\nMiembros: 0", fillcolor=lightblue];
+  vacia2 [label="Sin miembros", shape=box, style=filled, fillcolor=gray];
+  comunidad2 -> vacia2 [color=red, style=dashed];
+
+  // Conexiones de la lista principal
+  titulo -> comunidad0 [color=blue];
+  comunidad0 -> comunidad1 [color=blue];
+  comunidad1 -> comunidad2 [color=blue];
+  comunidad0 -> null [style=dashed];
+  null [label="NULL", shape=box, style=filled, fillcolor=gray];
+
+  // Leyenda
+  leyenda [label="Azul: Lista principal\\nRojo: Enlace a sublistas\\nVerde: Sublistas de miembros", shape=box, style=filled, fillcolor=lightyellow];
+  titulo -> leyenda [style=dotted];
 }

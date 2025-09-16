@@ -4,7 +4,7 @@ digraph ListaContactos {
   edge [color=orange, style=bold];
 
   // Título
-  titulo [label="LISTA CIRCULAR - CONTACTOS\\nUsuario: smejia@edd.com", shape=box, style=filled, fillcolor=yellow];
+  titulo [label="LISTA CIRCULAR - CONTACTOS\\nUsuario: lgarcia@edd.com", shape=box, style=filled, fillcolor=yellow];
 
   vacia [label="Lista Vacía", shape=box, style=filled, fillcolor=red];
   titulo -> vacia;

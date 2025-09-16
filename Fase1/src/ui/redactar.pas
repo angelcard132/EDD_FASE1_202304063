@@ -40,16 +40,9 @@ begin
     Exit;
   end;
 
-  // Validar formato básico de email
-  if Pos('@', para) = 0 then
-  begin
-    WriteLn('⚠️ El email del destinatario no tiene formato válido');
-    Exit;
-  end;
-
   // Verificar si el destinatario es un usuario registrado o un contacto
-  esUsuarioRegistrado := BuscarUsuarioPorEmail(UsuariosGlobal, para) <> nil;
-  contacto := BuscarContacto(ContactosUsuarioActivo, para);
+  esUsuarioRegistrado := BuscarUsuarioPorUsuario(UsuariosGlobal, para) <> nil;
+  contacto := BuscarContactoPorUsuario(ContactosUsuarioActivo, para);
 
   // VALIDACIÓN ESTRICTA: Solo permitir envío a usuarios registrados o contactos
   if not esUsuarioRegistrado and (contacto = nil) then
@@ -82,7 +75,7 @@ begin
   // Insertar correo en la lista global (solo destinatarios válidos)
   InsertarCorreo(CorreosGlobal,
     nuevoId,                 // ID único
-    UsuarioActivo.email,     // remitente
+    UsuarioActivo.usuario,     // remitente
     para,                    // destinatario
     'NL',                    // estado inicial (no leído)
     asunto,                  // asunto
@@ -92,7 +85,7 @@ begin
 
   WriteLn('✅ Correo enviado exitosamente:');
   WriteLn('   ID: ', nuevoId);
-  WriteLn('   De: ', UsuarioActivo.email);
+  WriteLn('   De: ', UsuarioActivo.usuario, '(', UsuarioActivo.email, ')');
   WriteLn('   Para: ', para);
   WriteLn('   Asunto: ', asunto);
   WriteLn('   Estado: NL (No leído)');
@@ -130,7 +123,7 @@ var
       if gtk_tree_model_get_iter(model, @iter, path) then
       begin
         try
-          gtk_tree_model_get(model, @iter, 2, @pEmail, -1);
+          gtk_tree_model_get(model, @iter, 3, @pEmail, -1);
           if pEmail <> nil then
           begin
             email := StrPas(pEmail);
@@ -156,7 +149,7 @@ var
     scrollDialog := gtk_scrolled_window_new(nil, nil);
     gtk_box_pack_start(GTK_BOX(vboxDialog), scrollDialog, TRUE, TRUE, 5);
 
-    store := gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     treeview := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
 
     renderer := gtk_cell_renderer_text_new;
@@ -169,6 +162,10 @@ var
 
     renderer := gtk_cell_renderer_text_new;
     column := gtk_tree_view_column_new_with_attributes('Email', renderer, 'text', 2, nil);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
+
+    renderer := gtk_cell_renderer_text_new;
+    column := gtk_tree_view_column_new_with_attributes('Usuario', renderer, 'text', 3, nil);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     gtk_container_add(GTK_CONTAINER(scrollDialog), treeview);
@@ -184,6 +181,7 @@ var
           0, PChar(IntToStr(aux^.id)),
           1, PChar(aux^.nombre),
           2, PChar(aux^.email),
+          3, PChar(aux^.nombreUsuario),
           -1);
         aux := aux^.siguiente;
         Inc(contador);

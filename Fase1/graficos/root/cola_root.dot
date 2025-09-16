@@ -1,0 +1,16 @@
+digraph ColaCorreos {
+  rankdir=LR;
+  node [shape=record, style=filled, fillcolor=lightcyan];
+  edge [color=blue, style=bold];
+
+  // Título
+  titulo [label="COLA (FIFO) - CORREOS PROGRAMADOS\\nUsuario: lgarcia@edd.com", shape=box, style=filled, fillcolor=yellow];
+
+  frente [label="FRENTE", shape=box, style=filled, fillcolor=green];
+  final [label="FINAL", shape=box, style=filled, fillcolor=red];
+
+  vacia [label="Cola Vacía", shape=box, style=filled, fillcolor=red];
+  titulo -> vacia;
+  frente -> vacia;
+  final -> vacia;
+}

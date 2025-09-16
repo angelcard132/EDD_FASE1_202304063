@@ -6,6 +6,30 @@ digraph MatrizDispersa {
   // Título
   titulo [label="MATRIZ DISPERSA - CORREOS ENVIADOS\\nFilas: Destinatarios | Columnas: Remitentes", shape=box, style=filled, fillcolor=yellow];
 
-  vacia [label="No hay correos enviados para generar matriz", shape=box, style=filled, fillcolor=red];
-  titulo -> vacia;
+  // Encabezados de columnas (Remitentes que enviaron correos)
+  subgraph cluster_remitentes {
+    label="REMITENTES (Columnas)";
+    style=filled;
+    fillcolor=lightblue;
+    rank=same;
+    rem0 [label="erick@edd.com", fillcolor=lightblue];
+  }
+
+  // Filas de la matriz (Destinatarios que recibieron correos)
+  subgraph cluster_fila0 {
+    label="lgarcia@edd.com";
+    style=filled;
+    fillcolor=lightgreen;
+    rank=same;
+    dest0 [label="lgarcia@edd.com", fillcolor=lightgreen];
+    celda0_0 [label="3", fillcolor=orange, style="filled,bold"];
+  }
+
+  // Conexiones de estructura
+  titulo -> dest0;
+  dest0 -> celda0_0 [style=invisible];
+
+  // Leyenda
+  leyenda [label="Números indican cantidad de\\ncorreos ENVIADOS entre usuarios", shape=box, style=filled, fillcolor=lightyellow];
+  titulo -> leyenda [style=dashed];
 }

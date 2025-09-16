@@ -12,19 +12,19 @@ procedure MostrarLogin;
 implementation
 
 var
-  entryEmail, entryPass: PGtkWidget;
+  entryUsuario, entryPass: PGtkWidget;
   Usuarios: TListaUsuarios; // lista en memoria
 
 procedure on_login_clicked(widget: PGtkWidget; data: gpointer); cdecl;
 var
-  email, pass: String;
+  usuario, pass: String;
   u: PUsuario;
 begin
-  email := gtk_entry_get_text(GTK_ENTRY(entryEmail));
+  usuario := gtk_entry_get_text(GTK_ENTRY(entryUsuario));
   pass  := gtk_entry_get_text(GTK_ENTRY(entryPass));
 
   // ROOT (hardcodeado)
-  if (email = 'root@edd.com') and (pass = 'root123') then
+  if (usuario = 'root@edd.com') and (pass = 'root123') then
   begin
     WriteLn('Login ROOT OK');
     MostrarMenuRoot;
@@ -32,10 +32,10 @@ begin
   end;
 
   // Usuario normal validando contra la lista
-  u := BuscarUsuarioPorEmail(Usuarios, email);
+  u := BuscarUsuarioPorUsuario(Usuarios, usuario);
   if (u <> nil) and (u^.password = pass) then
   begin
-    WriteLn('Login USUARIO OK: ', u^.email);
+    WriteLn('Login USUARIO OK: ', u^.usuario);
     CambiarUsuarioActivo(u^);  // Usar función que reinicia contactos
     MostrarMenuUsuario(u^);  // 🔹 ahora le pasamos el usuario logueado
   end
@@ -55,7 +55,7 @@ procedure MostrarLogin;
 var
   window: PGtkWidget;
   vbox, hbox: PGtkWidget;
-  lblEmail, lblPass: PGtkWidget;
+  lblUsuario, lblPass: PGtkWidget;
   btnLogin, btnRegister: PGtkWidget;
 begin
   gtk_init(@argc, @argv);
@@ -89,11 +89,11 @@ begin
   vbox := gtk_vbox_new(FALSE, 6);
   gtk_container_add(GTK_CONTAINER(window), vbox);
 
-  // Email
-  lblEmail := gtk_label_new('Correo:');
-  gtk_box_pack_start(GTK_BOX(vbox), lblEmail, FALSE, FALSE, 0);
-  entryEmail := gtk_entry_new;
-  gtk_box_pack_start(GTK_BOX(vbox), entryEmail, FALSE, FALSE, 0);
+  // Usuario
+  lblUsuario := gtk_label_new('Usuario:');
+  gtk_box_pack_start(GTK_BOX(vbox), lblUsuario, FALSE, FALSE, 0);
+  entryUsuario := gtk_entry_new;
+  gtk_box_pack_start(GTK_BOX(vbox), entryUsuario, FALSE, FALSE, 0);
 
   // Password
   lblPass := gtk_label_new('Contraseña:');

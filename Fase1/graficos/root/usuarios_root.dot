@@ -16,6 +16,7 @@ digraph ListaUsuarios {
   usuario7 [label="ID: 8|Nombre: Karen Sandler|Usuario: ksandler|Email: ksandler@edd.com|Tel: 89514362"];
   usuario8 [label="ID: 9|Nombre: Mitchell Baker|Usuario: mbaker|Email: mbaker@edd.com|Tel: 19384756"];
   usuario9 [label="ID: 10|Nombre: Ian Murdock|Usuario: imurdock|Email: imurdock@edd.com|Tel: 41235678"];
+  usuario10 [label="ID: 11|Nombre: erickkk|Usuario: erick|Email: erick@edd.com|Tel: 12345"];
 
   // Conexiones
   titulo -> usuario0;
@@ -28,6 +29,7 @@ digraph ListaUsuarios {
   usuario6 -> usuario7;
   usuario7 -> usuario8;
   usuario8 -> usuario9;
-  usuario7 -> null [style=dashed];
+  usuario9 -> usuario10;
+  usuario8 -> null [style=dashed];
   null [label="NULL", shape=box, style=filled, fillcolor=gray];
 }

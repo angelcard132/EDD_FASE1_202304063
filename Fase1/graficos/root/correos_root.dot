@@ -1,0 +1,21 @@
+digraph ListaCorreos {
+  rankdir=LR;
+  node [shape=record, style=filled, fillcolor=lightgreen];
+  edge [color=green, style=bold];
+
+  // Título
+  titulo [label="LISTA DOBLEMENTE ENLAZADA - CORREOS", shape=box, style=filled, fillcolor=yellow];
+
+  correo0 [label="ID: 548813|De: erick@edd.com|Para: lgarcia@edd.com|Asunto: tarea|Estado: NL|Fecha: 6-9-25"];
+  correo1 [label="ID: 592844|De: erick@edd.com|Para: lgarcia@edd.com|Asunto: proyecto |Estado: NL|Fecha: 6-9-25"];
+  correo2 [label="ID: 715189|De: erick@edd.com|Para: lgarcia@edd.com|Asunto: calificacion|Estado: NL|Fecha: 6-9-25"];
+  correo3 [label="ID: 602763|De: lgarcia@edd.com|Para: bfox@edd.com|Asunto: calificacion|Estado: NL|Fecha: 6-9-25"];
+
+  // Conexiones hacia adelante
+  titulo -> correo0;
+  correo0 -> correo1 [label="sig"];
+  correo1 -> correo2 [label="sig"];
+  correo2 -> correo3 [label="sig"];
+  correo1 -> null [style=dashed];
+  null [label="NULL", shape=box, style=filled, fillcolor=gray];
+}
