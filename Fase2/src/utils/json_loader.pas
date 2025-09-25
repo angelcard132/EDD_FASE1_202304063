@@ -34,11 +34,16 @@ function NombreDeEmail(const email: String): String;
 { Registrar nuevas credenciales para usuarios recién creados }
 procedure RegistrarCredencialesUsuario(const email, password, nombre: String);
 
+{ Gestión de estados de correos }
+function ObtenerEstadoCorreo(correoID: Integer): String;
+procedure EstablecerEstadoCorreo(correoID: Integer; const estado: String);
+
 implementation
 
 var
   GPassByEmail: TStringList;   // email -> password
   GNameByEmail: TStringList;   // email -> nombre
+  GEstadosCorreos: TStringList; // correoID -> estado
 
 function ValidarLogin(const email, password: String): Boolean;
 var
@@ -138,6 +143,38 @@ begin
   end;
 end;
 
+function ObtenerEstadoCorreo(correoID: Integer): String;
+var
+  idStr: String;
+begin  
+  idStr := IntToStr(correoID);
+  if GEstadosCorreos <> nil then
+    Result := GEstadosCorreos.Values[idStr]
+  else
+    Result := 'NL'; // Default: No Leído
+  
+  if Result = '' then
+    Result := 'NL';
+end;
+
+procedure EstablecerEstadoCorreo(correoID: Integer; const estado: String);
+var
+  idStr: String;
+begin
+  idStr := IntToStr(correoID);
+  if GEstadosCorreos <> nil then
+  begin
+    GEstadosCorreos.Values[idStr] := estado;
+    WriteLn('DEBUG - Estado establecido para correo ID ', correoID, ': ', estado);
+  end;
+end;
+
+procedure ActualizarEstadoCorreoEnCola(var programados: TCola; correoID: Integer; nuevoEstado: String);
+begin
+  // Ya no necesitamos modificar la cola directamente
+  EstablecerEstadoCorreo(correoID, nuevoEstado);
+end;
+
 procedure CargarCorreosProgramadosDesdeJSON(const archivo: String; var programados: TCola);
 var
   data: TStringList;
@@ -145,6 +182,8 @@ var
   arr: TJSONArray;
   obj: TJSONObject;
   i: Integer;
+  correoID: Integer;
+  estado: String;
 begin
   if not FileExists(archivo) then
   begin
@@ -164,14 +203,22 @@ begin
         for i := 0 to arr.Count - 1 do
         begin
           obj := arr.Objects[i];
+          correoID := obj.Get('id', 0);
+          estado := obj.Get('estado', 'NL');
+          
+          // Encolar normalmente
           Encolar(programados,
-            obj.Get('id', 0),
+            correoID,
             obj.Get('remitente', ''),
             obj.Get('destinatario', ''),
             obj.Get('asunto', ''),
             obj.Get('mensaje', '')
           );
-          WriteLn('  📧 Programado: ', obj.Get('asunto', ''));
+          
+          // Actualizar el estado después de encolar
+          ActualizarEstadoCorreoEnCola(programados, correoID, estado);
+          
+          WriteLn('  📧 Programado: ', obj.Get('asunto', ''), ' - Estado: ', estado);
         end;
         WriteLn('📊 Total programados: ', arr.Count);
       end;
@@ -285,8 +332,10 @@ var
   i: Integer;
   correo: TCorreoB;
   email, pass, nombre: String;
+  correoID: Integer;
+  estado: String;
 begin
-  // Usuarios - cargar con credenciales
+  // Usuarios
   if FileExists(usuariosFile) then
   begin
     // Reiniciar almacenes de autenticación
@@ -326,7 +375,6 @@ begin
             end;
           end;
           WriteLn('📊 Total usuarios: ', arr.Count);
-          WriteLn('📊 Passwords almacenados: ', GPassByEmail.Count);
         end;
       finally
         json.Free;
@@ -341,6 +389,9 @@ begin
   // Correos
   if FileExists(correosFile) then
   begin
+    // Limpiar estados previos
+    if GEstadosCorreos <> nil then GEstadosCorreos.Clear;
+    
     data := TStringList.Create;
     try
       data.LoadFromFile(correosFile);
@@ -353,19 +404,24 @@ begin
           for i := 0 to arr.Count - 1 do
           begin
             obj := arr.Objects[i];
+            correoID := obj.Get('id', 0);
+            estado := obj.Get('estado', 'NL');
 
-            // Cola (programados)
+            // Cola (programados) - sin estado en la estructura
             Encolar(programados,
-              obj.Get('id', 0),
+              correoID,
               obj.Get('remitente', ''),
               obj.Get('destinatario', ''),
               obj.Get('asunto', ''),
               obj.Get('mensaje', '')
             );
+            
+            // Guardar estado por separado
+            EstablecerEstadoCorreo(correoID, estado);
 
             // AVL (borradores)
             borradores := arbol_avl.Insertar(borradores,
-              obj.Get('id', 0),
+              correoID,
               obj.Get('remitente', ''),
               obj.Get('destinatario', ''),
               obj.Get('asunto', ''),
@@ -373,12 +429,14 @@ begin
             );
 
             // Árbol B (favoritos)
-            correo.id := obj.Get('id', 0);
+            correo.id := correoID;
             correo.remitente := obj.Get('remitente', '');
             correo.destinatario := obj.Get('destinatario', '');
             correo.asunto := obj.Get('asunto', '');
             correo.mensaje := obj.Get('mensaje', '');
             arbol_b.Insertar(favoritos, correo);
+            
+            WriteLn('  📧 Correo cargado ID: ', correoID, ' - Estado: ', estado);
           end;
           WriteLn('📊 Total correos: ', arr.Count);
         end;
@@ -424,60 +482,14 @@ initialization
   GNameByEmail.Sorted := False;
   GNameByEmail.NameValueSeparator := '=';
 
-finalization
-  FreeAndNil(GPassByEmail);
-  FreeAndNil(GNameByEmail);
-
-end.
-  GPassByEmail.Sorted := False;
-  GPassByEmail.NameValueSeparator := '=';
-
-  GNameByEmail := TStringList.Create;
-  GNameByEmail.CaseSensitive := False;
-  GNameByEmail.Sorted := False;
-  GNameByEmail.NameValueSeparator := '=';
+  GEstadosCorreos := TStringList.Create;
+  GEstadosCorreos.CaseSensitive := False;
+  GEstadosCorreos.Sorted := False;
+  GEstadosCorreos.NameValueSeparator := '=';
 
 finalization
   FreeAndNil(GPassByEmail);
   FreeAndNil(GNameByEmail);
-
-end.
-  
-  if GPassByEmail.Count > 0 then
-  begin
-    WriteLn('DEBUG json_loader - Passwords almacenados:');
-    for i := 0 to GPassByEmail.Count - 1 do
-      WriteLn('  ', GPassByEmail.Names[i], ' = ', GPassByEmail.ValueFromIndex[i]);
-  end;
-  
-  storedPass := GPassByEmail.Values[email];
-  WriteLn('DEBUG json_loader - Password almacenado para "', email, '": "', storedPass, '"');
-  
-  Result := (storedPass = password) and (password <> '');
-  WriteLn('DEBUG json_loader - Resultado: ', Result);
-end;
-
-function NombreDeEmail(const email: String): String;
-begin
-  if GNameByEmail <> nil then
-    Result := GNameByEmail.Values[email]
-  else
-    Result := '';
-end;
-
-initialization
-  GPassByEmail := TStringList.Create;
-  GPassByEmail.CaseSensitive := False;
-  GPassByEmail.Sorted := False;
-  GPassByEmail.NameValueSeparator := '=';
-
-  GNameByEmail := TStringList.Create;
-  GNameByEmail.CaseSensitive := False;
-  GNameByEmail.Sorted := False;
-  GNameByEmail.NameValueSeparator := '=';
-
-finalization
-  FreeAndNil(GPassByEmail);
-  FreeAndNil(GNameByEmail);
+  FreeAndNil(GEstadosCorreos);
 
 end.

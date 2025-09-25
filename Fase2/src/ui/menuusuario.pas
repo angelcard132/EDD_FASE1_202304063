@@ -12,27 +12,107 @@ procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; va
 
 implementation
 
-procedure OnCerrarSesionUsuario(widget: PGtkWidget; data: gpointer); cdecl;
+uses
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto; // <-- agregar nuevo_contacto
+
+var
+  GEmail: String;
+  GUsuarios: ^TListaSimple = nil;
+  GProgramados: ^TCola = nil;
+  GBorradores: ^PCorreoAVL = nil;
+  GFavoritos: ^PNodoB = nil;
+
+procedure OnRedactarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  // Cerrar ventana actual y volver al login
-  if Assigned(widget) then
-    gtk_widget_destroy(gtk_widget_get_toplevel(widget));
+  MostrarRedactarCorreo(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
+procedure OnCerrarSesionUsuario(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  ventanaActual: PGtkWidget;
+  i: Integer;
+begin
+  WriteLn('🔓 Cerrando sesión de usuario...');
   
-  WriteLn('Sesión cerrada - regresando al login');
+  // Verificar que tenemos las estructuras necesarias
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) then
+  begin
+    WriteLn('🔄 Mostrando login...');
+    
+    // Primero mostrar el login
+    MostrarLogin(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+    
+    // Procesar eventos pendientes con un bucle simple
+    for i := 1 to 10 do
+    begin
+      if gtk_events_pending() > 0 then
+        gtk_main_iteration()
+      else
+        Break;
+    end;
+    
+    // Luego cerrar la ventana actual
+    if Assigned(widget) then
+    begin
+      ventanaActual := gtk_widget_get_toplevel(widget);
+      if Assigned(ventanaActual) then
+      begin
+        gtk_widget_hide(ventanaActual);  // Ocultar primero
+        gtk_widget_destroy(ventanaActual);  // Luego destruir
+        WriteLn('✅ Ventana de menú de usuario cerrada');
+      end;
+    end;
+  end
+  else
+  begin
+    WriteLn('❌ Error: Estructuras no disponibles');
+    gtk_main_quit();
+  end;
+end;
+
+function OnDeleteEventUsuario(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
+begin
+  WriteLn('🔓 Cerrando ventana de usuario...');
+  OnCerrarSesionUsuario(widget, data);
+  Result := True; // Prevenir el cierre automático de la ventana
+end;
+
+procedure OnBandejaEntrada(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarBandejaEntrada(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
+procedure OnVerProgramados(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarProgramados(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
+procedure OnGestionContactos(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarGestionContactos(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
-  w, vbox, lbl, btnBorr, btnFav, btnProg, btnSalir: PGtkWidget;
+  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnProg, btnContactos, btnSalir: PGtkWidget;
   nombre: String;
 begin
-  // Las estructuras se pasan por parámetro, no necesitamos variables globales aquí
+  // Guardar referencias globales
+  GEmail := email;
+  GUsuarios := @usuarios;
+  GProgramados := @programados;
+  GBorradores := @borradores;
+  GFavoritos := @favoritos;
   
   nombre := NombreDeEmail(email);
   w := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(w), PChar('Menú de Usuario - ' + nombre));
-  gtk_window_set_default_size(GTK_WINDOW(w), 480, 320);
+  gtk_window_set_title(GTK_WINDOW(w), PChar('👤 Menú de Usuario - ' + nombre));
+  gtk_window_set_default_size(GTK_WINDOW(w), 480, 380);
+  gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width(GTK_CONTAINER(w), 16);
+
+  // Conectar delete-event para que regrese al login en lugar de cerrar la aplicación
+  g_signal_connect(w, 'delete-event', G_CALLBACK(@OnDeleteEventUsuario), nil);
 
   vbox := gtk_vbox_new(False, 12);
   gtk_container_add(GTK_CONTAINER(w), vbox);
@@ -40,33 +120,38 @@ begin
   lbl := gtk_label_new(PChar('Bienvenido, ' + nombre + ' (' + email + ')'));
   gtk_box_pack_start(GTK_BOX(vbox), lbl, False, False, 10);
 
-  btnProg := gtk_button_new_with_label('Ver Programados (Cola)');
-  g_signal_connect(btnProg, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Programados: vista no implementada' + LineEnding)));
+  // Botón Bandeja de Entrada
+  btnBandeja := gtk_button_new_with_label('📥 Bandeja de Entrada');
+  g_signal_connect(btnBandeja, 'clicked', G_CALLBACK(@OnBandejaEntrada), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnBandeja, True, True, 5);
+
+  // Botón Redactar Correo
+  btnRedactar := gtk_button_new_with_label('✉️ Redactar Correo');
+  g_signal_connect(btnRedactar, 'clicked', G_CALLBACK(@OnRedactarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnRedactar, True, True, 5);
+
+  // Botón Gestión de Contactos (NUEVO)
+  btnContactos := gtk_button_new_with_label('👥 Agregar Contacto');
+  g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnGestionContactos), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnContactos, True, True, 5);
+
+  btnProg := gtk_button_new_with_label('📋 Ver Programados (Cola)');
+  g_signal_connect(btnProg, 'clicked', G_CALLBACK(@OnVerProgramados), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnProg, True, True, 5);
 
-  btnBorr := gtk_button_new_with_label('Ver Borradores (AVL)');
+  btnBorr := gtk_button_new_with_label('📝 Ver Borradores (AVL)');
   g_signal_connect(btnBorr, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Borradores: vista no implementada' + LineEnding)));
   gtk_box_pack_start(GTK_BOX(vbox), btnBorr, True, True, 5);
 
-  btnFav := gtk_button_new_with_label('Ver Favoritos (B-Tree)');
+  btnFav := gtk_button_new_with_label('⭐ Ver Favoritos (B-Tree)');
   g_signal_connect(btnFav, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Favoritos: vista no implementada' + LineEnding)));
   gtk_box_pack_start(GTK_BOX(vbox), btnFav, True, True, 5);
 
-  btnSalir := gtk_button_new_with_label('Cerrar sesión');
+  btnSalir := gtk_button_new_with_label('🚪 Cerrar sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnCerrarSesionUsuario), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnSalir, True, True, 5);
 
-  gtk_widget_show_all(w);
-end;
-
-end.
-  g_signal_connect(btnFav, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Favoritos: vista no implementada' + LineEnding)));
-  gtk_box_pack_start(GTK_BOX(vbox), btnFav, True, True, 5);
-
-  btnSalir := gtk_button_new_with_label('Cerrar sesión');
-  g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnCerrarSesionUsuario), nil);
-  gtk_box_pack_start(GTK_BOX(vbox), btnSalir, True, True, 5);
-
+  WriteLn('👤 Mostrando menú de usuario para: ', email);
   gtk_widget_show_all(w);
 end;
 

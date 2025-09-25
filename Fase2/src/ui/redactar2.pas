@@ -5,239 +5,254 @@ unit redactar2;
 interface
 
 uses
-  glib2, gtk2, SysUtils, lista_doble, lista_simple, lista_circular, globals;
+  glib2, gtk2, gdk2, SysUtils,
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader;
 
-procedure MostrarRedactar;
+procedure MostrarRedactarCorreo(const emailRemitente: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 
 implementation
 
 var
-  entryPara, entryAsunto: PGtkWidget;
-  textContenido: PGtkWidget;
+  GEmailRemitente: String;
+  GUsuarios: ^TListaSimple = nil;
+  GProgramados: ^TCola = nil;
+  GBorradores: ^PCorreoAVL = nil;
+  GFavoritos: ^PNodoB = nil;
 
-procedure OnEnviarClicked(widget: PGtkWidget; data: gpointer); cdecl;
-var
-  para, asunto, contenido, fecha: String;
-  buffer: PGtkTextBuffer;
-  startIter, endIter: TGtkTextIter;
-  nuevoId: Integer;
-  esUsuarioRegistrado: Boolean;
-  contacto: PContacto;
+  RedactarWindow: PGtkWidget = nil;
+  EntryPara: PGtkWidget = nil;
+  EntryAsunto: PGtkWidget = nil;
+  TextViewMensaje: PGtkWidget = nil;
+
+function GenerarNuevoIDCorreo(): Integer;
 begin
-  para   := gtk_entry_get_text(GTK_ENTRY(entryPara));
-  asunto := gtk_entry_get_text(GTK_ENTRY(entryAsunto));
-
-  buffer := gtk_text_view_get_buffer(GTK_TEXT_VIEW(textContenido));
-  gtk_text_buffer_get_start_iter(buffer, @startIter);
-  gtk_text_buffer_get_end_iter(buffer, @endIter);
-  contenido := gtk_text_buffer_get_text(buffer, @startIter, @endIter, True);
-
-  fecha := DateToStr(Date);
-
-  if (Trim(para) = '') or (Trim(asunto) = '') or (Trim(contenido) = '') then
-  begin
-    WriteLn('⚠️ Todos los campos son obligatorios');
-    Exit;
-  end;
-
-  // Verificar si el destinatario es un usuario registrado o un contacto
-  esUsuarioRegistrado := BuscarUsuarioPorUsuario(UsuariosGlobal, para) <> nil;
-  contacto := BuscarContactoPorUsuario(ContactosUsuarioActivo, para);
-
-  // VALIDACIÓN ESTRICTA: Solo permitir envío a usuarios registrados o contactos
-  if not esUsuarioRegistrado and (contacto = nil) then
-  begin
-    WriteLn('❌ ERROR: No se puede enviar el correo');
-    WriteLn('⚠️ El destinatario "', para, '" no está registrado en el sistema ni en tus contactos');
-    WriteLn('💡 Para enviar correos debes:');
-    WriteLn('   1. Que el destinatario sea un usuario registrado en el sistema, O');
-    WriteLn('   2. Agregar el contacto a tu lista personal desde "👥 Agregar Contacto"');
-    Exit;
-  end;
-
-  // Mostrar información del destinatario válido
-  if esUsuarioRegistrado then
-  begin
-    WriteLn('📧 Enviando correo a usuario registrado: ', para);
-  end
-  else if contacto <> nil then
-  begin
-    WriteLn('📧 Enviando correo a contacto: ', contacto^.nombre, ' (', para, ')');
-  end;
-
-  // Asegurar lista global inicializada
-  if (CorreosGlobal.primero = nil) and (CorreosGlobal.ultimo = nil) then
-    InicializarListaCorreos(CorreosGlobal);
-
-  // Generar ID único
-  nuevoId := Random(1000000);
-
-  // Insertar correo en la lista global (solo destinatarios válidos)
-  InsertarCorreo(CorreosGlobal,
-    nuevoId,                 // ID único
-    UsuarioActivo.usuario,     // remitente
-    para,                    // destinatario
-    'NL',                    // estado inicial (no leído)
-    asunto,                  // asunto
-    fecha,                   // fecha
-    contenido                // contenido
-  );
-
-  WriteLn('✅ Correo enviado exitosamente:');
-  WriteLn('   ID: ', nuevoId);
-  WriteLn('   De: ', UsuarioActivo.usuario, '(', UsuarioActivo.email, ')');
-  WriteLn('   Para: ', para);
-  WriteLn('   Asunto: ', asunto);
-  WriteLn('   Estado: NL (No leído)');
-  WriteLn('   Fecha: ', fecha);
-  
-  // Limpiar campos después de enviar
-  gtk_entry_set_text(GTK_ENTRY(entryPara), '');
-  gtk_entry_set_text(GTK_ENTRY(entryAsunto), '');
-  gtk_text_buffer_set_text(buffer, '', -1);
+  // Generar ID simple basado en timestamp
+  Result := Trunc(Now * 86400) mod 100000;
 end;
 
-procedure MostrarRedactar;
+procedure MostrarMensaje(const titulo, mensaje: String; tipoMensaje: TGtkMessageType);
 var
-  window, vbox, hbox, lbl: PGtkWidget;
-  scroll, btnEnviar, btnContactos: PGtkWidget;
-  
-  procedure OnSeleccionarContactoClicked(widget: PGtkWidget; data: gpointer); cdecl;
-  var
-    dialogWindow, vboxDialog, scrollDialog, treeview: PGtkWidget;
-    store: PGtkListStore;
-    column: PGtkTreeViewColumn;
-    renderer: PGtkCellRenderer;
-    iter: TGtkTreeIter;
-    aux: PContacto;
-    contador: Integer;
-    
-    procedure OnContactoSeleccionado(treeview: PGtkTreeView; path: PGtkTreePath; column: PGtkTreeViewColumn; user_data: gpointer); cdecl;
-    var
-      model: PGtkTreeModel;
-      iter: TGtkTreeIter;
-      pEmail: Pgchar = nil;
-      email: String;
-    begin
-      model := gtk_tree_view_get_model(treeview);
-      if gtk_tree_model_get_iter(model, @iter, path) then
-      begin
-        try
-          gtk_tree_model_get(model, @iter, 3, @pEmail, -1);
-          if pEmail <> nil then
-          begin
-            email := StrPas(pEmail);
-            gtk_entry_set_text(GTK_ENTRY(entryPara), PChar(email));
-            WriteLn('📧 Contacto seleccionado: ', email);
-            gtk_widget_destroy(dialogWindow);
-          end;
-        finally
-          if pEmail <> nil then g_free(pEmail);
-        end;
-      end;
-    end;
+  dialog: PGtkWidget;
+begin
+  dialog := gtk_message_dialog_new(nil, GTK_DIALOG_MODAL, tipoMensaje, GTK_BUTTONS_OK, PChar(mensaje));
+  gtk_window_set_title(GTK_WINDOW(dialog), PChar(titulo));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
 
+function ObtenerTextoTextView(textView: PGtkWidget): String;
+var
+  buffer: PGtkTextBuffer;
+  startIter, endIter: TGtkTextIter;
+  texto: PChar;
+begin
+  buffer := gtk_text_view_get_buffer(PGtkTextView(textView));
+  gtk_text_buffer_get_start_iter(buffer, @startIter);
+  gtk_text_buffer_get_end_iter(buffer, @endIter);
+  texto := gtk_text_buffer_get_text(buffer, @startIter, @endIter, False);
+  Result := StrPas(texto);
+  g_free(texto);
+end;
+
+procedure OnEnviarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  para, asunto, mensaje: String;
+  nuevoID: Integer;
+begin
+  para := StrPas(gtk_entry_get_text(PGtkEntry(EntryPara)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
+  mensaje := ObtenerTextoTextView(TextViewMensaje);
+
+  // Validaciones
+  if (para = '') or (asunto = '') or (mensaje = '') then
   begin
-    dialogWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(dialogWindow), 'Seleccionar Contacto');
-    gtk_window_set_default_size(GTK_WINDOW(dialogWindow), 400, 300);
-    gtk_window_set_modal(GTK_WINDOW(dialogWindow), TRUE);
-
-    vboxDialog := gtk_vbox_new(FALSE, 5);
-    gtk_container_add(GTK_CONTAINER(dialogWindow), vboxDialog);
-
-    scrollDialog := gtk_scrolled_window_new(nil, nil);
-    gtk_box_pack_start(GTK_BOX(vboxDialog), scrollDialog, TRUE, TRUE, 5);
-
-    store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-    treeview := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
-
-    renderer := gtk_cell_renderer_text_new;
-    column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    renderer := gtk_cell_renderer_text_new;
-    column := gtk_tree_view_column_new_with_attributes('Nombre', renderer, 'text', 1, nil);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    renderer := gtk_cell_renderer_text_new;
-    column := gtk_tree_view_column_new_with_attributes('Email', renderer, 'text', 2, nil);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    renderer := gtk_cell_renderer_text_new;
-    column := gtk_tree_view_column_new_with_attributes('Usuario', renderer, 'text', 3, nil);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    gtk_container_add(GTK_CONTAINER(scrollDialog), treeview);
-
-    // Llenar con contactos
-    if ContactosUsuarioActivo.primero <> nil then
-    begin
-      aux := ContactosUsuarioActivo.primero;
-      contador := 0;
-      repeat
-        gtk_list_store_append(store, @iter);
-        gtk_list_store_set(store, @iter,
-          0, PChar(IntToStr(aux^.id)),
-          1, PChar(aux^.nombre),
-          2, PChar(aux^.email),
-          3, PChar(aux^.nombreUsuario),
-          -1);
-        aux := aux^.siguiente;
-        Inc(contador);
-      until (aux = ContactosUsuarioActivo.primero) or (contador >= 50);
-    end;
-
-    g_signal_connect(treeview, 'row-activated', G_CALLBACK(@OnContactoSeleccionado), nil);
-    gtk_widget_show_all(dialogWindow);
+    MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
+    Exit;
   end;
 
+  if Pos('@', para) = 0 then
+  begin
+    MostrarMensaje('Error de Validación', 'El email del destinatario debe contener @.', GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Generar ID y enviar SOLO a Cola
+  nuevoID := GenerarNuevoIDCorreo();
+  Encolar(GProgramados^, nuevoID, GEmailRemitente, para, asunto, mensaje);
+  
+  WriteLn('✅ Correo enviado exitosamente: ', asunto);
+  
+  MostrarMensaje('Correo Enviado', 
+    'El correo ha sido enviado exitosamente.' + LineEnding + 
+    'Para: ' + para + LineEnding +
+    'Asunto: ' + asunto + LineEnding + LineEnding +
+    'El correo aparecerá en la bandeja del destinatario.', 
+    GTK_MESSAGE_INFO);
+  
+  // Cerrar ventana de redactar
+  if Assigned(RedactarWindow) then
+    gtk_widget_destroy(RedactarWindow);
+end;
+
+procedure OnCancelarRedactar(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(window), 'Redactar Correo');
-  gtk_window_set_default_size(GTK_WINDOW(window), 450, 420);
+  if Assigned(RedactarWindow) then
+    gtk_widget_destroy(RedactarWindow);
+end;
 
-  vbox := gtk_vbox_new(FALSE, 5);
-  gtk_container_add(GTK_CONTAINER(window), vbox);
+function OnDeleteEventRedactar(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
+begin
+  WriteLn('🔓 Cerrando redactar correo...');
+  if Assigned(RedactarWindow) then
+    gtk_widget_destroy(RedactarWindow);
+  Result := True; // Prevenir cierre de aplicación
+end;
 
-  // Para:
-  hbox := gtk_hbox_new(FALSE, 5);
-  lbl := gtk_label_new('Para:');
-  gtk_box_pack_start(GTK_BOX(hbox), lbl, FALSE, FALSE, 5);
-  entryPara := gtk_entry_new;
-  gtk_box_pack_start(GTK_BOX(hbox), entryPara, TRUE, TRUE, 5);
-  
-  // Botón para seleccionar contacto
-  btnContactos := gtk_button_new_with_label('👥');
-  g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnSeleccionarContactoClicked), nil);
-  gtk_box_pack_start(GTK_BOX(hbox), btnContactos, FALSE, FALSE, 5);
-  
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+procedure MostrarRedactarCorreo(const emailRemitente: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
+var
+  vbox, form, hbox, btnBox, scrolledWindow: PGtkWidget;
+  lblTitulo, lblPara, lblAsunto, lblMensaje: PGtkWidget;
+  btnEnviar, btnCancelar: PGtkWidget;
+begin
+  // Guardar referencias globales
+  GEmailRemitente := emailRemitente;
+  GProgramados := @programados;
+  GBorradores := @borradores;
+  GFavoritos := @favoritos;
 
-  // Asunto:
-  hbox := gtk_hbox_new(FALSE, 5);
-  lbl := gtk_label_new('Asunto:');
-  gtk_box_pack_start(GTK_BOX(hbox), lbl, FALSE, FALSE, 5);
-  entryAsunto := gtk_entry_new;
-  gtk_box_pack_start(GTK_BOX(hbox), entryAsunto, TRUE, TRUE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+  // Si existe una ventana previa, destruirla
+  if Assigned(RedactarWindow) then
+    gtk_widget_destroy(RedactarWindow);
 
-  // Contenido:
-  lbl := gtk_label_new('Contenido:');
-  gtk_box_pack_start(GTK_BOX(vbox), lbl, FALSE, FALSE, 5);
-  scroll := gtk_scrolled_window_new(nil, nil);
-  gtk_box_pack_start(GTK_BOX(vbox), scroll, TRUE, TRUE, 5);
+  RedactarWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW(RedactarWindow), PChar('Redactar Correo - EDDMail'));
+  gtk_window_set_default_size(GTK_WINDOW(RedactarWindow), 500, 400);
+  gtk_window_set_resizable(GTK_WINDOW(RedactarWindow), True);
 
-  textContenido := gtk_text_view_new;
-  gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textContenido), GTK_WRAP_WORD);
-  gtk_container_add(GTK_CONTAINER(scroll), textContenido);
+  // Conectar delete-event para prevenir cierre de aplicación
+  g_signal_connect(RedactarWindow, 'delete-event', G_CALLBACK(@OnDeleteEventRedactar), nil);
 
-  // Enviar
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
+  gtk_container_add(GTK_CONTAINER(RedactarWindow), vbox);
+
+  lblTitulo := gtk_label_new(PChar('✉️ Nuevo Correo - De: ' + emailRemitente));
+  gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
+
+  form := gtk_vbox_new(False, 12);
+  gtk_box_pack_start(GTK_BOX(vbox), form, True, True, 0);
+
+  // Para
+  hbox := gtk_hbox_new(False, 10);
+  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  lblPara := gtk_label_new('Para:');
+  gtk_widget_set_size_request(lblPara, 80, -1);
+  gtk_box_pack_start(GTK_BOX(hbox), lblPara, False, False, 0);
+  EntryPara := gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), EntryPara, True, True, 0);
+
+  // Asunto
+  hbox := gtk_hbox_new(False, 10);
+  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  lblAsunto := gtk_label_new('Asunto:');
+  gtk_widget_set_size_request(lblAsunto, 80, -1);
+  gtk_box_pack_start(GTK_BOX(hbox), lblAsunto, False, False, 0);
+  EntryAsunto := gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), EntryAsunto, True, True, 0);
+
+  // Mensaje
+  lblMensaje := gtk_label_new('Mensaje:');
+  gtk_box_pack_start(GTK_BOX(form), lblMensaje, False, False, 0);
+
+  scrolledWindow := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledWindow), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_size_request(scrolledWindow, -1, 200);
+  gtk_box_pack_start(GTK_BOX(form), scrolledWindow, True, True, 0);
+
+  TextViewMensaje := gtk_text_view_new();
+  gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
+  gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
+
+  // Botones simplificados
+  btnBox := gtk_hbox_new(True, 15);
+  gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
+
+  btnEnviar := gtk_button_new_with_label('📤 Enviar Correo');
+  g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnEnviar, True, True, 0);
+
+  btnCancelar := gtk_button_new_with_label('❌ Cancelar');
+  g_signal_connect(btnCancelar, 'clicked', G_CALLBACK(@OnCancelarRedactar), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCancelar, True, True, 0);
+
+  gtk_widget_show_all(RedactarWindow);
+end;
+
+end.
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
+  gtk_container_add(GTK_CONTAINER(RedactarWindow), vbox);
+
+  lblTitulo := gtk_label_new(PChar('Nuevo Correo - De: ' + emailRemitente));
+  gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
+
+  form := gtk_vbox_new(False, 12);
+  gtk_box_pack_start(GTK_BOX(vbox), form, True, True, 0);
+
+  // Para
+  hbox := gtk_hbox_new(False, 10);
+  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  lblPara := gtk_label_new('Para:');
+  gtk_widget_set_size_request(lblPara, 80, -1);
+  gtk_box_pack_start(GTK_BOX(hbox), lblPara, False, False, 0);
+  EntryPara := gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), EntryPara, True, True, 0);
+
+  // Asunto
+  hbox := gtk_hbox_new(False, 10);
+  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  lblAsunto := gtk_label_new('Asunto:');
+  gtk_widget_set_size_request(lblAsunto, 80, -1);
+  gtk_box_pack_start(GTK_BOX(hbox), lblAsunto, False, False, 0);
+  EntryAsunto := gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(hbox), EntryAsunto, True, True, 0);
+
+  // Mensaje
+  lblMensaje := gtk_label_new('Mensaje:');
+  gtk_box_pack_start(GTK_BOX(form), lblMensaje, False, False, 0);
+
+  scrolledWindow := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledWindow), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_size_request(scrolledWindow, -1, 200);
+  gtk_box_pack_start(GTK_BOX(form), scrolledWindow, True, True, 0);
+
+  TextViewMensaje := gtk_text_view_new();
+  gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
+  gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
+
+  // Botones
+  btnBox := gtk_hbox_new(True, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
+
   btnEnviar := gtk_button_new_with_label('Enviar');
-  g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarClicked), nil);
-  gtk_box_pack_start(GTK_BOX(vbox), btnEnviar, FALSE, FALSE, 5);
+  g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnEnviar, True, True, 0);
 
-  gtk_widget_show_all(window);
+  btnBorrador := gtk_button_new_with_label('Guardar Borrador');
+  g_signal_connect(btnBorrador, 'clicked', G_CALLBACK(@OnGuardarBorrador), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnBorrador, True, True, 0);
+
+  btnFavoritos := gtk_button_new_with_label('A Favoritos');
+  g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
+
+  btnCancelar := gtk_button_new_with_label('Cancelar');
+  g_signal_connect(btnCancelar, 'clicked', G_CALLBACK(@OnCancelarRedactar), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCancelar, True, True, 0);
+
+  gtk_widget_show_all(RedactarWindow);
 end;
 
 end.

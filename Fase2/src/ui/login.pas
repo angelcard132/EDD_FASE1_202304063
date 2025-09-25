@@ -96,11 +96,25 @@ begin
 
   // Si existe una ventana previa, destruirla
   if Assigned(LoginWindow) then
+  begin
     gtk_widget_destroy(LoginWindow);
+    LoginWindow := nil;
+  end;
 
+  // Limpiar campos de entrada
+  EntryEmail := nil;
+  EntryPass := nil;
+
+  WriteLn('🔐 Creando nueva ventana de login...');
+  
   LoginWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(LoginWindow), PChar('Login - EDDMail'));
-  gtk_window_set_default_size(GTK_WINDOW(LoginWindow), 360, 280); // Aumentar altura
+  gtk_window_set_title(GTK_WINDOW(LoginWindow), PChar('🔐 Login - EDDMail'));
+  gtk_window_set_default_size(GTK_WINDOW(LoginWindow), 360, 280);
+  gtk_window_set_position(GTK_WINDOW(LoginWindow), GTK_WIN_POS_CENTER);
+  gtk_window_set_resizable(GTK_WINDOW(LoginWindow), False);
+
+  // Conectar evento de cierre de ventana para salir de la aplicación
+  g_signal_connect(LoginWindow, 'delete-event', G_CALLBACK(@gtk_main_quit), nil);
 
   vbox := gtk_vbox_new(False, 10);
   gtk_container_set_border_width(GTK_CONTAINER(vbox), 16);
@@ -148,6 +162,7 @@ begin
   g_signal_connect(btnCrearCuenta, 'clicked', G_CALLBACK(@OnCrearCuenta), nil);
   gtk_box_pack_start(GTK_BOX(btnBox2), btnCrearCuenta, True, False, 0);
 
+  WriteLn('🔓 Login mostrado correctamente');
   gtk_widget_show_all(LoginWindow);
 end;
 
