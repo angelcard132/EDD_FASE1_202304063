@@ -94,6 +94,40 @@ begin
     gtk_widget_destroy(RedactarWindow);
 end;
 
+procedure OnGuardarBorrador(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  para, asunto, mensaje: String;
+  nuevoID: Integer;
+begin
+  para := StrPas(gtk_entry_get_text(PGtkEntry(EntryPara)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
+  mensaje := ObtenerTextoTextView(TextViewMensaje);
+
+  // Validaciones básicas
+  if (para = '') and (asunto = '') and (mensaje = '') then
+  begin
+    MostrarMensaje('Borrador Vacío', 'No hay contenido para guardar como borrador.', GTK_MESSAGE_WARNING);
+    Exit;
+  end;
+
+  // Generar ID y guardar en AVL - corregir la llamada a Insertar
+  nuevoID := GenerarNuevoIDCorreo();
+  GBorradores^ := arbol_avl.Insertar(GBorradores^, nuevoID, GEmailRemitente, para, asunto, mensaje);
+  
+  WriteLn('✅ Borrador guardado exitosamente ID: ', nuevoID);
+  
+  MostrarMensaje('Borrador Guardado', 
+    'El borrador ha sido guardado exitosamente.' + LineEnding + 
+    'Para: ' + para + LineEnding +
+    'Asunto: ' + asunto + LineEnding + LineEnding +
+    'Puedes editarlo y enviarlo desde el gestor de borradores.', 
+    GTK_MESSAGE_INFO);
+  
+  // Cerrar ventana de redactar
+  if Assigned(RedactarWindow) then
+    gtk_widget_destroy(RedactarWindow);
+end;
+
 procedure OnCancelarRedactar(widget: PGtkWidget; data: gpointer); cdecl;
 begin
   if Assigned(RedactarWindow) then
@@ -112,7 +146,7 @@ procedure MostrarRedactarCorreo(const emailRemitente: String; var usuarios: TLis
 var
   vbox, form, hbox, btnBox, scrolledWindow: PGtkWidget;
   lblTitulo, lblPara, lblAsunto, lblMensaje: PGtkWidget;
-  btnEnviar, btnCancelar: PGtkWidget;
+  btnEnviar, btnBorrador, btnCancelar: PGtkWidget;
 begin
   // Guardar referencias globales
   GEmailRemitente := emailRemitente;
@@ -174,13 +208,17 @@ begin
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
 
-  // Botones simplificados
-  btnBox := gtk_hbox_new(True, 15);
+  // Botones con el nuevo botón de borrador
+  btnBox := gtk_hbox_new(True, 10);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
 
   btnEnviar := gtk_button_new_with_label('📤 Enviar Correo');
   g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarCorreo), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnEnviar, True, True, 0);
+
+  btnBorrador := gtk_button_new_with_label('📝 Guardar Borrador');
+  g_signal_connect(btnBorrador, 'clicked', G_CALLBACK(@OnGuardarBorrador), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnBorrador, True, True, 0);
 
   btnCancelar := gtk_button_new_with_label('❌ Cancelar');
   g_signal_connect(btnCancelar, 'clicked', G_CALLBACK(@OnCancelarRedactar), nil);
@@ -190,44 +228,6 @@ begin
 end;
 
 end.
-  vbox := gtk_vbox_new(False, 15);
-  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
-  gtk_container_add(GTK_CONTAINER(RedactarWindow), vbox);
-
-  lblTitulo := gtk_label_new(PChar('Nuevo Correo - De: ' + emailRemitente));
-  gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
-
-  form := gtk_vbox_new(False, 12);
-  gtk_box_pack_start(GTK_BOX(vbox), form, True, True, 0);
-
-  // Para
-  hbox := gtk_hbox_new(False, 10);
-  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
-  lblPara := gtk_label_new('Para:');
-  gtk_widget_set_size_request(lblPara, 80, -1);
-  gtk_box_pack_start(GTK_BOX(hbox), lblPara, False, False, 0);
-  EntryPara := gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(hbox), EntryPara, True, True, 0);
-
-  // Asunto
-  hbox := gtk_hbox_new(False, 10);
-  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
-  lblAsunto := gtk_label_new('Asunto:');
-  gtk_widget_set_size_request(lblAsunto, 80, -1);
-  gtk_box_pack_start(GTK_BOX(hbox), lblAsunto, False, False, 0);
-  EntryAsunto := gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(hbox), EntryAsunto, True, True, 0);
-
-  // Mensaje
-  lblMensaje := gtk_label_new('Mensaje:');
-  gtk_box_pack_start(GTK_BOX(form), lblMensaje, False, False, 0);
-
-  scrolledWindow := gtk_scrolled_window_new(nil, nil);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledWindow), 
-                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_widget_set_size_request(scrolledWindow, -1, 200);
-  gtk_box_pack_start(GTK_BOX(form), scrolledWindow, True, True, 0);
-
   TextViewMensaje := gtk_text_view_new();
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);

@@ -13,7 +13,7 @@ procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; va
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad; // <-- agregar comunidad
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores; // <-- agregar borradores
 
 var
   GEmail: String;
@@ -102,6 +102,11 @@ begin
   MostrarMisComunidades(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
+procedure OnBorradores(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarGestorBorradores(GEmail, GBorradores^, GProgramados^);
+end;
+
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
   w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnProg, btnContactos, btnPerfil, btnComunidades, btnSalir: PGtkWidget;
@@ -160,7 +165,7 @@ begin
   gtk_box_pack_start(GTK_BOX(vbox), btnProg, True, True, 5);
 
   btnBorr := gtk_button_new_with_label('📝 Ver Borradores (AVL)');
-  g_signal_connect(btnBorr, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Borradores: vista no implementada' + LineEnding)));
+  g_signal_connect(btnBorr, 'clicked', G_CALLBACK(@OnBorradores), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnBorr, True, True, 5);
 
   btnFav := gtk_button_new_with_label('⭐ Ver Favoritos (B-Tree)');
