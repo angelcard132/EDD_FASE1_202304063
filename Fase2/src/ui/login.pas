@@ -49,8 +49,8 @@ begin
                          '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json',
                          GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
-    // Abrir menú root
-    root_menu.MostrarMenuRoot;
+    // Abrir menú root usando las mismas estructuras (sin re-crear/copiar)
+    root_menu.MostrarMenuRoot(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
     Exit;
   end;
 

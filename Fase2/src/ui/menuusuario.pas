@@ -13,7 +13,7 @@ procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; va
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto; // <-- agregar nuevo_contacto
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad; // <-- agregar comunidad
 
 var
   GEmail: String;
@@ -92,9 +92,19 @@ begin
   MostrarGestionContactos(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
+procedure OnPerfil(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarPerfil(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
+procedure OnComunidades(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarMisComunidades(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
-  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnProg, btnContactos, btnSalir: PGtkWidget;
+  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnProg, btnContactos, btnPerfil, btnComunidades, btnSalir: PGtkWidget;
   nombre: String;
 begin
   // Guardar referencias globales
@@ -130,10 +140,20 @@ begin
   g_signal_connect(btnRedactar, 'clicked', G_CALLBACK(@OnRedactarCorreo), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnRedactar, True, True, 5);
 
-  // Botón Gestión de Contactos (NUEVO)
+  // Botón Gestión de Contactos
   btnContactos := gtk_button_new_with_label('👥 Agregar Contacto');
   g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnGestionContactos), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnContactos, True, True, 5);
+
+  // Botón Perfil
+  btnPerfil := gtk_button_new_with_label('👤 Mi Perfil');
+  g_signal_connect(btnPerfil, 'clicked', G_CALLBACK(@OnPerfil), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnPerfil, True, True, 5);
+
+  // Botón Comunidades (NUEVO)
+  btnComunidades := gtk_button_new_with_label('🏘️ Comunidades');
+  g_signal_connect(btnComunidades, 'clicked', G_CALLBACK(@OnComunidades), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnComunidades, True, True, 5);
 
   btnProg := gtk_button_new_with_label('📋 Ver Programados (Cola)');
   g_signal_connect(btnProg, 'clicked', G_CALLBACK(@OnVerProgramados), nil);
