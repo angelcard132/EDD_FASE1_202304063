@@ -328,7 +328,6 @@ var
   arr: TJSONArray;
   obj: TJSONObject;
   i: Integer;
-  correo: TCorreoB;
   email, pass, nombre: String;
   correoID: Integer;
   estado, remitente, destinatario, asunto, mensaje: String;
@@ -418,24 +417,21 @@ begin
             WriteLn('  Asunto: "', asunto, '"');
             WriteLn('  Estado: "', estado, '"');
 
-            // Cola (programados)
+            // Cola (programados) - todos los correos van aquí
             Encolar(programados, correoID, remitente, destinatario, asunto, mensaje);
             EstablecerEstadoCorreo(correoID, estado);
 
-            // AVL (borradores)
+            // AVL (borradores) - todos los correos van aquí para que estén disponibles
             borradores := arbol_avl.Insertar(borradores, correoID, remitente, destinatario, asunto, mensaje);
 
-            // Árbol B (favoritos)
-            correo.id := correoID;
-            correo.remitente := remitente;
-            correo.destinatario := destinatario;
-            correo.asunto := asunto;
-            correo.mensaje := mensaje;
-            arbol_b.Insertar(favoritos, correo);
+            // Árbol B (favoritos) - NO cargar automáticamente, solo por acción del usuario
+            // REMOVIDO: No insertar correos automáticamente en favoritos
+            // El usuario los agregará manualmente desde la bandeja de entrada
             
             WriteLn('  ✅ Correo cargado ID: ', correoID, ' - Estado: ', estado);
           end;
           WriteLn('📊 Total correos procesados: ', arr.Count);
+          WriteLn('ℹ️ Favoritos inicializados vacíos - se llenan por acción del usuario');
         end
         else
           WriteLn('❌ No se encontró el array "correos" en el JSON');
@@ -488,6 +484,10 @@ initialization
 
 finalization
   FreeAndNil(GPassByEmail);
+  FreeAndNil(GNameByEmail);
+  FreeAndNil(GEstadosCorreos);
+
+end.
   FreeAndNil(GNameByEmail);
   FreeAndNil(GEstadosCorreos);
 

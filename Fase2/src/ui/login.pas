@@ -88,6 +88,8 @@ var
   vbox, form, hEmail, hPass, btnBox, btnBox2, lbl: PGtkWidget;
   btnIngresar, btnCancelar, btnCrearCuenta: PGtkWidget;
 begin
+  WriteLn('🔑 Iniciando ventana de login...');
+  
   // Guardar referencias globales
   GUsuarios := @usuarios;
   GProgramados := @programados;
@@ -97,21 +99,23 @@ begin
   // Si existe una ventana previa, destruirla
   if Assigned(LoginWindow) then
   begin
+    WriteLn('🗑️ Destruyendo ventana de login anterior');
     gtk_widget_destroy(LoginWindow);
     LoginWindow := nil;
+    EntryEmail := nil;
+    EntryPass := nil;
   end;
 
-  // Limpiar campos de entrada
-  EntryEmail := nil;
-  EntryPass := nil;
+  // Procesar eventos pendientes
+  while gtk_events_pending() > 0 do
+    gtk_main_iteration();
 
-  WriteLn('🔐 Creando nueva ventana de login...');
-  
   LoginWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(LoginWindow), PChar('🔐 Login - EDDMail'));
-  gtk_window_set_default_size(GTK_WINDOW(LoginWindow), 360, 280);
+  gtk_window_set_title(GTK_WINDOW(LoginWindow), 'EDDMail - Iniciar Sesión');
+  gtk_window_set_default_size(GTK_WINDOW(LoginWindow), 350, 250);
   gtk_window_set_position(GTK_WINDOW(LoginWindow), GTK_WIN_POS_CENTER);
   gtk_window_set_resizable(GTK_WINDOW(LoginWindow), False);
+  gtk_container_set_border_width(GTK_CONTAINER(LoginWindow), 20);
 
   // Conectar evento de cierre de ventana para salir de la aplicación
   g_signal_connect(LoginWindow, 'delete-event', G_CALLBACK(@gtk_main_quit), nil);
@@ -162,8 +166,9 @@ begin
   g_signal_connect(btnCrearCuenta, 'clicked', G_CALLBACK(@OnCrearCuenta), nil);
   gtk_box_pack_start(GTK_BOX(btnBox2), btnCrearCuenta, True, False, 0);
 
-  WriteLn('🔓 Login mostrado correctamente');
+  WriteLn('✅ Ventana de login creada');
   gtk_widget_show_all(LoginWindow);
+  WriteLn('✅ Ventana de login mostrada');
 end;
 
 end.

@@ -13,7 +13,7 @@ procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; va
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores; // <-- agregar borradores
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos;
 
 var
   GEmail: String;
@@ -30,7 +30,6 @@ end;
 procedure OnCerrarSesionUsuario(widget: PGtkWidget; data: gpointer); cdecl;
 var
   ventanaActual: PGtkWidget;
-  i: Integer;
 begin
   WriteLn('🔓 Cerrando sesión de usuario...');
   
@@ -39,29 +38,26 @@ begin
   begin
     WriteLn('🔄 Mostrando login...');
     
-    // Primero mostrar el login
-    MostrarLogin(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
-    
-    // Procesar eventos pendientes con un bucle simple
-    for i := 1 to 10 do
-    begin
-      if gtk_events_pending() > 0 then
-        gtk_main_iteration()
-      else
-        Break;
-    end;
-    
-    // Luego cerrar la ventana actual
+    // Obtener y destruir la ventana actual ANTES de mostrar login
     if Assigned(widget) then
     begin
       ventanaActual := gtk_widget_get_toplevel(widget);
       if Assigned(ventanaActual) then
       begin
-        gtk_widget_hide(ventanaActual);  // Ocultar primero
-        gtk_widget_destroy(ventanaActual);  // Luego destruir
-        WriteLn('✅ Ventana de menú de usuario cerrada');
+        WriteLn('✅ Destruyendo ventana de menú de usuario');
+        gtk_widget_destroy(ventanaActual);
       end;
     end;
+    
+    // Limpiar referencias globales
+    GEmail := '';
+    
+    // Procesar eventos pendientes para asegurar limpieza
+    while gtk_events_pending() > 0 do
+      gtk_main_iteration();
+    
+    // Mostrar el login después de limpiar
+    MostrarLogin(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
   end
   else
   begin
@@ -105,6 +101,11 @@ end;
 procedure OnBorradores(widget: PGtkWidget; data: gpointer); cdecl;
 begin
   MostrarGestorBorradores(GEmail, GBorradores^, GProgramados^);
+end;
+
+procedure OnFavoritos(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarGestorFavoritos(GEmail, GFavoritos^, GProgramados^);
 end;
 
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
@@ -169,7 +170,7 @@ begin
   gtk_box_pack_start(GTK_BOX(vbox), btnBorr, True, True, 5);
 
   btnFav := gtk_button_new_with_label('⭐ Ver Favoritos (B-Tree)');
-  g_signal_connect(btnFav, 'clicked', G_CALLBACK(@g_print), gpointer(PChar('>> Favoritos: vista no implementada' + LineEnding)));
+  g_signal_connect(btnFav, 'clicked', G_CALLBACK(@OnFavoritos), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnFav, True, True, 5);
 
   btnSalir := gtk_button_new_with_label('🚪 Cerrar sesión');
@@ -177,6 +178,10 @@ begin
   gtk_box_pack_start(GTK_BOX(vbox), btnSalir, True, True, 5);
 
   WriteLn('👤 Mostrando menú de usuario para: ', email);
+  gtk_widget_show_all(w);
+end;
+
+end.
   gtk_widget_show_all(w);
 end;
 

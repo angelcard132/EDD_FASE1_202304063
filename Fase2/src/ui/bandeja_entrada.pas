@@ -26,10 +26,13 @@ type
 var
   GEmailUsuario: String;
   GProgramados: ^TCola = nil;
+  GFavoritos: ^PNodoB = nil;
   
   BandejaWindow: PGtkWidget = nil;
   ListaCorreos: PGtkWidget = nil;
   TextViewDetalle: PGtkWidget = nil;
+  
+  CorreoSeleccionadoID: Integer = 0;
 
 function SanearUTF8(const s: String): String;
 var
@@ -365,6 +368,54 @@ begin
   end;
 end;
 
+procedure OnAgregarAFavoritos(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  actual: PCorreo;
+  correoFav: TCorreoB;
+  encontrado: Boolean;
+begin
+  if CorreoSeleccionadoID <= 0 then
+  begin
+    WriteLn('⚠️ Selecciona un correo para agregar a favoritos');
+    Exit;
+  end;
+  
+  // Buscar el correo en la cola de programados
+  encontrado := False;
+  actual := GProgramados^.frente;
+  while actual <> nil do
+  begin
+    if actual^.id = CorreoSeleccionadoID then
+    begin
+      // Verificar si ya existe en favoritos
+      if Buscar(GFavoritos^, CorreoSeleccionadoID) <> nil then
+      begin
+        WriteLn('⚠️ Este correo ya está en favoritos');
+        Exit;
+      end;
+      
+      // Crear registro para árbol B
+      correoFav.id := actual^.id;
+      correoFav.remitente := String(actual^.remitente);
+      correoFav.destinatario := String(actual^.destinatario);
+      correoFav.asunto := String(actual^.asunto);
+      correoFav.mensaje := String(actual^.mensaje);
+      
+      // Insertar en árbol B
+      Insertar(GFavoritos^, correoFav);
+      
+      WriteLn('⭐ Correo agregado a favoritos ID: ', CorreoSeleccionadoID);
+      WriteLn('  - Asunto: ', correoFav.asunto);
+      encontrado := True;
+      Break;
+    end;
+    actual := actual^.siguiente;
+  end;
+  
+  if not encontrado then
+    WriteLn('❌ No se pudo encontrar el correo seleccionado');
+end;
+
 procedure OnSeleccionarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 var
   selection: PGtkTreeSelection;
@@ -395,7 +446,6 @@ begin
                        3, @estado,
                        -1);
 
-    // Quitar IfThen para evitar problemas de genéricos
     if idStr <> nil then
       correoID := StrToIntDef(StrPas(idStr), 0)
     else
@@ -418,6 +468,7 @@ begin
 
     if correoID <> 0 then
     begin
+      CorreoSeleccionadoID := correoID; // Guardar ID para favoritos
       WriteLn('DEBUG - Correo seleccionado ID: ', correoID);
 
       // Buscar el mensaje completo en la cola
@@ -469,6 +520,7 @@ begin
   end
   else
   begin
+    CorreoSeleccionadoID := 0; // Reset selección
     WriteLn('DEBUG - No hay selección');
     if TextViewDetalle <> nil then
     begin
@@ -537,7 +589,7 @@ procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TLista
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
   lblTitulo, lblDetalle: PGtkWidget;
-  btnActualizar, btnCerrar, btnGrafica, btnBox: PGtkWidget;
+  btnActualizar, btnCerrar, btnGrafica, btnFavoritos, btnBox: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -546,6 +598,8 @@ begin
   // Guardar referencias globales
   GEmailUsuario := NormalizarEmail(emailUsuario);
   GProgramados := @programados;
+  GFavoritos := @favoritos;
+  CorreoSeleccionadoID := 0;
 
   // Si existe una ventana previa, destruirla
   if Assigned(BandejaWindow) then
@@ -601,13 +655,17 @@ begin
   g_signal_connect(gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos)), 
                    'changed', G_CALLBACK(@OnSeleccionarCorreo), nil);
 
-  // Botones
+  // Botones - agregar botón de favoritos
   btnBox := gtk_hbox_new(True, 5);
   gtk_box_pack_start(GTK_BOX(vboxIzq), btnBox, False, False, 0);
 
   btnActualizar := gtk_button_new_with_label('Actualizar');
   g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarBandeja), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnActualizar, True, True, 0);
+
+  btnFavoritos := gtk_button_new_with_label('⭐ A Favoritos');
+  g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
 
   btnGrafica := gtk_button_new_with_label('Generar gráfica');
   g_signal_connect(btnGrafica, 'clicked', G_CALLBACK(@OnGenerarGrafica), nil);
