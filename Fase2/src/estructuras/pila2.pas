@@ -21,6 +21,10 @@ procedure InicializarPila(var pila: TPila);
 procedure Apilar(var pila: TPila; id: Integer; remitente, destinatario, asunto, mensaje: String);
 procedure Desapilar(var pila: TPila);
 procedure MostrarPila(var pila: TPila);
+function EstaVacia(var pila: TPila): Boolean;
+function ContarCorreos(var pila: TPila): Integer;
+function BuscarCorreo(var pila: TPila; id: Integer): PCorreo;
+procedure LiberarPila(var pila: TPila);
 
 implementation
 
@@ -68,6 +72,49 @@ begin
             ' | Asunto: ', actual^.asunto, ' | Mensaje: ', actual^.mensaje);
     actual := actual^.siguiente;
   end;
+end;
+
+function EstaVacia(var pila: TPila): Boolean;
+begin
+  EstaVacia := pila.tope = nil;
+end;
+
+function ContarCorreos(var pila: TPila): Integer;
+var
+  actual: PCorreo;
+  contador: Integer;
+begin
+  contador := 0;
+  actual := pila.tope;
+  while actual <> nil do
+  begin
+    Inc(contador);
+    actual := actual^.siguiente;
+  end;
+  ContarCorreos := contador;
+end;
+
+function BuscarCorreo(var pila: TPila; id: Integer): PCorreo;
+var
+  actual: PCorreo;
+begin
+  BuscarCorreo := nil;
+  actual := pila.tope;
+  while actual <> nil do
+  begin
+    if actual^.id = id then
+    begin
+      BuscarCorreo := actual;
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+procedure LiberarPila(var pila: TPila);
+begin
+  while not EstaVacia(pila) do
+    Desapilar(pila);
 end;
 
 end.

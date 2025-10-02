@@ -6,7 +6,7 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports;
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar;
 
 procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 
@@ -27,6 +27,7 @@ var
   GEmailUsuario: String;
   GProgramados: ^TCola = nil;
   GFavoritos: ^PNodoB = nil;
+  GPapelera: ^TPila = nil;
   
   BandejaWindow: PGtkWidget = nil;
   ListaCorreos: PGtkWidget = nil;
@@ -264,7 +265,7 @@ end;
 function ObtenerCorreosRecibidos(const emailDestino: String): PCorreoRecibido;
 var
   lista: PCorreoRecibido;
-  actual: PCorreo;
+  actual: cola2.PCorreo;
   estadoTexto: String;
   emailActual: String;
   contador: Integer;
@@ -370,7 +371,7 @@ end;
 
 procedure OnAgregarAFavoritos(widget: PGtkWidget; data: gpointer); cdecl;
 var
-  actual: PCorreo;
+  actual: cola2.PCorreo;
   correoFav: TCorreoB;
   encontrado: Boolean;
 begin
@@ -425,7 +426,7 @@ var
   remitenteStr, asuntoStr: String;
   buffer: PGtkTextBuffer;
   correoID: Integer;
-  actual: PCorreo;
+  actual: cola2.PCorreo;
   mensaje: String;
   textoDetalle: String;
 begin
@@ -585,11 +586,80 @@ begin
   Result := True; // Prevenir cierre de aplicación
 end;
 
+procedure MostrarNotificacion(const mensaje: String; tipoMensaje: TGtkMessageType);
+var
+  dialog: PGtkWidget;
+begin
+  dialog := gtk_message_dialog_new(nil, GTK_DIALOG_MODAL, tipoMensaje, GTK_BUTTONS_OK, PChar(mensaje));
+  gtk_window_set_title(GTK_WINDOW(dialog), 'Notificación');
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
+
+procedure OnEliminarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  actual, anterior: cola2.PCorreo;
+  correoEncontrado: Boolean;
+  remitente, destinatario, asunto, mensaje: String;
+begin
+  if CorreoSeleccionadoID <= 0 then
+  begin
+    MostrarNotificacion('⚠️ Selecciona un correo para eliminar', GTK_MESSAGE_WARNING);
+    Exit;
+  end;
+  
+  // Buscar el correo en la cola de programados
+  correoEncontrado := False;
+  anterior := nil;
+  actual := GProgramados^.frente;
+  
+  while actual <> nil do
+  begin
+    if actual^.id = CorreoSeleccionadoID then
+    begin
+      // Guardar datos antes de eliminar
+      remitente := String(actual^.remitente);
+      destinatario := String(actual^.destinatario);
+      asunto := String(actual^.asunto);
+      mensaje := String(actual^.mensaje);
+      
+      // Eliminar de la cola
+      if anterior = nil then
+        GProgramados^.frente := actual^.siguiente
+      else
+        anterior^.siguiente := actual^.siguiente;
+      
+      if actual = GProgramados^.final then
+        GProgramados^.final := anterior;
+      
+      // Mover a papelera
+      EliminarCorreoDeBandeja(actual^.id, remitente, destinatario, asunto, mensaje, GPapelera^);
+      
+      Dispose(actual);
+      correoEncontrado := True;
+      Break;
+    end;
+    anterior := actual;
+    actual := actual^.siguiente;
+  end;
+  
+  if correoEncontrado then
+  begin
+    MostrarNotificacion('✅ Correo eliminado exitosamente y movido a papelera', GTK_MESSAGE_INFO);
+    CorreoSeleccionadoID := 0; // Reset selección
+    
+    // Actualizar bandeja automáticamente
+    OnActualizarBandeja(nil, nil);
+  end
+  else
+    MostrarNotificacion('❌ No se pudo encontrar el correo seleccionado', GTK_MESSAGE_ERROR);
+end;
+
 procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
   lblTitulo, lblDetalle: PGtkWidget;
-  btnActualizar, btnCerrar, btnGrafica, btnFavoritos, btnBox: PGtkWidget;
+  btnActualizar, btnCerrar, btnGrafica, btnFavoritos, btnEliminar, btnBox: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -599,6 +669,12 @@ begin
   GEmailUsuario := NormalizarEmail(emailUsuario);
   GProgramados := @programados;
   GFavoritos := @favoritos;
+  // Inicializar papelera si no existe
+  if GPapelera = nil then
+  begin
+    New(GPapelera);
+    InicializarPila(GPapelera^);
+  end;
   CorreoSeleccionadoID := 0;
 
   // Si existe una ventana previa, destruirla
@@ -655,11 +731,11 @@ begin
   g_signal_connect(gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos)), 
                    'changed', G_CALLBACK(@OnSeleccionarCorreo), nil);
 
-  // Botones - agregar botón de favoritos
+  // Botones - agregar botón de eliminar
   btnBox := gtk_hbox_new(True, 5);
   gtk_box_pack_start(GTK_BOX(vboxIzq), btnBox, False, False, 0);
 
-  btnActualizar := gtk_button_new_with_label('Actualizar');
+  btnActualizar := gtk_button_new_with_label('🔄 Actualizar');
   g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarBandeja), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnActualizar, True, True, 0);
 
@@ -667,11 +743,15 @@ begin
   g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
 
-  btnGrafica := gtk_button_new_with_label('Generar gráfica');
+  btnEliminar := gtk_button_new_with_label('🗑️ Eliminar');
+  g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnEliminar, True, True, 0);
+
+  btnGrafica := gtk_button_new_with_label('📊 Gráfica');
   g_signal_connect(btnGrafica, 'clicked', G_CALLBACK(@OnGenerarGrafica), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnGrafica, True, True, 0);
 
-  btnCerrar := gtk_button_new_with_label('Cerrar');
+  btnCerrar := gtk_button_new_with_label('❌ Cerrar');
   g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarBandeja), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, True, 0);
 

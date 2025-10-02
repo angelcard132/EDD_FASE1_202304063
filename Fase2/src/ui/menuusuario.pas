@@ -13,7 +13,7 @@ procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; va
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos;
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos, eliminar, pila2;
 
 var
   GEmail: String;
@@ -21,6 +21,7 @@ var
   GProgramados: ^TCola = nil;
   GBorradores: ^PCorreoAVL = nil;
   GFavoritos: ^PNodoB = nil;
+  GPapelera: TPila;
 
 procedure OnRedactarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 begin
@@ -108,9 +109,14 @@ begin
   MostrarGestorFavoritos(GEmail, GFavoritos^, GProgramados^);
 end;
 
+procedure OnPapelera(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarPapelera(GEmail, GPapelera);
+end;
+
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
-  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnProg, btnContactos, btnPerfil, btnComunidades, btnSalir: PGtkWidget;
+  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnPapelera, btnProg, btnContactos, btnPerfil, btnComunidades, btnSalir: PGtkWidget;
   nombre: String;
 begin
   // Guardar referencias globales
@@ -119,6 +125,9 @@ begin
   GProgramados := @programados;
   GBorradores := @borradores;
   GFavoritos := @favoritos;
+  
+  // Inicializar papelera
+  InicializarPila(GPapelera);
   
   nombre := NombreDeEmail(email);
   w := gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -173,15 +182,15 @@ begin
   g_signal_connect(btnFav, 'clicked', G_CALLBACK(@OnFavoritos), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnFav, True, True, 5);
 
+  btnPapelera := gtk_button_new_with_label('🗑️ Ver Papelera (Pila)');
+  g_signal_connect(btnPapelera, 'clicked', G_CALLBACK(@OnPapelera), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnPapelera, True, True, 5);
+
   btnSalir := gtk_button_new_with_label('🚪 Cerrar sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnCerrarSesionUsuario), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnSalir, True, True, 5);
 
   WriteLn('👤 Mostrando menú de usuario para: ', email);
-  gtk_widget_show_all(w);
-end;
-
-end.
   gtk_widget_show_all(w);
 end;
 
