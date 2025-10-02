@@ -45,8 +45,8 @@ begin
       gtk_widget_destroy(LoginWindow);
 
     // Carga masiva inmediata al entrar como root
-    CargaMasivaDesdeJSON('/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/usuarios.json', 
-                         '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json',
+    CargaMasivaDesdeJSON('/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/usuarios.json', 
+                         '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/correos.json',
                          GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
     // Abrir menú root usando las mismas estructuras (sin re-crear/copiar)

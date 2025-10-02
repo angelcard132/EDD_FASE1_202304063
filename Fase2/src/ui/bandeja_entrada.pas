@@ -44,11 +44,33 @@ begin
   for i := 1 to Length(s) do
   begin
     c := s[i];
-    if (Ord(c) >= 32) and (Ord(c) <> 127) then
+    if (Ord(c) >= 32) and (Ord(c) <= 126) then  // Solo ASCII imprimible básico
       Result := Result + c
     else
-      Result := Result + '?';
+      Result := Result + '?';  // Reemplazar cualquier otro carácter
   end;
+end;
+
+// Función más robusta para limpiar texto UTF-8
+function LimpiarTextoParaGTK(const texto: String): String;
+var
+  i: Integer;
+  resultado: String;
+  c: Char;
+begin
+  resultado := '';
+  for i := 1 to Length(texto) do
+  begin
+    c := texto[i];
+    // Solo permitir caracteres ASCII básicos y algunos caracteres seguros
+    if (Ord(c) >= 32) and (Ord(c) <= 126) then
+      resultado := resultado + c
+    else if (c = #13) or (c = #10) then
+      resultado := resultado + c  // Mantener saltos de línea
+    else
+      resultado := resultado + '?';  // Reemplazar caracteres problemáticos
+  end;
+  Result := resultado;
 end;
 
 procedure LiberarListaCorreos(var lista: PCorreoRecibido);
@@ -189,77 +211,235 @@ end;
 // Revisa si el campo destinatario contiene el email del usuario.
 // Escanea la cadena y extrae tokens que parezcan emails (con '@'), probando con EmailsCoincidenFlex.
 // Si no encuentra tokens, hace un respaldo buscando el email normalizado como substring.
-function ContieneDestinatario(const campoDestinatario, emailUsuario: String): Boolean;
+function ContieneDestinatario(const emailCampo, emailBuscado: String): Boolean;
 var
-  i: Integer;
-  ch: Char;
-  acc: String;
-  tieneArroba: Boolean;
-  objetivo, tokenNorm, campoNorm: String;
-  tokensEncontrados: Integer;
+  emailNormalizado, buscadoNormalizado: String;
 begin
-  objetivo := NormalizarEmail(emailUsuario);
-  Result := False;
-  acc := '';
-  tieneArroba := False;
-  tokensEncontrados := 0;
-
-  WriteLn('DEBUG ContieneDestinatario - Campo destinatario: "', campoDestinatario, '"');
-  WriteLn('DEBUG ContieneDestinatario - Email objetivo: "', objetivo, '"');
-
-  // Escaneo carácter a carácter (robusto frente a JSON/ruido)
-  for i := 1 to Length(campoDestinatario) do
+  // Normalizar ambos emails para comparación
+  emailNormalizado := LowerCase(Trim(emailCampo));
+  buscadoNormalizado := LowerCase(Trim(emailBuscado));
+  
+  // Comparación exacta primero
+  if emailNormalizado = buscadoNormalizado then
   begin
-    ch := campoDestinatario[i];
-    if EsCharEmailValido(ch) then
+    Result := True;
+    Exit;
+  end;
+  
+  // Buscar como substring (para casos de múltiples destinatarios)
+  Result := Pos(buscadoNormalizado, emailNormalizado) > 0;
+end;
+
+procedure OnSeleccionarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  selection: PGtkTreeSelection;
+  model: PGtkTreeModel;
+  iter: TGtkTreeIter;
+  idStr, remitente, asunto, estado: PChar;
+  remitenteStr, asuntoStr, estadoStr: String;
+  buffer: PGtkTextBuffer;
+  correoID: Integer;
+  actual: cola2.PCorreo;
+  mensaje: String;
+  textoDetalle: String;
+  encontrado: Boolean;
+  estadoAnterior: String;
+  store: PGtkListStore;
+begin
+  WriteLn('DEBUG - OnSeleccionarCorreo iniciado');
+
+  if ListaCorreos = nil then 
+  begin
+    WriteLn('DEBUG - ListaCorreos es nil');
+    Exit;
+  end;
+
+  selection := gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos));
+  if selection = nil then 
+  begin
+    WriteLn('DEBUG - selection es nil');
+    Exit;
+  end;
+
+  if gtk_tree_selection_get_selected(selection, @model, @iter) then
+  begin
+    // Inicializar punteros
+    idStr := nil;
+    remitente := nil;
+    asunto := nil;
+    estado := nil;
+    
+    // Obtener datos de la fila seleccionada
+    gtk_tree_model_get(model, @iter, 
+                       0, @idStr,       // Columna 0: ID
+                       1, @remitente,   // Columna 1: De (remitente)  
+                       2, @asunto,      // Columna 2: Asunto
+                       3, @estado,      // Columna 3: Estado
+                       -1);
+
+    WriteLn('DEBUG - Datos obtenidos del modelo GTK');
+    
+    // Convertir datos de forma segura
+    remitenteStr := '';
+    asuntoStr := '';
+    estadoStr := '';
+    correoID := 0;
+    
+    if idStr <> nil then
     begin
-      acc := acc + ch;
-      if ch = '@' then
-        tieneArroba := True;
+      correoID := StrToIntDef(StrPas(idStr), 0);
+      WriteLn('DEBUG - ID convertido: ', correoID);
+      g_free(idStr);
+    end;
+    
+    if remitente <> nil then
+    begin
+      remitenteStr := StrPas(remitente);
+      WriteLn('DEBUG - Remitente: "', remitenteStr, '"');
+      g_free(remitente);
+    end;
+    
+    if asunto <> nil then
+    begin
+      asuntoStr := StrPas(asunto);
+      WriteLn('DEBUG - Asunto: "', asuntoStr, '"');
+      g_free(asunto);
+    end;
+    
+    if estado <> nil then
+    begin
+      estadoStr := StrPas(estado);
+      WriteLn('DEBUG - Estado actual en interfaz: "', estadoStr, '"');
+      g_free(estado);
+    end;
+
+    if correoID <> 0 then
+    begin
+      CorreoSeleccionadoID := correoID; // Guardar ID para otras operaciones
+      WriteLn('DEBUG - Buscando mensaje completo para ID: ', correoID);
+
+      // Obtener estado actual del correo
+      estadoAnterior := ObtenerEstadoCorreo(correoID);
+      WriteLn('DEBUG - Estado anterior del correo: "', estadoAnterior, '"');
+
+      // Si el correo está "No Leído", marcarlo como "Leído"
+      if (estadoAnterior = 'NL') or (estadoStr = 'No Leído') then
+      begin
+        EstablecerEstadoCorreo(correoID, 'L');
+        WriteLn('📖 Correo marcado como LEÍDO: ID ', correoID);
+        
+        // Actualizar la fila en la interfaz inmediatamente
+        store := PGtkListStore(model);
+        gtk_list_store_set(store, @iter, 3, PChar('Leído'), -1);
+        WriteLn('✅ Estado actualizado en interfaz: No Leído -> Leído');
+      end;
+
+      // Buscar el mensaje completo en la cola
+      mensaje := '';
+      encontrado := False;
+      
+      if GProgramados <> nil then
+      begin
+        actual := GProgramados^.frente;
+        WriteLn('DEBUG - Iniciando búsqueda en cola...');
+        
+        while actual <> nil do
+        begin
+          WriteLn('DEBUG - Revisando correo en cola ID: ', actual^.id);
+          if actual^.id = correoID then
+          begin
+            mensaje := String(actual^.mensaje);
+            encontrado := True;
+            WriteLn('DEBUG - ¡Mensaje encontrado! Longitud: ', Length(mensaje));
+            WriteLn('DEBUG - Primeros 100 chars: "', Copy(mensaje, 1, 100), '"');
+            Break;
+          end;
+          actual := actual^.siguiente;
+        end;
+      end
+      else
+        WriteLn('DEBUG - ERROR: GProgramados es nil');
+
+      if not encontrado then
+      begin
+        WriteLn('DEBUG - Mensaje no encontrado en cola, usando placeholder');
+        mensaje := 'Mensaje no disponible';
+      end;
+
+      // Limpiar todos los textos antes de construir el detalle
+      remitenteStr := LimpiarTextoParaGTK(remitenteStr);
+      asuntoStr := LimpiarTextoParaGTK(asuntoStr);
+      mensaje := LimpiarTextoParaGTK(mensaje);
+
+      // Construir texto de detalle con estado actualizado
+      textoDetalle := 'DETALLE DEL CORREO' + #13#10 +
+                      '==================' + #13#10 + #13#10 +
+                      'ID: ' + IntToStr(correoID) + #13#10 +
+                      'De: ' + remitenteStr + #13#10 +
+                      'Para: ' + LimpiarTextoParaGTK(GEmailUsuario) + #13#10 +
+                      'Estado: Leído' + #13#10 + #13#10 +  // Siempre mostrar como "Leído" después de ver
+                      'ASUNTO:' + #13#10 +
+                      asuntoStr + #13#10 + #13#10 +
+                      'MENSAJE:' + #13#10 +
+                      '--------' + #13#10 +
+                      mensaje;
+
+      WriteLn('DEBUG - Texto detalle construido, longitud: ', Length(textoDetalle));
+      WriteLn('DEBUG - Primeros 200 chars limpios: "', Copy(textoDetalle, 1, 200), '"');
+
+      // Mostrar en TextView de forma segura
+      if TextViewDetalle <> nil then
+      begin
+        buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
+        if buffer <> nil then
+        begin
+          try
+            // Limpiar buffer primero
+            gtk_text_buffer_set_text(buffer, '', 0);
+            
+            // Establecer texto limpio
+            gtk_text_buffer_set_text(buffer, PChar(textoDetalle), Length(textoDetalle));
+            WriteLn('DEBUG - Texto establecido en buffer exitosamente sin errores UTF-8');
+            
+            // Forzar actualización de la interfaz
+            gtk_widget_queue_draw(TextViewDetalle);
+            gtk_widget_queue_draw(ListaCorreos); // También actualizar la lista
+            
+            // Procesar eventos pendientes
+            while gtk_events_pending() > 0 do
+              gtk_main_iteration();
+              
+            WriteLn('DEBUG - Interfaz actualizada correctamente');
+          except
+            on E: Exception do
+            begin
+              WriteLn('DEBUG - Error al establecer texto: ', E.Message);
+              gtk_text_buffer_set_text(buffer, 'Error mostrando correo - caracteres especiales', -1);
+            end;
+          end;
+        end
+        else
+          WriteLn('DEBUG - ERROR: buffer es nil');
+      end
+      else
+        WriteLn('DEBUG - ERROR: TextViewDetalle es nil');
+        
+      WriteLn('DEBUG - Proceso completado para correo ID: ', correoID);
     end
     else
+      WriteLn('DEBUG - ID inválido o 0');
+  end
+  else
+  begin
+    WriteLn('DEBUG - No hay selección válida');
+    CorreoSeleccionadoID := 0; // Reset selección
+    if TextViewDetalle <> nil then
     begin
-      if tieneArroba and (acc <> '') then
-      begin
-        tokenNorm := NormalizarEmail(acc);
-        Inc(tokensEncontrados);
-        WriteLn('DEBUG ContieneDestinatario - Token #', tokensEncontrados, ': "', acc, '" -> normalizado: "', tokenNorm, '"');
-        if (tokenNorm <> '') and EmailsCoincidenFlex(tokenNorm, objetivo) then
-        begin
-          WriteLn('DEBUG ContieneDestinatario - ¡COINCIDENCIA ENCONTRADA con token!');
-          Exit(True);
-        end;
-      end;
-      acc := '';
-      tieneArroba := False;
+      buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
+      if buffer <> nil then
+        gtk_text_buffer_set_text(buffer, 'Selecciona un correo para ver detalles', -1);
     end;
   end;
-
-  // Revisión del último token
-  if tieneArroba and (acc <> '') then
-  begin
-    tokenNorm := NormalizarEmail(acc);
-    Inc(tokensEncontrados);
-    WriteLn('DEBUG ContieneDestinatario - Token final #', tokensEncontrados, ': "', acc, '" -> normalizado: "', tokenNorm, '"');
-    if (tokenNorm <> '') and EmailsCoincidenFlex(tokenNorm, objetivo) then
-    begin
-      WriteLn('DEBUG ContieneDestinatario - ¡COINCIDENCIA ENCONTRADA con token final!');
-      Exit(True);
-    end;
-  end;
-
-  WriteLn('DEBUG ContieneDestinatario - Total tokens encontrados: ', tokensEncontrados);
-
-  // Respaldo: búsqueda por substring en la cadena normalizada completa
-  campoNorm := NormalizarEmail(campoDestinatario);
-  WriteLn('DEBUG ContieneDestinatario - Campo normalizado completo: "', campoNorm, '"');
-  if (campoNorm <> '') and (Pos(objetivo, campoNorm) > 0) then
-  begin
-    WriteLn('DEBUG ContieneDestinatario - ¡COINCIDENCIA ENCONTRADA por substring!');
-    Exit(True);
-  end;
-
-  WriteLn('DEBUG ContieneDestinatario - No se encontró coincidencia');
 end;
 
 function ObtenerCorreosRecibidos(const emailDestino: String): PCorreoRecibido;
@@ -275,42 +455,51 @@ begin
   contador := 0;
 
   emailDestinoNorm := NormalizarEmail(emailDestino);
-  WriteLn('🔍 Buscando correos para: "', emailDestino, '"');
+  WriteLn('🔍 BUSCANDO CORREOS PARA: "', emailDestino, '"');
   WriteLn('📧 Email normalizado: "', emailDestinoNorm, '"');
 
   if GProgramados = nil then
   begin
-    WriteLn('❌ GProgramados es nil');
+    WriteLn('❌ ERROR: GProgramados es nil');
     Result := lista;
     Exit;
   end;
 
   if GProgramados^.frente = nil then
   begin
-    WriteLn('📭 Cola está vacía');
+    WriteLn('📭 Cola está vacía - no hay correos');
     Result := lista;
     Exit;
   end;
 
+  WriteLn('📬 Iniciando búsqueda en cola de correos...');
   actual := GProgramados^.frente;
   while actual <> nil do
   begin
     emailActual := String(actual^.destinatario);
 
-    WriteLn('🔍 Revisando correo ID ', actual^.id, ':');
-    WriteLn('  📧 Destinatario: "', emailActual, '"');
-    WriteLn('  🎯 Buscando: "', emailDestinoNorm, '"');
+    WriteLn('🔎 Revisando correo ID ', actual^.id);
+    WriteLn('   📤 De: "', String(actual^.remitente), '"');
+    WriteLn('   📥 Para: "', emailActual, '"');
+    WriteLn('   📋 Asunto: "', String(actual^.asunto), '"');
+    WriteLn('   💬 Mensaje: "', Copy(String(actual^.mensaje), 1, 50), '..."');
+    WriteLn('   🔍 Comparando: "', emailActual, '" vs "', emailDestinoNorm, '"');
 
-    // Usar comparación robusta
+    // Comparación robusta - mejorada
     if ContieneDestinatario(emailActual, emailDestinoNorm) then
     begin
-      WriteLn('  ✅ ¡COINCIDENCIA! Procesando correo...');
+      WriteLn('   ✅ ¡COINCIDENCIA! Correo para este usuario');
 
-      // Obtener estado del correo
-      if ObtenerEstadoCorreo(actual^.id) = 'L' then
-        estadoTexto := 'Leido'
+      // Obtener estado correctamente
+      estadoTexto := ObtenerEstadoCorreo(actual^.id);
+      WriteLn('   📊 Estado crudo obtenido: "', estadoTexto, '"');
+      
+      if estadoTexto = 'L' then
+        estadoTexto := 'Leído'
       else
-        estadoTexto := 'No Leido';
+        estadoTexto := 'No Leído';
+        
+      WriteLn('   📊 Estado final: "', estadoTexto, '"');
 
       AgregarCorreoALista(
         lista,
@@ -322,21 +511,17 @@ begin
       );
 
       Inc(contador);
-      WriteLn('  📨 Correo #', contador, ' agregado:');
-      WriteLn('    🆔 ID: ', actual^.id);
-      WriteLn('    👤 De: ', String(actual^.remitente));
-      WriteLn('    📋 Asunto: ', String(actual^.asunto));
-      WriteLn('    📊 Estado: ', estadoTexto);
+      WriteLn('   📊 Correo #', contador, ' agregado a la bandeja con mensaje completo');
     end
     else
-      WriteLn('  ❌ No coincide, continuando...');
+      WriteLn('   ⏭️ No coincide, continuando...');
 
     actual := actual^.siguiente;
   end;
 
-  WriteLn('📊 Resumen búsqueda:');
-  WriteLn('  📧 Email buscado: ', emailDestino);
-  WriteLn('  📨 Correos encontrados: ', contador);
+  WriteLn('📊 RESUMEN DE BÚSQUEDA:');
+  WriteLn('   ✉️ Total correos encontrados: ', contador);
+  WriteLn('   📧 Usuario: ', emailDestino);
   Result := lista;
 end;
 
@@ -353,11 +538,12 @@ begin
   store := PGtkListStore(gtk_tree_view_get_model(PGtkTreeView(ListaCorreos)));
   if store = nil then Exit;
   
-  // Limpiar lista anterior
   gtk_list_store_clear(store);
-  contador := 0;
   
   actual := lista;
+  contador := 0;
+  
+  WriteLn('📋 Cargando correos en interfaz gráfica...');
   while actual <> nil do
   begin
     idStr := IntToStr(actual^.id);
@@ -371,11 +557,11 @@ begin
                        -1);
     
     Inc(contador);
-    WriteLn('🎯 Correo mostrado en UI #', contador, ': ', actual^.asunto);
+    WriteLn('✅ Correo agregado a lista visual: ID ', actual^.id, ' - "', actual^.asunto, '"');
     actual := actual^.siguiente;
   end;
   
-  WriteLn('📋 Total correos en interfaz: ', contador);
+  WriteLn('📊 Total correos mostrados en interfaz: ', contador);
 end;
 
 procedure OnAgregarAFavoritos(widget: PGtkWidget; data: gpointer); cdecl;
@@ -426,121 +612,6 @@ begin
     WriteLn('❌ No se pudo encontrar el correo seleccionado');
 end;
 
-procedure OnSeleccionarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
-var
-  selection: PGtkTreeSelection;
-  model: PGtkTreeModel;
-  iter: TGtkTreeIter;
-  idStr, remitente, asunto, estado: PChar;
-  remitenteStr, asuntoStr: String;
-  buffer: PGtkTextBuffer;
-  correoID: Integer;
-  actual: cola2.PCorreo;
-  mensaje: String;
-  textoDetalle: String;
-begin
-  WriteLn('DEBUG - OnSeleccionarCorreo iniciado');
-
-  if ListaCorreos = nil then Exit;
-
-  selection := gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos));
-  if selection = nil then Exit;
-
-  if gtk_tree_selection_get_selected(selection, @model, @iter) then
-  begin
-    idStr := nil; remitente := nil; asunto := nil; estado := nil;
-    gtk_tree_model_get(model, @iter,
-                       0, @idStr,
-                       1, @remitente,
-                       2, @asunto,
-                       3, @estado,
-                       -1);
-
-    if idStr <> nil then
-      correoID := StrToIntDef(StrPas(idStr), 0)
-    else
-      correoID := 0;
-
-    if remitente <> nil then
-      remitenteStr := StrPas(remitente)
-    else
-      remitenteStr := '';
-
-    if asunto <> nil then
-      asuntoStr := StrPas(asunto)
-    else
-      asuntoStr := '';
-
-    if idStr <> nil then g_free(idStr);
-    if remitente <> nil then g_free(remitente);
-    if asunto <> nil then g_free(asunto);
-    if estado <> nil then g_free(estado);
-
-    if correoID <> 0 then
-    begin
-      CorreoSeleccionadoID := correoID; // Guardar ID para favoritos
-      WriteLn('DEBUG - Correo seleccionado ID: ', correoID);
-
-      // Buscar el mensaje completo en la cola
-      mensaje := '';
-      actual := GProgramados^.frente;
-      while actual <> nil do
-      begin
-        if actual^.id = correoID then
-        begin
-          mensaje := String(actual^.mensaje);
-          Break;
-        end;
-        actual := actual^.siguiente;
-      end;
-
-      // Actualizar estado a leído si aplica
-      if ObtenerEstadoCorreo(correoID) = 'NL' then
-      begin
-        EstablecerEstadoCorreo(correoID, 'L');
-        // Reflejar inmediatamente en la UI
-        gtk_list_store_set(PGtkListStore(model), @iter, 3, PChar('Leido'), -1);
-        WriteLn('DEBUG - Estado actualizado a LEIDO');
-      end;
-
-      // Crear texto de detalle simple
-      textoDetalle := 'CORREO RECIBIDO' + #13#10 +
-                      '==================' + #13#10 + #13#10 +
-                      'ID: ' + IntToStr(correoID) + #13#10 +
-                      'De: ' + SanearUTF8(remitenteStr) + #13#10 +
-                      'Para: ' + SanearUTF8(GEmailUsuario) + #13#10 +
-                      'Estado: Leido' + #13#10 + #13#10 +
-                      'ASUNTO:' + #13#10 +
-                      SanearUTF8(asuntoStr) + #13#10 + #13#10 +
-                      'MENSAJE:' + #13#10 +
-                      '--------' + #13#10 +
-                      SanearUTF8(mensaje);
-
-      // Mostrar en el panel de detalle
-      if TextViewDetalle <> nil then
-      begin
-        buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
-        if buffer <> nil then
-        begin
-          gtk_text_buffer_set_text(buffer, PChar(textoDetalle), -1);
-          WriteLn('EXITO - Correo mostrado en detalle');
-        end;
-      end;
-    end;
-  end
-  else
-  begin
-    CorreoSeleccionadoID := 0; // Reset selección
-    WriteLn('DEBUG - No hay selección');
-    if TextViewDetalle <> nil then
-    begin
-      buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
-      if buffer <> nil then
-        gtk_text_buffer_set_text(buffer, 'Selecciona un correo para ver detalles', -1);
-    end;
-  end;
-end;
-
 procedure OnActualizarBandeja(widget: PGtkWidget; data: gpointer); cdecl;
 var
   lista: PCorreoRecibido;
@@ -550,7 +621,8 @@ begin
   LiberarListaCorreos(lista);
   
   // Limpiar detalle
-  gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), '', -1);
+  if TextViewDetalle <> nil then
+    gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), 'Selecciona un correo para ver detalles', -1);
 end;
 
 procedure OnCerrarBandeja(widget: PGtkWidget; data: gpointer); cdecl;
@@ -688,9 +760,126 @@ begin
   BandejaWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(BandejaWindow), PChar('Bandeja de Entrada - ' + emailUsuario));
   gtk_window_set_default_size(GTK_WINDOW(BandejaWindow), 1000, 650);
+  
+  // Conectar delete-event para prevenir cierre de aplicación
+  g_signal_connect(BandejaWindow, 'delete-event', G_CALLBACK(@OnDeleteEventBandeja), nil);
 
   // Panel dividido horizontalmente
   hpaned := gtk_hpaned_new();
+  gtk_container_add(GTK_CONTAINER(BandejaWindow), hpaned);
+
+  // Panel izquierdo - Lista de correos
+  vboxIzq := gtk_vbox_new(False, 10);
+  gtk_container_set_border_width(GTK_CONTAINER(vboxIzq), 10);
+  gtk_paned_add1(GTK_PANED(hpaned), vboxIzq);
+
+  lblTitulo := gtk_label_new('Correos Recibidos');
+  gtk_box_pack_start(GTK_BOX(vboxIzq), lblTitulo, False, False, 0);
+
+  // Lista de correos
+  scrolledLista := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledLista), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_start(GTK_BOX(vboxIzq), scrolledLista, True, True, 0);
+
+  // Crear modelo y vista - solo 4 columnas
+  store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  ListaCorreos := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+  gtk_container_add(GTK_CONTAINER(scrolledLista), ListaCorreos);
+
+  // Columnas
+  renderer := gtk_cell_renderer_text_new();
+  
+  column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 40);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
+
+  column := gtk_tree_view_column_new_with_attributes('De', renderer, 'text', 1, nil);
+  gtk_tree_view_column_set_min_width(column, 180);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 2, nil);
+  gtk_tree_view_column_set_min_width(column, 200);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 120);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
+
+  // Conectar selección - IMPORTANTE: una sola conexión
+  g_signal_connect(gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos)), 
+                   'changed', G_CALLBACK(@OnSeleccionarCorreo), nil);
+
+  // Botones de acción
+  btnBox := gtk_hbox_new(True, 5);
+  gtk_box_pack_start(GTK_BOX(vboxIzq), btnBox, False, False, 0);
+
+  btnActualizar := gtk_button_new_with_label('🔄 Actualizar');
+  g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarBandeja), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnActualizar, True, True, 0);
+
+  btnFavoritos := gtk_button_new_with_label('⭐ A Favoritos');
+  g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
+
+  btnEliminar := gtk_button_new_with_label('🗑️ Eliminar');
+  g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnEliminar, True, True, 0);
+
+  btnGrafica := gtk_button_new_with_label('📊 Gráfica');
+  g_signal_connect(btnGrafica, 'clicked', G_CALLBACK(@OnGenerarGrafica), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnGrafica, True, True, 0);
+
+  btnCerrar := gtk_button_new_with_label('❌ Cerrar');
+  g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarBandeja), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, True, 0);
+
+  // Panel derecho - Detalle del correo
+  vboxDer := gtk_vbox_new(False, 10);
+  gtk_container_set_border_width(GTK_CONTAINER(vboxDer), 10);
+  gtk_paned_add2(GTK_PANED(hpaned), vboxDer);
+
+  lblDetalle := gtk_label_new('Detalle del correo:');
+  gtk_box_pack_start(GTK_BOX(vboxDer), lblDetalle, False, False, 0);
+
+  scrolledDetalle := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledDetalle), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_start(GTK_BOX(vboxDer), scrolledDetalle, True, True, 0);
+
+  TextViewDetalle := gtk_text_view_new();
+  gtk_text_view_set_editable(PGtkTextView(TextViewDetalle), False);
+  gtk_text_view_set_wrap_mode(PGtkTextView(TextViewDetalle), GTK_WRAP_WORD);
+  gtk_container_add(GTK_CONTAINER(scrolledDetalle), TextViewDetalle);
+
+  // Establecer mensaje inicial en TextView
+  gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), 
+    'Selecciona un correo de la lista para ver sus detalles completos aquí.', -1);
+
+  // Cargar correos iniciales
+  WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
+  lista := ObtenerCorreosRecibidos(GEmailUsuario);
+  CargarCorreosEnLista(lista);
+  LiberarListaCorreos(lista);
+
+  WriteLn('DEBUG - Bandeja de entrada mostrada completamente');
+  gtk_widget_show_all(BandejaWindow);
+end;
+
+end.
+    'Selecciona un correo de la lista para ver sus detalles completos aquí.', -1);
+
+  // Cargar correos iniciales
+  WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
+  lista := ObtenerCorreosRecibidos(GEmailUsuario);
+  CargarCorreosEnLista(lista);
+  LiberarListaCorreos(lista);
+
+  WriteLn('DEBUG - Bandeja de entrada mostrada completamente');
+  gtk_widget_show_all(BandejaWindow);
+end;
+
+end.
   gtk_container_add(GTK_CONTAINER(BandejaWindow), hpaned);
 
   // Panel izquierdo - Lista de correos
@@ -784,9 +973,6 @@ begin
   LiberarListaCorreos(lista);
 
   gtk_widget_show_all(BandejaWindow);
-end;
-
-end.
 end;
 
 end.

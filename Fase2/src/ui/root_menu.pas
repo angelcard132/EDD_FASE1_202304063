@@ -109,7 +109,7 @@ begin
   arbol_b.Inicializar(GFavoritos^);
 
   // Carga masiva unificada (permite recargar si se desea)
-  CargaMasivaDesdeJSON('/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/usuarios.json', '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json',
+  CargaMasivaDesdeJSON('/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/usuarios.json', '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/correos.json',
                        GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
   g_print('>> ✅ Carga masiva completada.' + LineEnding);

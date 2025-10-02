@@ -2,83 +2,83 @@
   "correos": [
     {
       "id": 1,
-      "remitente": "ana.garcia@gmail.com",
-      "destinatario": "carlos.lopez@yahoo.com",
-      "asunto": "Reunión de trabajo mañana",
-      "mensaje": "Hola Carlos, te escribo para confirmar nuestra reunión de mañana a las 10:00 AM. Por favor confirma tu asistencia.",
+      "remitente": "juan.perez@gmail.com",
+      "destinatario": "maria.garcia@yahoo.com",
+      "asunto": "Reunion de proyecto",
+      "mensaje": "Hola Maria, necesitamos coordinar la reunion para revisar el avance del proyecto. Podrias confirmar tu disponibilidad para el viernes",
       "estado": "NL"
     },
     {
       "id": 2,
-      "remitente": "carlos.lopez@yahoo.com",
-      "destinatario": "maria.rodriguez@hotmail.com",
-      "asunto": "Proyecto de desarrollo",
-      "mensaje": "María, necesito que revises los documentos del proyecto. Te envío los detalles por este medio.",
+      "remitente": "admin@empresa.com",
+      "destinatario": "carlos.lopez@hotmail.com",
+      "asunto": "Actualización de sistema",
+      "mensaje": "Estimado Carlos, te informamos que habrá una actualización del sistema el próximo lunes. El servicio estará interrumpido por 2 horas.",
       "estado": "L"
     },
     {
       "id": 3,
-      "remitente": "maria.rodriguez@hotmail.com",
-      "destinatario": "juan.martinez@gmail.com",
-      "asunto": "Informe mensual",
-      "mensaje": "Juan, adjunto encontrarás el informe mensual de nuestro departamento. Cualquier duda me avisas.",
+      "remitente": "laura.martinez@universidad.edu",
+      "destinatario": "pedro.rodriguez@gmail.com",
+      "asunto": "Invitación conferencia",
+      "mensaje": "Pedro, te invitamos a participar en la conferencia de tecnología que se realizará el 15 de diciembre. Adjunto encontrarás más detalles.",
       "estado": "NL"
     },
     {
       "id": 4,
-      "remitente": "juan.martinez@gmail.com",
-      "destinatario": "laura.gonzalez@outlook.com",
-      "asunto": "Felicitaciones por el logro",
-      "mensaje": "Laura, quería felicitarte por el excelente trabajo realizado en el último proyecto. ¡Sigue así!",
+      "remitente": "sofia.hernandez@outlook.com",
+      "destinatario": "ana.gonzalez@yahoo.com",
+      "asunto": "Feliz cumpleaños",
+      "mensaje": "¡Querida Ana! Espero que tengas un día maravilloso en tu cumpleaños. Que todos tus deseos se cumplan. ¡Muchas felicidades!",
       "estado": "L"
     },
     {
       "id": 5,
-      "remitente": "laura.gonzalez@outlook.com",
-      "destinatario": "pedro.sanchez@gmail.com",
-      "asunto": "Solicitud de información",
-      "mensaje": "Pedro, necesito información sobre los nuevos procedimientos de la empresa. ¿Podrías ayudarme?",
+      "remitente": "miguel.torres@gmail.com",
+      "destinatario": "elena.vargas@hotmail.com",
+      "asunto": "Propuesta comercial",
+      "mensaje": "Elena, me pongo en contacto contigo para presentarte una propuesta comercial que podría ser de tu interés. ¿Podríamos agendar una reunión?",
       "estado": "NL"
     },
     {
       "id": 6,
-      "remitente": "pedro.sanchez@gmail.com",
-      "destinatario": "sofia.ramirez@yahoo.com",
-      "asunto": "Invitación a evento",
-      "mensaje": "Sofía, te invito al evento de fin de año de la empresa. Será el próximo viernes a las 7:00 PM.",
-      "estado": "NL"
+      "remitente": "david.ramirez@empresa.com",
+      "destinatario": "lucia.fernandez@gmail.com",
+      "asunto": "Solicitud de información",
+      "mensaje": "Lucía, necesito que me envíes el reporte mensual de ventas. Es urgente para la presentación de mañana. Gracias por tu colaboración.",
+      "estado": "L"
     },
     {
       "id": 7,
-      "remitente": "sofia.ramirez@yahoo.com",
-      "destinatario": "miguel.torres@gmail.com",
-      "asunto": "Consulta técnica",
-      "mensaje": "Miguel, tengo una consulta técnica sobre el nuevo sistema. ¿Podrías asesorarme cuando tengas tiempo?",
-      "estado": "L"
+      "remitente": "carmen.jimenez@universidad.edu",
+      "destinatario": "antonio.morales@outlook.com",
+      "asunto": "Resultados de investigación",
+      "mensaje": "Antonio, los resultados de la investigación están listos. Los datos son muy prometedores y creo que te van a interesar mucho.",
+      "estado": "NL"
     },
     {
       "id": 8,
-      "remitente": "miguel.torres@gmail.com",
-      "destinatario": "elena.vargas@hotmail.com",
-      "asunto": "Recordatorio de cita",
-      "mensaje": "Elena, te recuerdo que tenemos cita el miércoles a las 2:00 PM para revisar el presupuesto.",
-      "estado": "NL"
-    },
-    {
-      "id": 9,
-      "remitente": "elena.vargas@hotmail.com",
-      "destinatario": "david.herrera@outlook.com",
-      "asunto": "Propuesta comercial",
-      "mensaje": "David, te envío la propuesta comercial que discutimos. Por favor revísala y dame tus comentarios.",
+      "remitente": "roberto.sanchez@yahoo.com",
+      "destinatario": "isabel.cruz@gmail.com",
+      "asunto": "Confirmación de cita",
+      "mensaje": "Isabel, confirmo nuestra cita para el miércoles a las 3:00 PM en el café del centro. Espero verte allí.",
       "estado": "L"
     },
     {
-      "id": 10,
-      "remitente": "david.herrera@outlook.com",
-      "destinatario": "ana.garcia@gmail.com",
-      "asunto": "Seguimiento del proyecto",
-      "mensaje": "Ana, ¿cómo va el avance del proyecto? Necesito un update para reportar a gerencia.",
+      "id": 9,
+      "remitente": "teresa.ruiz@hotmail.com",
+      "destinatario": "francisco.ortega@empresa.com",
+      "asunto": "Seguimiento de pedido",
+      "mensaje": "Francisco, quería hacer seguimiento al pedido #12345 que realicé la semana pasada. ¿Podrías darme información sobre el estado de envío?",
       "estado": "NL"
+    },
+    {
+      "id": 10,
+      "remitente": "jose.diaz@gmail.com",
+      "destinatario": "natalia.vega@universidad.edu",
+      "asunto": "Colaboración académica",
+      "mensaje": "Natalia, he revisado tu trabajo de investigación y me parece excelente. Me gustaría explorar posibilidades de colaboración académica.",
+      "estado": "L"
     }
   ]
 }

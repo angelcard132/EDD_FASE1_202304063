@@ -1,57 +1,56 @@
 {
   "usuarios": [
     {
-      "id": 1,
-      "nombre": "Ana García",
-      "usuario": "ana_garcia",
-      "email": "ana.garcia@gmail.com",
-      "password": "ana123",
-      "telefono": "555-0001"
-    },
-    {
-      "id": 2,
-      "nombre": "Carlos López",
-      "usuario": "carlos_lopez",
-      "email": "carlos.lopez@yahoo.com",
-      "password": "carlos123",
-      "telefono": "555-0002"
-    },
-    {
-      "id": 3,
-      "nombre": "María Rodríguez",
-      "usuario": "maria_rodriguez",
-      "email": "maria.rodriguez@hotmail.com",
-      "password": "maria123",
-      "telefono": "555-0003"
-    },
-    {
-      "id": 4,
-      "nombre": "Juan Martínez",
-      "usuario": "juan_martinez",
-      "email": "juan.martinez@gmail.com",
+      "email": "juan.perez@gmail.com",
       "password": "juan123",
-      "telefono": "555-0004"
+      "nombre": "Juan Pérez"
     },
     {
-      "id": 5,
-      "nombre": "Laura González",
-      "usuario": "laura_gonzalez",
-      "email": "laura.gonzalez@outlook.com",
-      "password": "laura123",
-      "telefono": "555-0005"
+      "email": "maria.garcia@yahoo.com",
+      "password": "maria456",
+      "nombre": "María García"
     },
     {
-      "id": 6,
-      "nombre": "Pedro Sánchez",
-      "usuario": "pedro_sanchez",
-      "email": "pedro.sanchez@gmail.com",
-      "password": "pedro123",
-      "telefono": "555-0006"
+      "email": "carlos.lopez@hotmail.com",
+      "password": "carlos789",
+      "nombre": "Carlos López"
     },
     {
-      "id": 7,
-      "nombre": "Sofia Ramírez",
-      "usuario": "sofia_ramirez",
+      "email": "laura.martinez@universidad.edu",
+      "password": "laura321",
+      "nombre": "Laura Martínez"
+    },
+    {
+      "email": "pedro.rodriguez@gmail.com",
+      "password": "pedro654",
+      "nombre": "Pedro Rodríguez"
+    },
+    {
+      "email": "sofia.hernandez@outlook.com",
+      "password": "sofia987",
+      "nombre": "Sofía Hernández"
+    },
+    {
+      "email": "ana.gonzalez@yahoo.com",
+      "password": "ana111",
+      "nombre": "Ana González"
+    },
+    {
+      "email": "miguel.torres@gmail.com",
+      "password": "miguel222",
+      "nombre": "Miguel Torres"
+    },
+    {
+      "email": "elena.vargas@hotmail.com",
+      "password": "elena333",
+      "nombre": "Elena Vargas"
+    },
+    {
+      "email": "david.ramirez@empresa.com",
+      "password": "david444",
+      "nombre": "David Ramírez"
+    },
+    {
       "email": "sofia.ramirez@yahoo.com",
       "password": "sofia123",
       "telefono": "555-0007"
