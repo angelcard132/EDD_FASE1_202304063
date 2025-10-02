@@ -6,7 +6,7 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader, login, comunidad; // <-- agregar comunidad
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, login, comunidad, arbolbst;
 
 // Mostrar el menú root utilizando las mismas estructuras compartidas en toda la app
 procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
@@ -41,27 +41,28 @@ begin
     gtk_widget_destroy(MensajesWindow);
 end;
 
-function ContarMiembros(listaMiembros: PMiembro): Integer;
+// Callback para recolectar información de comunidades
+procedure CallbackActualizarCombo(comunidad: PNodoComunidadBST; data: Pointer);
 var
-  actual: PMiembro;
-  contador: Integer;
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  textoComunidad: String;
 begin
-  contador := 0;
-  actual := listaMiembros;
-  while actual <> nil do
+  if (comunidad <> nil) and (data <> nil) then
   begin
-    Inc(contador);
-    actual := actual^.siguiente;
+    store := PGtkListStore(data);
+    textoComunidad := comunidad^.nombre + ' (ID: ' + IntToStr(comunidad^.id) + ') - ' + IntToStr(comunidad^.totalMensajes) + ' mensajes';
+    
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter, 0, PChar(textoComunidad), -1);
   end;
-  Result := contador;
 end;
 
 procedure ActualizarComboComunidades();
 var
   store: PGtkListStore;
   iter: TGtkTreeIter;
-  actual: PComunidad;
-  textoComunidad: String;
+  totalComunidades: Integer;
 begin
   if ComboComunidades = nil then Exit;
   
@@ -70,21 +71,18 @@ begin
   if store <> nil then
     gtk_list_store_clear(store);
   
-  // Agregar comunidades existentes
-  actual := ListaComunidades.cabeza;
-  while actual <> nil do
-  begin
-    textoComunidad := actual^.nombre + ' (ID: ' + IntToStr(actual^.id) + ') - ' + IntToStr(ContarMiembros(actual^.miembros)) + ' miembros';
-    gtk_list_store_append(store, @iter);
-    gtk_list_store_set(store, @iter, 0, PChar(textoComunidad), -1);
-    actual := actual^.siguiente;
-  end;
+  // Contar comunidades primero
+  totalComunidades := ContarComunidades(ArbolComunidades);
   
-  // Si no hay comunidades, agregar mensaje
-  if ListaComunidades.total = 0 then
+  if totalComunidades = 0 then
   begin
     gtk_list_store_append(store, @iter);
     gtk_list_store_set(store, @iter, 0, PChar('No hay comunidades creadas'), -1);
+  end
+  else
+  begin
+    // Usar recorrido personalizado para llenar combo
+    RecorridoPersonalizadoBST(ArbolComunidades, @CallbackActualizarCombo, store);
   end;
 end;
 
@@ -131,7 +129,22 @@ end;
 
 procedure OnReporteComunidades(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  g_print('>> Reporte de comunidades (pendiente de implementar)' + LineEnding);
+  WriteLn('🌳 REPORTE DE COMUNIDADES BST');
+  WriteLn('=============================');
+  WriteLn('📊 Total de comunidades: ', ContarComunidades(ArbolComunidades));
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido In-Orden:');
+  InOrdenBST(ArbolComunidades);
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido Pre-Orden:');
+  PreOrdenBST(ArbolComunidades);
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido Post-Orden:');
+  PostOrdenBST(ArbolComunidades);
+  WriteLn('=============================');
 end;
 
 procedure OnVerMensajes(widget: PGtkWidget; data: gpointer); cdecl;
@@ -177,6 +190,32 @@ begin
   end;
 end;
 
+// Callback para recolectar mensajes del BST
+procedure CallbackRecolectarMensajes(comunidad: PNodoComunidadBST; data: Pointer);
+var
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  actualMensaje: PMensajeComunidad;
+begin
+  if (comunidad = nil) or (data = nil) then Exit;
+  
+  store := PGtkListStore(data);
+  actualMensaje := comunidad^.mensajes;
+  
+  while actualMensaje <> nil do
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+                       0, PChar(comunidad^.nombre),
+                       1, PChar(IntToStr(actualMensaje^.id)),
+                       2, PChar(actualMensaje^.fechaPublicacion),
+                       3, PChar(actualMensaje^.correo),
+                       4, PChar(actualMensaje^.mensaje),
+                       -1);
+    actualMensaje := actualMensaje^.siguiente;
+  end;
+end;
+
 procedure MostrarTodosMensajesComunidades();
 var
   vbox, scrolledLista, btnBox: PGtkWidget;
@@ -187,15 +226,13 @@ var
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
   btnCerrar: PGtkWidget;
-  actualComunidad: PComunidad;
-  actualMensaje: PMensaje;
   totalMensajes, totalComunidades: Integer;
 begin
   if Assigned(MensajesWindow) then
     gtk_widget_destroy(MensajesWindow);
 
   MensajesWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(MensajesWindow), PChar('💬 Todos los Mensajes de Comunidades - Root'));
+  gtk_window_set_title(GTK_WINDOW(MensajesWindow), PChar('💬 Todos los Mensajes de Comunidades BST - Root'));
   gtk_window_set_default_size(GTK_WINDOW(MensajesWindow), 900, 600);
   gtk_window_set_position(GTK_WINDOW(MensajesWindow), GTK_WIN_POS_CENTER);
 
@@ -205,26 +242,14 @@ begin
   gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
   gtk_container_add(GTK_CONTAINER(MensajesWindow), vbox);
 
-  lblTitulo := gtk_label_new('💬 Vista Global de Mensajes de Todas las Comunidades');
+  lblTitulo := gtk_label_new('💬 Vista Global de Mensajes del Árbol BST');
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
-  // Contar totales para información
-  totalMensajes := 0;
-  totalComunidades := 0;
-  actualComunidad := ListaComunidades.cabeza;
-  while actualComunidad <> nil do
-  begin
-    Inc(totalComunidades);
-    actualMensaje := actualComunidad^.mensajes;
-    while actualMensaje <> nil do
-    begin
-      Inc(totalMensajes);
-      actualMensaje := actualMensaje^.siguiente;
-    end;
-    actualComunidad := actualComunidad^.siguiente;
-  end;
+  // Contar totales
+  totalComunidades := ContarComunidades(ArbolComunidades);
+  totalMensajes := 0; // Se contará durante el llenado
 
-  lblInfo := gtk_label_new(PChar('Total: ' + IntToStr(totalMensajes) + ' mensajes en ' + IntToStr(totalComunidades) + ' comunidades'));
+  lblInfo := gtk_label_new(PChar('Total: ' + IntToStr(totalComunidades) + ' comunidades en el BST'));
   gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
 
   // Lista de mensajes
@@ -264,36 +289,20 @@ begin
   gtk_tree_view_column_set_resizable(column, True);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
-  // Cargar todos los mensajes de todas las comunidades
-  actualComunidad := ListaComunidades.cabeza;
-  while actualComunidad <> nil do
-  begin
-    actualMensaje := actualComunidad^.mensajes;
-    while actualMensaje <> nil do
-    begin
-      gtk_list_store_append(store, @iter);
-      gtk_list_store_set(store, @iter,
-                         0, PChar(actualComunidad^.nombre),
-                         1, PChar(IntToStr(actualMensaje^.id)),
-                         2, PChar(actualMensaje^.fecha),
-                         3, PChar(actualMensaje^.autor),
-                         4, PChar(actualMensaje^.mensaje),
-                         -1);
-      actualMensaje := actualMensaje^.siguiente;
-    end;
-    actualComunidad := actualComunidad^.siguiente;
-  end;
+  // Cargar todos los mensajes usando recorrido personalizado del BST
+  if ArbolComunidades <> nil then
+    RecorridoPersonalizadoBST(ArbolComunidades, @CallbackRecolectarMensajes, store);
 
   // Si no hay mensajes, mostrar mensaje informativo
-  if totalMensajes = 0 then
+  if totalComunidades = 0 then
   begin
     gtk_list_store_append(store, @iter);
     gtk_list_store_set(store, @iter,
-                       0, PChar('--- Sin mensajes ---'),
+                       0, PChar('--- Sin comunidades ---'),
                        1, PChar('--'),
                        2, PChar('--'),
                        3, PChar('--'),
-                       4, PChar('No hay mensajes publicados en ninguna comunidad'),
+                       4, PChar('No hay comunidades creadas en el BST'),
                        -1);
   end;
 
@@ -305,7 +314,7 @@ begin
   g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarMensajes), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, False, False, 0);
 
-  WriteLn('💬 Mostrando ', totalMensajes, ' mensajes de ', totalComunidades, ' comunidades');
+  WriteLn('💬 Mostrando mensajes de ', totalComunidades, ' comunidades del BST');
   gtk_widget_show_all(MensajesWindow);
 end;
 
@@ -328,7 +337,7 @@ begin
 
   { Ventana }
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(window), 'Menú Root - EDDMail');
+  gtk_window_set_title(GTK_WINDOW(window), 'Menú Root - EDDMail BST');
   gtk_window_set_default_size(GTK_WINDOW(window), 500, 400);
   gtk_container_set_border_width(GTK_CONTAINER(window), 20);
 
@@ -343,12 +352,12 @@ begin
   g_signal_connect(btnCarga, 'clicked', G_CALLBACK(@OnCargaMasiva), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnCarga, False, False, 0);
 
-  btnComunidad := gtk_button_new_with_label('2. Crear comunidad');
+  btnComunidad := gtk_button_new_with_label('2. 🌳 Crear comunidad BST');
   g_signal_connect(btnComunidad, 'clicked', G_CALLBACK(@OnCrearComunidad), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnComunidad, False, False, 0);
 
   { Sección de comunidades existentes }
-  lblComunidades := gtk_label_new('📋 Comunidades Existentes:');
+  lblComunidades := gtk_label_new('📋 Comunidades Existentes (BST):');
   gtk_misc_set_alignment(GTK_MISC(lblComunidades), 0.0, 0.5);
   gtk_box_pack_start(GTK_BOX(vbox), lblComunidades, False, False, 5);
 
@@ -367,11 +376,11 @@ begin
   gtk_box_pack_start(GTK_BOX(hboxCombo), ComboComunidades, True, True, 0);
 
   { Botones restantes }
-  btnReporte := gtk_button_new_with_label('3. Reporte de comunidades');
+  btnReporte := gtk_button_new_with_label('3. 🌳 Reporte BST comunidades');
   g_signal_connect(btnReporte, 'clicked', G_CALLBACK(@OnReporteComunidades), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnReporte, False, False, 0);
 
-  btnMensajes := gtk_button_new_with_label('4. Ver mensajes de comunidad');
+  btnMensajes := gtk_button_new_with_label('4. 💬 Ver mensajes BST');
   g_signal_connect(btnMensajes, 'clicked', G_CALLBACK(@OnVerMensajes), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnMensajes, False, False, 0);
 
