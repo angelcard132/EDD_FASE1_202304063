@@ -6,14 +6,18 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader;
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, pila2;
 
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
+
+// Make papelera accessible to other modules
+var
+  GPapelera: TPila;
 
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos, eliminar, pila2;
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos, eliminar;
 
 var
   GEmail: String;
@@ -21,7 +25,6 @@ var
   GProgramados: ^TCola = nil;
   GBorradores: ^PCorreoAVL = nil;
   GFavoritos: ^PNodoB = nil;
-  GPapelera: TPila;
 
 procedure OnRedactarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 begin
@@ -76,7 +79,7 @@ end;
 
 procedure OnBandejaEntrada(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  MostrarBandejaEntrada(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+  MostrarBandejaEntrada(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera);
 end;
 
 procedure OnVerProgramados(widget: PGtkWidget; data: gpointer); cdecl;
@@ -126,7 +129,7 @@ begin
   GBorradores := @borradores;
   GFavoritos := @favoritos;
   
-  // Inicializar papelera
+  // Inicializar papelera una sola vez
   InicializarPila(GPapelera);
   
   nombre := NombreDeEmail(email);

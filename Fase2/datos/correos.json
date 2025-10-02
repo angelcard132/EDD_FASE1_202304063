@@ -1,0 +1,84 @@
+{
+  "correos": [
+    {
+      "id": 1,
+      "remitente": "ana.garcia@gmail.com",
+      "destinatario": "carlos.lopez@yahoo.com",
+      "asunto": "Reunión de trabajo mañana",
+      "mensaje": "Hola Carlos, te escribo para confirmar nuestra reunión de mañana a las 10:00 AM. Por favor confirma tu asistencia.",
+      "estado": "NL"
+    },
+    {
+      "id": 2,
+      "remitente": "carlos.lopez@yahoo.com",
+      "destinatario": "maria.rodriguez@hotmail.com",
+      "asunto": "Proyecto de desarrollo",
+      "mensaje": "María, necesito que revises los documentos del proyecto. Te envío los detalles por este medio.",
+      "estado": "L"
+    },
+    {
+      "id": 3,
+      "remitente": "maria.rodriguez@hotmail.com",
+      "destinatario": "juan.martinez@gmail.com",
+      "asunto": "Informe mensual",
+      "mensaje": "Juan, adjunto encontrarás el informe mensual de nuestro departamento. Cualquier duda me avisas.",
+      "estado": "NL"
+    },
+    {
+      "id": 4,
+      "remitente": "juan.martinez@gmail.com",
+      "destinatario": "laura.gonzalez@outlook.com",
+      "asunto": "Felicitaciones por el logro",
+      "mensaje": "Laura, quería felicitarte por el excelente trabajo realizado en el último proyecto. ¡Sigue así!",
+      "estado": "L"
+    },
+    {
+      "id": 5,
+      "remitente": "laura.gonzalez@outlook.com",
+      "destinatario": "pedro.sanchez@gmail.com",
+      "asunto": "Solicitud de información",
+      "mensaje": "Pedro, necesito información sobre los nuevos procedimientos de la empresa. ¿Podrías ayudarme?",
+      "estado": "NL"
+    },
+    {
+      "id": 6,
+      "remitente": "pedro.sanchez@gmail.com",
+      "destinatario": "sofia.ramirez@yahoo.com",
+      "asunto": "Invitación a evento",
+      "mensaje": "Sofía, te invito al evento de fin de año de la empresa. Será el próximo viernes a las 7:00 PM.",
+      "estado": "NL"
+    },
+    {
+      "id": 7,
+      "remitente": "sofia.ramirez@yahoo.com",
+      "destinatario": "miguel.torres@gmail.com",
+      "asunto": "Consulta técnica",
+      "mensaje": "Miguel, tengo una consulta técnica sobre el nuevo sistema. ¿Podrías asesorarme cuando tengas tiempo?",
+      "estado": "L"
+    },
+    {
+      "id": 8,
+      "remitente": "miguel.torres@gmail.com",
+      "destinatario": "elena.vargas@hotmail.com",
+      "asunto": "Recordatorio de cita",
+      "mensaje": "Elena, te recuerdo que tenemos cita el miércoles a las 2:00 PM para revisar el presupuesto.",
+      "estado": "NL"
+    },
+    {
+      "id": 9,
+      "remitente": "elena.vargas@hotmail.com",
+      "destinatario": "david.herrera@outlook.com",
+      "asunto": "Propuesta comercial",
+      "mensaje": "David, te envío la propuesta comercial que discutimos. Por favor revísala y dame tus comentarios.",
+      "estado": "L"
+    },
+    {
+      "id": 10,
+      "remitente": "david.herrera@outlook.com",
+      "destinatario": "ana.garcia@gmail.com",
+      "asunto": "Seguimiento del proyecto",
+      "mensaje": "Ana, ¿cómo va el avance del proyecto? Necesito un update para reportar a gerencia.",
+      "estado": "NL"
+    }
+  ]
+}

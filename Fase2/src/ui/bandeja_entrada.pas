@@ -8,7 +8,7 @@ uses
   glib2, gtk2, gdk2, SysUtils,
   listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar;
 
-procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
+procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
 
 implementation
 
@@ -275,19 +275,19 @@ begin
   contador := 0;
 
   emailDestinoNorm := NormalizarEmail(emailDestino);
-  WriteLn('DEBUG - Buscando correos para: "', emailDestino, '"');
-  WriteLn('DEBUG - Email normalizado: "', emailDestinoNorm, '"');
+  WriteLn('🔍 Buscando correos para: "', emailDestino, '"');
+  WriteLn('📧 Email normalizado: "', emailDestinoNorm, '"');
 
   if GProgramados = nil then
   begin
-    WriteLn('ERROR - GProgramados es nil');
+    WriteLn('❌ GProgramados es nil');
     Result := lista;
     Exit;
   end;
 
   if GProgramados^.frente = nil then
   begin
-    WriteLn('DEBUG - Cola está vacía');
+    WriteLn('📭 Cola está vacía');
     Result := lista;
     Exit;
   end;
@@ -297,15 +297,16 @@ begin
   begin
     emailActual := String(actual^.destinatario);
 
-    WriteLn('DEBUG - Revisando correo ID ', actual^.id);
-    WriteLn('  - Destinatario original: "', emailActual, '"');
-    WriteLn('  - Comparando con: "', emailDestinoNorm, '"');
+    WriteLn('🔍 Revisando correo ID ', actual^.id, ':');
+    WriteLn('  📧 Destinatario: "', emailActual, '"');
+    WriteLn('  🎯 Buscando: "', emailDestinoNorm, '"');
 
-    // Comparación robusta: múltiples destinatarios, wrappers y normalización
+    // Usar comparación robusta
     if ContieneDestinatario(emailActual, emailDestinoNorm) then
     begin
-      WriteLn('DEBUG - ¡COINCIDENCIA ENCONTRADA! Procesando correo...');
+      WriteLn('  ✅ ¡COINCIDENCIA! Procesando correo...');
 
+      // Obtener estado del correo
       if ObtenerEstadoCorreo(actual^.id) = 'L' then
         estadoTexto := 'Leido'
       else
@@ -321,19 +322,21 @@ begin
       );
 
       Inc(contador);
-      WriteLn('DEBUG - Correo #', contador, ' agregado:');
-      WriteLn('  - ID: ', actual^.id);
-      WriteLn('  - Remitente: ', String(actual^.remitente));
-      WriteLn('  - Asunto: ', String(actual^.asunto));
-      WriteLn('  - Estado: ', estadoTexto);
+      WriteLn('  📨 Correo #', contador, ' agregado:');
+      WriteLn('    🆔 ID: ', actual^.id);
+      WriteLn('    👤 De: ', String(actual^.remitente));
+      WriteLn('    📋 Asunto: ', String(actual^.asunto));
+      WriteLn('    📊 Estado: ', estadoTexto);
     end
     else
-      WriteLn('DEBUG - No coincide, continuando...');
+      WriteLn('  ❌ No coincide, continuando...');
 
     actual := actual^.siguiente;
   end;
 
-  WriteLn('DEBUG - Total de correos encontrados: ', contador);
+  WriteLn('📊 Resumen búsqueda:');
+  WriteLn('  📧 Email buscado: ', emailDestino);
+  WriteLn('  📨 Correos encontrados: ', contador);
   Result := lista;
 end;
 
@@ -343,13 +346,16 @@ var
   iter: TGtkTreeIter;
   actual: PCorreoRecibido;
   idStr: String;
+  contador: Integer;
 begin
   if ListaCorreos = nil then Exit;
   
   store := PGtkListStore(gtk_tree_view_get_model(PGtkTreeView(ListaCorreos)));
   if store = nil then Exit;
   
+  // Limpiar lista anterior
   gtk_list_store_clear(store);
+  contador := 0;
   
   actual := lista;
   while actual <> nil do
@@ -364,9 +370,12 @@ begin
                        3, PChar(SanearUTF8(actual^.estado)),
                        -1);
     
-    WriteLn('DEBUG - Correo agregado a lista: ', actual^.asunto);
+    Inc(contador);
+    WriteLn('🎯 Correo mostrado en UI #', contador, ': ', actual^.asunto);
     actual := actual^.siguiente;
   end;
+  
+  WriteLn('📋 Total correos en interfaz: ', contador);
 end;
 
 procedure OnAgregarAFavoritos(widget: PGtkWidget; data: gpointer); cdecl;
@@ -655,7 +664,7 @@ begin
     MostrarNotificacion('❌ No se pudo encontrar el correo seleccionado', GTK_MESSAGE_ERROR);
 end;
 
-procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
+procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
   lblTitulo, lblDetalle: PGtkWidget;
@@ -669,12 +678,7 @@ begin
   GEmailUsuario := NormalizarEmail(emailUsuario);
   GProgramados := @programados;
   GFavoritos := @favoritos;
-  // Inicializar papelera si no existe
-  if GPapelera = nil then
-  begin
-    New(GPapelera);
-    InicializarPila(GPapelera^);
-  end;
+  GPapelera := @papelera;
   CorreoSeleccionadoID := 0;
 
   // Si existe una ventana previa, destruirla
@@ -780,6 +784,9 @@ begin
   LiberarListaCorreos(lista);
 
   gtk_widget_show_all(BandejaWindow);
+end;
+
+end.
 end;
 
 end.

@@ -62,6 +62,47 @@ begin
   g_free(texto);
 end;
 
+procedure OnProgramarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  destinatario, asunto, mensaje: String;
+  nuevoID: Integer;
+begin
+  destinatario := StrPas(gtk_entry_get_text(PGtkEntry(EntryDestinatario)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
+  mensaje := ObtenerTextoTextView(TextViewMensaje);
+
+  // Validaciones
+  if (destinatario = '') or (asunto = '') or (mensaje = '') then
+  begin
+    MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  if Pos('@', destinatario) = 0 then
+  begin
+    MostrarMensaje('Error de Validación', 'El email del destinatario debe contener @.', GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Programar correo (no enviar inmediatamente)
+  nuevoID := GenerarNuevoIDCorreo();
+  Encolar(GProgramados^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
+  EstablecerEstadoCorreo(nuevoID, 'PROGRAMADO'); // Estado especial para programados
+  
+  WriteLn('📅 Correo programado exitosamente: ', asunto);
+  
+  MostrarMensaje('Correo Programado', 
+    'El correo ha sido programado exitosamente.' + LineEnding + 
+    'Para: ' + destinatario + LineEnding +
+    'Asunto: ' + asunto + LineEnding + LineEnding +
+    'Ve a "Ver Programados" para enviarlo cuando desees.', 
+    GTK_MESSAGE_INFO);
+  
+  // Cerrar formulario
+  if Assigned(FormularioWindow) then
+    gtk_widget_destroy(FormularioWindow);
+end;
+
 procedure OnEnviarAhora(widget: PGtkWidget; data: gpointer); cdecl;
 var
   destinatario, asunto, mensaje: String;
@@ -102,6 +143,40 @@ begin
     gtk_widget_destroy(FormularioWindow);
 end;
 
+procedure OnGuardarBorradorProgramado(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  destinatario, asunto, mensaje: String;
+  nuevoID: Integer;
+begin
+  destinatario := StrPas(gtk_entry_get_text(PGtkEntry(EntryDestinatario)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
+  mensaje := ObtenerTextoTextView(TextViewMensaje);
+
+  // Validaciones básicas
+  if (destinatario = '') and (asunto = '') and (mensaje = '') then
+  begin
+    MostrarMensaje('Borrador Vacío', 'No hay contenido para guardar como borrador.', GTK_MESSAGE_WARNING);
+    Exit;
+  end;
+
+  // Generar ID y guardar en AVL de borradores
+  nuevoID := GenerarNuevoIDCorreo();
+  GBorradores^ := arbol_avl.Insertar(GBorradores^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
+  
+  WriteLn('✅ Borrador guardado desde programar correo ID: ', nuevoID);
+  
+  MostrarMensaje('Borrador Guardado', 
+    'El borrador ha sido guardado exitosamente.' + LineEnding + 
+    'Para: ' + destinatario + LineEnding +
+    'Asunto: ' + asunto + LineEnding + LineEnding +
+    'Puedes editarlo y enviarlo desde el gestor de borradores.', 
+    GTK_MESSAGE_INFO);
+  
+  // Cerrar ventana de programar
+  if Assigned(FormularioWindow) then
+    gtk_widget_destroy(FormularioWindow);
+end;
+
 procedure OnRegresarFormulario(widget: PGtkWidget; data: gpointer); cdecl;
 begin
   if Assigned(FormularioWindow) then
@@ -120,7 +195,7 @@ procedure MostrarFormularioProgramar();
 var
   vbox, form, hbox, btnBox, scrolledWindow: PGtkWidget;
   lblTitulo, lblPara, lblAsunto, lblMensaje, lblFecha: PGtkWidget;
-  btnEnviar, btnRegresar: PGtkWidget;
+  btnProgramar, btnBorrador, btnRegresar: PGtkWidget;
 begin
   if Assigned(FormularioWindow) then
     gtk_widget_destroy(FormularioWindow);
@@ -186,13 +261,17 @@ begin
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
 
-  // Botones
-  btnBox := gtk_hbox_new(True, 15);
+  // Botones - cambiar funcionalidad del primer botón
+  btnBox := gtk_hbox_new(True, 10);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
 
-  btnEnviar := gtk_button_new_with_label('📤 Enviar Ahora');
-  g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarAhora), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnEnviar, True, True, 0);
+  btnProgramar := gtk_button_new_with_label('📅 Programar Correo');
+  g_signal_connect(btnProgramar, 'clicked', G_CALLBACK(@OnProgramarCorreo), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnProgramar, True, True, 0);
+
+  btnBorrador := gtk_button_new_with_label('📝 Guardar Borrador');
+  g_signal_connect(btnBorrador, 'clicked', G_CALLBACK(@OnGuardarBorradorProgramado), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnBorrador, True, True, 0);
 
   btnRegresar := gtk_button_new_with_label('🔙 Regresar');
   g_signal_connect(btnRegresar, 'clicked', G_CALLBACK(@OnRegresarFormulario), nil);
@@ -203,12 +282,49 @@ end;
 
 { === VISTA DE PROGRAMADOS === }
 
+// Forward declaration
+procedure MostrarVistaProgramados(); forward;
+
 function OnDeleteEventVista(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
 begin
   WriteLn('🔓 Cerrando vista programados...');
   if Assigned(VistaWindow) then
     gtk_widget_destroy(VistaWindow);
   Result := True; // Prevenir cierre de aplicación  
+end;
+
+procedure OnEnviarTodos(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  actual: PCorreo;
+  contador: Integer;
+begin
+  contador := 0;
+  actual := GProgramados^.frente;
+  
+  while actual <> nil do
+  begin
+    // Solo cambiar estado de correos programados
+    if ObtenerEstadoCorreo(actual^.id) = 'PROGRAMADO' then
+    begin
+      EstablecerEstadoCorreo(actual^.id, 'NL'); // Cambiar a "No Leído" (enviado)
+      Inc(contador);
+      WriteLn('📤 Enviado correo ID: ', actual^.id, ' - ', String(actual^.asunto));
+    end;
+    actual := actual^.siguiente;
+  end;
+  
+  if contador > 0 then
+  begin
+    MostrarMensaje('Correos Enviados', 
+      'Se enviaron exitosamente ' + IntToStr(contador) + ' correos programados.' + LineEnding + LineEnding +
+      'Los correos ahora aparecerán en las bandejas de los destinatarios.',
+      GTK_MESSAGE_INFO);
+    
+    // Actualizar vista
+    MostrarVistaProgramados();
+  end
+  else
+    MostrarMensaje('Sin Correos', 'No hay correos programados para enviar.', GTK_MESSAGE_WARNING);
 end;
 
 procedure MostrarVistaProgramados();
@@ -220,16 +336,18 @@ var
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
-  btnCerrar: PGtkWidget;
+  btnEnviarTodos, btnCerrar: PGtkWidget;
   actual: PCorreo;
-  idStr, estadoTexto: String;
+  idStr: String;
+  contadorProgramados: Integer;
+  btnLabel: String;
 begin
   if Assigned(VistaWindow) then
     gtk_widget_destroy(VistaWindow);
 
   VistaWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(VistaWindow), PChar('📋 Correos Programados - EDDMail'));
-  gtk_window_set_default_size(GTK_WINDOW(VistaWindow), 800, 500);
+  gtk_window_set_default_size(GTK_WINDOW(VistaWindow), 900, 600);
   gtk_window_set_position(GTK_WINDOW(VistaWindow), GTK_WIN_POS_CENTER);
 
   // Conectar delete-event para prevenir cierre de aplicación
@@ -239,10 +357,10 @@ begin
   gtk_container_set_border_width(GTK_CONTAINER(vbox), 15);
   gtk_container_add(GTK_CONTAINER(VistaWindow), vbox);
 
-  lblTitulo := gtk_label_new('📋 Lista de Correos Programados');
+  lblTitulo := gtk_label_new('📋 Correos Programados (Pendientes de Envío)');
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
-  lblInfo := gtk_label_new('Estado: Programado = En cola, Enviado = Entregado al destinatario');
+  lblInfo := gtk_label_new('Estos correos están programados pero aún no se han enviado. Usa "Enviar Todos" para enviarlos.');
   gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
 
   // Lista de correos
@@ -251,8 +369,8 @@ begin
                                  GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_box_pack_start(GTK_BOX(vbox), scrolledWindow, True, True, 0);
 
-  // Crear modelo y vista
-  store := gtk_list_store_new(6, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  // Crear modelo y vista - solo mostrar correos programados
+  store := gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
   treeView := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
   gtk_container_add(GTK_CONTAINER(scrolledWindow), treeView);
 
@@ -260,62 +378,70 @@ begin
   renderer := gtk_cell_renderer_text_new();
   
   column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 60);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   column := gtk_tree_view_column_new_with_attributes('De', renderer, 'text', 1, nil);
+  gtk_tree_view_column_set_min_width(column, 150);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   column := gtk_tree_view_column_new_with_attributes('Para', renderer, 'text', 2, nil);
+  gtk_tree_view_column_set_min_width(column, 180);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 250);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
-  column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 4, nil);
+  column := gtk_tree_view_column_new_with_attributes('Mensaje', renderer, 'text', 4, nil);
+  gtk_tree_view_column_set_min_width(column, 200);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
-  column := gtk_tree_view_column_new_with_attributes('Mensaje', renderer, 'text', 5, nil);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
-
-  // Cargar datos de la cola
+  // Cargar solo correos programados (no enviados)
+  contadorProgramados := 0;
   actual := GProgramados^.frente;
   while actual <> nil do
   begin
-    idStr := IntToStr(actual^.id);
-    
-    // Determinar estado
-    if ObtenerEstadoCorreo(actual^.id) = 'L' then
-      estadoTexto := '✅ Enviado'
-    else
-      estadoTexto := '📅 Programado';
-    
-    gtk_list_store_append(store, @iter);
-    gtk_list_store_set(store, @iter,
-                       0, PChar(idStr),
-                       1, PChar(String(actual^.remitente)),
-                       2, PChar(String(actual^.destinatario)),
-                       3, PChar(String(actual^.asunto)),
-                       4, PChar(estadoTexto),
-                       5, PChar(String(actual^.mensaje)),
-                       -1);
-    
+    // Solo mostrar correos con estado "PROGRAMADO"
+    if ObtenerEstadoCorreo(actual^.id) = 'PROGRAMADO' then
+    begin
+      idStr := IntToStr(actual^.id);
+      
+      gtk_list_store_append(store, @iter);
+      gtk_list_store_set(store, @iter,
+                         0, PChar(idStr),
+                         1, PChar(String(actual^.remitente)),
+                         2, PChar(String(actual^.destinatario)),
+                         3, PChar(String(actual^.asunto)),
+                         4, PChar(String(actual^.mensaje)),
+                         -1);
+      
+      Inc(contadorProgramados);
+    end;
     actual := actual^.siguiente;
   end;
 
-  // Botón cerrar
-  btnBox := gtk_hbox_new(False, 0);
+  // Botones de acción
+  btnBox := gtk_hbox_new(True, 10);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
+
+  btnLabel := '📤 Enviar Todos (' + IntToStr(contadorProgramados) + ')';
+  btnEnviarTodos := gtk_button_new_with_label(PChar(btnLabel));
+  g_signal_connect(btnEnviarTodos, 'clicked', G_CALLBACK(@OnEnviarTodos), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnEnviarTodos, True, True, 0);
 
   btnCerrar := gtk_button_new_with_label('❌ Cerrar');
   g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@gtk_widget_destroy), VistaWindow);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, False, False, 0);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, True, 0);
 
   gtk_widget_show_all(VistaWindow);
+  
+  WriteLn('📋 Vista programados cargada - Total programados: ', contadorProgramados);
 end;
 
 { === INTERFAZ PRINCIPAL === }
 
-procedure OnProgramarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+procedure OnProgramarCorreoFormulario(widget: PGtkWidget; data: gpointer); cdecl;
 begin
   MostrarFormularioProgramar();
 end;
@@ -379,7 +505,7 @@ begin
 
   btnProgramar := gtk_button_new_with_label('📧 Programar Correo');
   gtk_widget_set_size_request(btnProgramar, 250, 50);
-  g_signal_connect(btnProgramar, 'clicked', G_CALLBACK(@OnProgramarCorreo), nil);
+  g_signal_connect(btnProgramar, 'clicked', G_CALLBACK(@OnProgramarCorreoFormulario), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnProgramar, True, False, 0);
 
   btnVer := gtk_button_new_with_label('📋 Ver Programados');
