@@ -2,83 +2,51 @@
   "correos": [
     {
       "id": 1,
-      "remitente": "juan.perez@gmail.com",
-      "destinatario": "maria.garcia@yahoo.com",
-      "asunto": "Reunion de proyecto",
-      "mensaje": "Hola Maria, necesitamos coordinar la reunion para revisar el avance del proyecto. Podrias confirmar tu disponibilidad para el viernes",
-      "estado": "NL"
+      "remitente": "aux-luis@edd.com",
+      "destinatario": "aux-marcosg@edd.com",
+      "estado": "NL",
+      "asunto": "Reunión de proyecto",
+      "mensaje": "Confirmar asistencia a la reunión de equipo."
     },
     {
       "id": 2,
-      "remitente": "admin@empresa.com",
-      "destinatario": "carlos.lopez@hotmail.com",
-      "asunto": "Actualización de sistema",
-      "mensaje": "Estimado Carlos, te informamos que habrá una actualización del sistema el próximo lunes. El servicio estará interrumpido por 2 horas.",
-      "estado": "L"
+      "remitente": "aux-luis@edd.com",
+      "destinatario": "aux-marcosg@edd.com",
+      "estado": "L",
+      "asunto": "Reporte semanal",
+      "mensaje": "Adjunto el reporte semanal de actividades."
     },
     {
       "id": 3,
-      "remitente": "laura.martinez@universidad.edu",
-      "destinatario": "pedro.rodriguez@gmail.com",
-      "asunto": "Invitación conferencia",
-      "mensaje": "Pedro, te invitamos a participar en la conferencia de tecnología que se realizará el 15 de diciembre. Adjunto encontrarás más detalles.",
-      "estado": "NL"
+      "remitente": "aux-marcosg@edd.com",
+      "destinatario": "aux-ana@edd.com",
+      "estado": "NL",
+      "asunto": "Solicitud de apoyo",
+      "mensaje": "¿Puedes ayudarme a revisar el módulo 2 del proyecto?"
     },
     {
       "id": 4,
-      "remitente": "sofia.hernandez@outlook.com",
-      "destinatario": "ana.gonzalez@yahoo.com",
-      "asunto": "Feliz cumpleaños",
-      "mensaje": "¡Querida Ana! Espero que tengas un día maravilloso en tu cumpleaños. Que todos tus deseos se cumplan. ¡Muchas felicidades!",
-      "estado": "L"
+      "remitente": "aux-ana@edd.com",
+      "destinatario": "aux-carlos@edd.com",
+      "estado": "NL",
+      "asunto": "Invitación a capacitación",
+      "mensaje": "Se les invita a la capacitación de la nueva plataforma este viernes."
     },
     {
       "id": 5,
-      "remitente": "miguel.torres@gmail.com",
-      "destinatario": "elena.vargas@hotmail.com",
-      "asunto": "Propuesta comercial",
-      "mensaje": "Elena, me pongo en contacto contigo para presentarte una propuesta comercial que podría ser de tu interés. ¿Podríamos agendar una reunión?",
-      "estado": "NL"
+      "remitente": "aux-carlos@edd.com",
+      "destinatario": "aux-luis@edd.com",
+      "estado": "P",
+      "asunto": "Revisión pendiente",
+      "mensaje": "Revisar documentación antes de enviarla al cliente."
     },
     {
       "id": 6,
-      "remitente": "david.ramirez@empresa.com",
-      "destinatario": "lucia.fernandez@gmail.com",
-      "asunto": "Solicitud de información",
-      "mensaje": "Lucía, necesito que me envíes el reporte mensual de ventas. Es urgente para la presentación de mañana. Gracias por tu colaboración.",
-      "estado": "L"
-    },
-    {
-      "id": 7,
-      "remitente": "carmen.jimenez@universidad.edu",
-      "destinatario": "antonio.morales@outlook.com",
-      "asunto": "Resultados de investigación",
-      "mensaje": "Antonio, los resultados de la investigación están listos. Los datos son muy prometedores y creo que te van a interesar mucho.",
-      "estado": "NL"
-    },
-    {
-      "id": 8,
-      "remitente": "roberto.sanchez@yahoo.com",
-      "destinatario": "isabel.cruz@gmail.com",
-      "asunto": "Confirmación de cita",
-      "mensaje": "Isabel, confirmo nuestra cita para el miércoles a las 3:00 PM en el café del centro. Espero verte allí.",
-      "estado": "L"
-    },
-    {
-      "id": 9,
-      "remitente": "teresa.ruiz@hotmail.com",
-      "destinatario": "francisco.ortega@empresa.com",
-      "asunto": "Seguimiento de pedido",
-      "mensaje": "Francisco, quería hacer seguimiento al pedido #12345 que realicé la semana pasada. ¿Podrías darme información sobre el estado de envío?",
-      "estado": "NL"
-    },
-    {
-      "id": 10,
-      "remitente": "jose.diaz@gmail.com",
-      "destinatario": "natalia.vega@universidad.edu",
-      "asunto": "Colaboración académica",
-      "mensaje": "Natalia, he revisado tu trabajo de investigación y me parece excelente. Me gustaría explorar posibilidades de colaboración académica.",
-      "estado": "L"
+      "remitente": "aux-ana@edd.com",
+      "destinatario": "aux-luis@edd.com",
+      "estado": "L",
+      "asunto": "Confirmación",
+      "mensaje": "Luis, recibí tu mensaje. Gracias por la confirmación."
     }
   ]
 }

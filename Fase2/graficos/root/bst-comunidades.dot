@@ -1,0 +1,26 @@
+digraph BSTComunidades {
+  rankdir=TB;
+  node [shape=record, style=filled, fontname="Arial", fontsize=10];
+  edge [fontname="Arial", fontsize=8];
+  label="🌳 ÁRBOL BST DE COMUNIDADES\\nEstructura: Rojo=BST, Azul=Jerarquía"; labelloc=t; fontsize=16; fontcolor=green;
+
+  // Leyenda
+  subgraph cluster_leyenda {
+    label="Leyenda";
+    style=filled;
+    fillcolor=lightgray;
+    leyenda_principal [label="Comunidad\\nPrincipal", fillcolor="#E6F7FF", shape="box"];
+    leyenda_sub [label="Subcomunidad", fillcolor="#FFE4B5", shape="ellipse"];
+    leyenda_bst [label="Conexión BST", color="red"];
+    leyenda_jerarquia [label="Relación Padre-Hijo", color="blue", style="dashed"];
+    leyenda_principal -> leyenda_sub [color="red", label="BST"];
+    leyenda_principal -> leyenda_sub [color="blue", style="dashed", label="Jerarquía"];
+  }
+
+  nodo_1001 [label="Comunidad Principal\\nID: 1001\\nestudiantes\\nMensajes: 0", fillcolor="#E6F7FF", shape="box"];
+  nodo_1001 -> nodo_1002 [label="R", color="red"];
+  nodo_1002 [label="Comunidad Principal\\nID: 1002\\nnetflixa\\nMensajes: 0", fillcolor="#E6F7FF", shape="box"];
+  nodo_1002 -> nodo_1003 [label="L", color="red"];
+  nodo_1003 [label="Subcomunidad\\nID: 1003\\namazon\\nCreador: aux-ana@edd.com\\nMensajes: 1", fillcolor="#FFE4B5", shape="ellipse"];
+  nodo_1002 -> nodo_1003 [label="subcomunidad de", color="blue", style="dashed"];
+}

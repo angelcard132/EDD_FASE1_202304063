@@ -1,0 +1,34 @@
+digraph Contactos {
+  rankdir=LR;
+  node [shape=record, style=filled, fontname="Arial", fontsize=9, fillcolor="#E6FFE6"];
+  edge [color=green];
+  label="👥 CONTACTOS (LISTA SIMPLE) - maria.garcia@yahoo.com"; labelloc=t; fontsize=14; fontcolor=green;
+
+  contacto_1 [label="👤 ID: 1|Nombre: Juan P?rez|Usuario: juan.perez@gmai...|Email: juan.perez@gmail.com|Tel: "];
+  contacto_2 [label="👤 ID: 2|Nombre: Mar?a Garc?a|Usuario: maria.garcia@ya...|Email: maria.garcia@yahoo.com|Tel: "];
+  contacto_1 -> contacto_2;
+  contacto_3 [label="👤 ID: 3|Nombre: Carlos L?pez|Usuario: carlos.lopez@ho...|Email: carlos.lopez@hotmail.com|Tel: "];
+  contacto_2 -> contacto_3;
+  contacto_4 [label="👤 ID: 4|Nombre: Laura Mart?nez|Usuario: laura.martinez@...|Email: laura.martinez@universida...|Tel: "];
+  contacto_3 -> contacto_4;
+  contacto_5 [label="👤 ID: 5|Nombre: Pedro Rodr?guez|Usuario: pedro.rodriguez...|Email: pedro.rodriguez@gmail.com|Tel: "];
+  contacto_4 -> contacto_5;
+  contacto_6 [label="👤 ID: 6|Nombre: Sof?a Hern?ndez|Usuario: sofia.hernandez...|Email: sofia.hernandez@outlook.c...|Tel: "];
+  contacto_5 -> contacto_6;
+  contacto_7 [label="👤 ID: 7|Nombre: Ana Gonz?lez|Usuario: ana.gonzalez@ya...|Email: ana.gonzalez@yahoo.com|Tel: "];
+  contacto_6 -> contacto_7;
+  contacto_8 [label="👤 ID: 8|Nombre: Miguel Torres|Usuario: miguel.torres@g...|Email: miguel.torres@gmail.com|Tel: "];
+  contacto_7 -> contacto_8;
+  contacto_9 [label="👤 ID: 9|Nombre: Elena Vargas|Usuario: elena.vargas@ho...|Email: elena.vargas@hotmail.com|Tel: "];
+  contacto_8 -> contacto_9;
+  contacto_10 [label="👤 ID: 10|Nombre: David Ram?rez|Usuario: david.ramirez@e...|Email: david.ramirez@empresa.com|Tel: "];
+  contacto_9 -> contacto_10;
+  contacto_11 [label="👤 ID: 12|Nombre: Miguel Torres|Usuario: miguel.torres@g...|Email: miguel.torres@gmail.com|Tel: "];
+  contacto_10 -> contacto_11;
+  contacto_12 [label="👤 ID: 13|Nombre: Elena Vargas|Usuario: elena.vargas@ho...|Email: elena.vargas@hotmail.com|Tel: "];
+  contacto_11 -> contacto_12;
+  contacto_13 [label="👤 ID: 14|Nombre: David Herrera|Usuario: david.herrera@o...|Email: david.herrera@outlook.com|Tel: "];
+  contacto_12 -> contacto_13;
+  contacto_14 [label="👤 ID: 21881|Nombre: angel cardenas|Usuario: angel123|Email: angel@edd.com|Tel: 1234"];
+  contacto_13 -> contacto_14;
+}

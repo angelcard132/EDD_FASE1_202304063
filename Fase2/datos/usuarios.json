@@ -1,83 +1,36 @@
 {
   "usuarios": [
     {
-      "email": "juan.perez@gmail.com",
-      "password": "juan123",
-      "nombre": "Juan Pérez"
+      "id": 1,
+      "nombre": "Luis Garcia",
+      "usuario": "auxluis",
+      "password": "auxluis123",
+      "email": "aux-luis@edd.com",
+      "telefono": "12345678"
     },
     {
-      "email": "maria.garcia@yahoo.com",
-      "password": "maria456",
-      "nombre": "María García"
+      "id": 2,
+      "nombre": "Marcos Itzep",
+      "usuario": "auxmarcos",
+      "password": "auxmarcos123",
+      "email": "aux-marcosg@edd.com",
+      "telefono": "87654321"
     },
     {
-      "email": "carlos.lopez@hotmail.com",
-      "password": "carlos789",
-      "nombre": "Carlos López"
+      "id": 3,
+      "nombre": "Ana López",
+      "usuario": "auxana",
+      "password": "auxana123",
+      "email": "aux-ana@edd.com",
+      "telefono": "11223344"
     },
     {
-      "email": "laura.martinez@universidad.edu",
-      "password": "laura321",
-      "nombre": "Laura Martínez"
-    },
-    {
-      "email": "pedro.rodriguez@gmail.com",
-      "password": "pedro654",
-      "nombre": "Pedro Rodríguez"
-    },
-    {
-      "email": "sofia.hernandez@outlook.com",
-      "password": "sofia987",
-      "nombre": "Sofía Hernández"
-    },
-    {
-      "email": "ana.gonzalez@yahoo.com",
-      "password": "ana111",
-      "nombre": "Ana González"
-    },
-    {
-      "email": "miguel.torres@gmail.com",
-      "password": "miguel222",
-      "nombre": "Miguel Torres"
-    },
-    {
-      "email": "elena.vargas@hotmail.com",
-      "password": "elena333",
-      "nombre": "Elena Vargas"
-    },
-    {
-      "email": "david.ramirez@empresa.com",
-      "password": "david444",
-      "nombre": "David Ramírez"
-    },
-    {
-      "email": "sofia.ramirez@yahoo.com",
-      "password": "sofia123",
-      "telefono": "555-0007"
-    },
-    {
-      "id": 8,
-      "nombre": "Miguel Torres",
-      "usuario": "miguel_torres",
-      "email": "miguel.torres@gmail.com",
-      "password": "miguel123",
-      "telefono": "555-0008"
-    },
-    {
-      "id": 9,
-      "nombre": "Elena Vargas",
-      "usuario": "elena_vargas",
-      "email": "elena.vargas@hotmail.com",
-      "password": "elena123",
-      "telefono": "555-0009"
-    },
-    {
-      "id": 10,
-      "nombre": "David Herrera",
-      "usuario": "david_herrera",
-      "email": "david.herrera@outlook.com",
-      "password": "david123",
-      "telefono": "555-0010"
+      "id": 4,
+      "nombre": "Carlos Pérez",
+      "usuario": "auxcarlos",
+      "password": "auxcarlos123",
+      "email": "aux-carlos@edd.com",
+      "telefono": "44332211"
     }
   ]
 }

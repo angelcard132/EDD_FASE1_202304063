@@ -17,7 +17,7 @@ var
 implementation
 
 uses
-  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos, eliminar;
+  redactar2, bandeja_entrada, login, programados, nuevo_contacto, perfil, comunidad, borradores, favoritos, eliminar, reports;
 
 var
   GEmail: String;
@@ -117,9 +117,14 @@ begin
   MostrarPapelera(GEmail, GPapelera);
 end;
 
+procedure OnReportes(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  GenerarReportesCompletos(GEmail, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera);
+end;
+
 procedure MostrarMenuUsuario(const email: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
-  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnPapelera, btnProg, btnContactos, btnPerfil, btnComunidades, btnSalir: PGtkWidget;
+  w, vbox, lbl, btnBandeja, btnRedactar, btnBorr, btnFav, btnPapelera, btnProg, btnContactos, btnPerfil, btnComunidades, btnReportes, btnSalir: PGtkWidget;
   nombre: String;
 begin
   // Guardar referencias globales
@@ -188,6 +193,10 @@ begin
   btnPapelera := gtk_button_new_with_label('🗑️ Ver Papelera (Pila)');
   g_signal_connect(btnPapelera, 'clicked', G_CALLBACK(@OnPapelera), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnPapelera, True, True, 5);
+
+  btnReportes := gtk_button_new_with_label('📊 Generar Reportes');
+  g_signal_connect(btnReportes, 'clicked', G_CALLBACK(@OnReportes), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnReportes, True, True, 5);
 
   btnSalir := gtk_button_new_with_label('🚪 Cerrar sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnCerrarSesionUsuario), nil);

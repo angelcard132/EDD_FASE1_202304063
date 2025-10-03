@@ -18,13 +18,16 @@ type
     siguiente: PMensajeComunidad;
   end;
 
-  // Nodo del BST para comunidades
+  // Nodo del BST para comunidades con jerarquía
   PNodoComunidadBST = ^TNodoComunidadBST;
   TNodoComunidadBST = record
     id: Integer;
     nombre: String;
     descripcion: String;
     fechaCreacion: String;
+    creador: String; // Email del creador (root o usuario)
+    esSubcomunidad: Boolean; // Si es subcomunidad de otra
+    comunidadPadre: PNodoComunidadBST; // Referencia al padre (nil si es raíz)
     mensajes: PMensajeComunidad; // Lista simple de mensajes
     totalMensajes: Integer;
     izquierdo, derecho: PNodoComunidadBST;
@@ -36,15 +39,13 @@ type
 // Funciones principales del BST
 procedure InicializarBST(var raiz: PNodoComunidadBST);
 function InsertarComunidad(var raiz: PNodoComunidadBST; id: Integer; const nombre, descripcion: String): Boolean;
-function BuscarComunidad(raiz: PNodoComunidadBST; id: Integer): PNodoComunidadBST;
+function InsertarSubcomunidad(comunidadPadre: PNodoComunidadBST; id: Integer; const nombre, descripcion, creador: String): Boolean;
 function BuscarComunidadPorNombre(raiz: PNodoComunidadBST; const nombre: String): PNodoComunidadBST;
-function EliminarComunidad(var raiz: PNodoComunidadBST; id: Integer): Boolean;
-function ContarComunidades(raiz: PNodoComunidadBST): Integer;
-
-// Funciones para mensajes en comunidades
+function BuscarComunidadPorNombreCompleto(raiz: PNodoComunidadBST; const nombre: String): PNodoComunidadBST;
+function BuscarComunidadPorID(raiz: PNodoComunidadBST; id: Integer): PNodoComunidadBST;
 function PublicarMensaje(comunidad: PNodoComunidadBST; const correo, mensaje: String): Boolean;
-function ContarMensajesComunidad(comunidad: PNodoComunidadBST): Integer;
-procedure MostrarMensajesComunidad(comunidad: PNodoComunidadBST);
+function ContarComunidades(raiz: PNodoComunidadBST): Integer;
+function PuedeMostrarComunidad(comunidad: PNodoComunidadBST; const emailUsuario: String): Boolean;
 
 // Recorridos del BST
 procedure InOrdenBST(raiz: PNodoComunidadBST);
@@ -53,11 +54,24 @@ procedure PostOrdenBST(raiz: PNodoComunidadBST);
 procedure RecorridoPersonalizadoBST(raiz: PNodoComunidadBST; callback: TCallbackComunidadBST; data: Pointer);
 
 // Funciones de utilidad
-procedure LiberarMensajes(var lista: PMensajeComunidad);
 procedure LiberarArbolBST(var raiz: PNodoComunidadBST);
-function GenerarIDMensaje(): Integer;
 
 implementation
+
+// Mover la declaración de LiberarMensajes al inicio
+procedure LiberarMensajes(var lista: PMensajeComunidad);
+var
+  actual, temp: PMensajeComunidad;
+begin
+  actual := lista;
+  while actual <> nil do
+  begin
+    temp := actual^.siguiente;
+    Dispose(actual);
+    actual := temp;
+  end;
+  lista := nil;
+end;
 
 function GenerarIDMensaje(): Integer;
 begin
@@ -78,11 +92,33 @@ begin
   nuevo^.nombre := nombre;
   nuevo^.descripcion := descripcion;
   nuevo^.fechaCreacion := FormatDateTime('dd/mm/yyyy hh:nn', Now);
+  nuevo^.creador := 'root'; // Por defecto el root
+  nuevo^.esSubcomunidad := False;
+  nuevo^.comunidadPadre := nil;
   nuevo^.mensajes := nil;
   nuevo^.totalMensajes := 0;
   nuevo^.izquierdo := nil;
   nuevo^.derecho := nil;
   CrearNodoComunidad := nuevo;
+end;
+
+function CrearNodoSubcomunidad(id: Integer; const nombre, descripcion, creador: String; padre: PNodoComunidadBST): PNodoComunidadBST;
+var
+  nuevo: PNodoComunidadBST;
+begin
+  New(nuevo);
+  nuevo^.id := id;
+  nuevo^.nombre := nombre;
+  nuevo^.descripcion := descripcion;
+  nuevo^.fechaCreacion := FormatDateTime('dd/mm/yyyy hh:nn', Now);
+  nuevo^.creador := creador;
+  nuevo^.esSubcomunidad := True;
+  nuevo^.comunidadPadre := padre;
+  nuevo^.mensajes := nil;
+  nuevo^.totalMensajes := 0;
+  nuevo^.izquierdo := nil;
+  nuevo^.derecho := nil;
+  CrearNodoSubcomunidad := nuevo;
 end;
 
 function InsertarComunidad(var raiz: PNodoComunidadBST; id: Integer; const nombre, descripcion: String): Boolean;
@@ -129,6 +165,33 @@ begin
     if BuscarComunidadPorNombre = nil then
       BuscarComunidadPorNombre := BuscarComunidadPorNombre(raiz^.derecho, nombre);
   end;
+end;
+
+function BuscarComunidadPorNombreCompleto(raiz: PNodoComunidadBST; const nombre: String): PNodoComunidadBST;
+begin
+  if raiz = nil then
+    BuscarComunidadPorNombreCompleto := nil
+  else if LowerCase(raiz^.nombre) = LowerCase(nombre) then
+    BuscarComunidadPorNombreCompleto := raiz
+  else
+  begin
+    // Buscar en ambos lados del árbol (incluye subcomunidades)
+    BuscarComunidadPorNombreCompleto := BuscarComunidadPorNombreCompleto(raiz^.izquierdo, nombre);
+    if BuscarComunidadPorNombreCompleto = nil then
+      BuscarComunidadPorNombreCompleto := BuscarComunidadPorNombreCompleto(raiz^.derecho, nombre);
+  end;
+end;
+
+function BuscarComunidadPorID(raiz: PNodoComunidadBST; id: Integer): PNodoComunidadBST;
+begin
+  if raiz = nil then
+    BuscarComunidadPorID := nil
+  else if id = raiz^.id then
+    BuscarComunidadPorID := raiz
+  else if id < raiz^.id then
+    BuscarComunidadPorID := BuscarComunidadPorID(raiz^.izquierdo, id)
+  else
+    BuscarComunidadPorID := BuscarComunidadPorID(raiz^.derecho, id);
 end;
 
 function EncontrarMinimoBST(raiz: PNodoComunidadBST): PNodoComunidadBST;
@@ -307,20 +370,6 @@ begin
   end;
 end;
 
-procedure LiberarMensajes(var lista: PMensajeComunidad);
-var
-  actual, temp: PMensajeComunidad;
-begin
-  actual := lista;
-  while actual <> nil do
-  begin
-    temp := actual^.siguiente;
-    Dispose(actual);
-    actual := temp;
-  end;
-  lista := nil;
-end;
-
 procedure LiberarArbolBST(var raiz: PNodoComunidadBST);
 begin
   if raiz <> nil then
@@ -331,6 +380,136 @@ begin
     Dispose(raiz);
     raiz := nil;
   end;
+end;
+
+function InsertarSubcomunidad(comunidadPadre: PNodoComunidadBST; id: Integer; const nombre, descripcion, creador: String): Boolean;
+begin
+  if comunidadPadre = nil then
+  begin
+    InsertarSubcomunidad := False;
+    Exit;
+  end;
+
+  // Insertar como hijo de la comunidad padre
+  if comunidadPadre^.izquierdo = nil then
+  begin
+    comunidadPadre^.izquierdo := CrearNodoSubcomunidad(id, nombre, descripcion, creador, comunidadPadre);
+    WriteLn('🏘️ Subcomunidad creada: ', nombre, ' dentro de "', comunidadPadre^.nombre, '" por: ', creador);
+    InsertarSubcomunidad := True;
+  end
+  else if comunidadPadre^.derecho = nil then
+  begin
+    comunidadPadre^.derecho := CrearNodoSubcomunidad(id, nombre, descripcion, creador, comunidadPadre);
+    WriteLn('🏘️ Subcomunidad creada: ', nombre, ' dentro de "', comunidadPadre^.nombre, '" por: ', creador);
+    InsertarSubcomunidad := True;
+  end
+  else
+  begin
+    // Si ya tiene ambos hijos, insertar en el subárbol apropiado
+    if id < comunidadPadre^.id then
+      InsertarSubcomunidad := InsertarSubcomunidad(comunidadPadre^.izquierdo, id, nombre, descripcion, creador)
+    else
+      InsertarSubcomunidad := InsertarSubcomunidad(comunidadPadre^.derecho, id, nombre, descripcion, creador);
+  end;
+end;
+
+function ObtenerComunidadesParaUsuario(const emailUsuario: String): String;
+begin
+  // Esta función debe ser llamada desde comunidad.pas pasando el árbol como parámetro
+  // No puede acceder directamente a ArbolComunidades desde aquí
+  Result := 'Error: función debe ser llamada desde comunidad.pas';
+end;
+
+function PuedeMostrarComunidad(comunidad: PNodoComunidadBST; const emailUsuario: String): Boolean;
+var
+  actualMensaje: PMensajeComunidad;
+begin
+  if comunidad = nil then
+  begin
+    PuedeMostrarComunidad := False;
+    Exit;
+  end;
+
+  // Root puede ver todas las comunidades
+  if emailUsuario = 'root' then
+  begin
+    PuedeMostrarComunidad := True;
+    Exit;
+  end;
+
+  // Usuarios pueden ver:
+  // 1. Comunidades principales (creadas por root)
+  // 2. Subcomunidades que ellos crearon
+  // 3. Subcomunidades donde han participado (tienen mensajes)
+  
+  if not comunidad^.esSubcomunidad then
+  begin
+    // Comunidad principal - todos pueden verla
+    PuedeMostrarComunidad := True;
+  end
+  else
+  begin
+    // Subcomunidad - verificar si es el creador o ha participado
+    if LowerCase(comunidad^.creador) = LowerCase(emailUsuario) then
+    begin
+      PuedeMostrarComunidad := True;
+    end
+    else
+    begin
+      // Verificar si ha publicado mensajes aquí
+      actualMensaje := comunidad^.mensajes;
+      while actualMensaje <> nil do
+      begin
+        if LowerCase(actualMensaje^.correo) = LowerCase(emailUsuario) then
+        begin
+          PuedeMostrarComunidad := True;
+          Exit;
+        end;
+        actualMensaje := actualMensaje^.siguiente;
+      end;
+      PuedeMostrarComunidad := False;
+    end;
+  end;
+end;
+
+// Callback para recolectar comunidades que el usuario puede ver
+procedure CallbackRecolectarComunidadesUsuario(comunidad: PNodoComunidadBST; data: Pointer);
+type
+  TDatosRecoleccion = record
+    emailUsuario: String;
+    resultado: String;
+  end;
+  PDatosRecoleccion = ^TDatosRecoleccion;
+var
+  datos: PDatosRecoleccion;
+  prefijo: String;
+begin
+  if (comunidad = nil) or (data = nil) then Exit;
+  
+  datos := PDatosRecoleccion(data);
+  
+  if PuedeMostrarComunidad(comunidad, datos^.emailUsuario) then
+  begin
+    if datos^.resultado <> '' then
+      datos^.resultado := datos^.resultado + '|';
+    
+    // Agregar prefijo visual para subcomunidades
+    if comunidad^.esSubcomunidad then
+      prefijo := '  └─ '
+    else
+      prefijo := '';
+    
+    datos^.resultado := datos^.resultado + prefijo + comunidad^.nombre + ' (ID: ' + IntToStr(comunidad^.id) + ')';
+  end;
+end;
+
+end.
+  RecorridoPersonalizadoBST(ArbolComunidades, @CallbackRecolectarComunidadesUsuario, @datos);
+  
+  if datos.resultado = '' then
+    datos.resultado := 'No hay comunidades disponibles';
+    
+  Result := datos.resultado;
 end;
 
 end.

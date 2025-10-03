@@ -1,0 +1,8 @@
+digraph Borradores {
+  rankdir=TB;
+  node [shape=diamond, style=filled, fontname="Arial", fontsize=9, fillcolor="#E6E6FA"];
+  edge [color=purple];
+  label="📝 BORRADORES (ÁRBOL AVL) - maria.garcia@yahoo.com"; labelloc=t; fontsize=14; fontcolor=purple;
+
+  borr_1 [label="📝 ID: 21983\nPara: angel@edd.com\nAsunto: skxmmx\nAltura: 1"];
+}

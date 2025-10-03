@@ -6,7 +6,7 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader, login, comunidad, arbolbst;
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, login, comunidad, arbolbst, reports;
 
 // Mostrar el menú root utilizando las mismas estructuras compartidas en toda la app
 procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
@@ -128,7 +128,10 @@ begin
 end;
 
 procedure OnReporteComunidades(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaDir, rutaDot, rutaPng: String;
 begin
+  // Mostrar reporte en consola
   WriteLn('🌳 REPORTE DE COMUNIDADES BST');
   WriteLn('=============================');
   WriteLn('📊 Total de comunidades: ', ContarComunidades(ArbolComunidades));
@@ -145,6 +148,56 @@ begin
   WriteLn('🔄 Recorrido Post-Orden:');
   PostOrdenBST(ArbolComunidades);
   WriteLn('=============================');
+  
+  // Generar reporte gráfico en carpeta root
+  rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/root';
+  if not DirectoryExists(rutaDir) then
+    CreateDir(rutaDir);
+  
+  rutaDot := rutaDir + '/bst-comunidades.dot';
+  rutaPng := rutaDir + '/bst-comunidades.png';
+  
+  // Generar DOT del BST
+  GenerarReporteBSTComunidades(rutaDot);
+  
+  // Intentar generar PNG
+  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
+  begin
+    if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + rutaDot + '" -o "' + rutaPng + '"'], []) = 0 then
+    begin
+      WriteLn('🖼️ Gráfico BST generado: ', rutaPng);
+      
+      // Mostrar diálogo informativo
+      gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO,
+        GTK_BUTTONS_OK,
+        PChar('🌳 Reporte BST generado exitosamente!' + #10 + #10 +
+              'Archivos generados:' + #10 +
+              '📄 DOT: ' + ExtractFileName(rutaDot) + #10 +
+              '🖼️ PNG: ' + ExtractFileName(rutaPng) + #10 + #10 +
+              'Ubicación: /graficos/root/'));
+    end
+    else
+    begin
+      WriteLn('⚠️ Error generando PNG del BST');
+      gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_OK,
+        'Archivo DOT generado, pero no se pudo crear el PNG.');
+    end;
+  end
+  else
+  begin
+    WriteLn('ℹ️ Graphviz no instalado, solo DOT generado');
+    gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('Archivo DOT generado: ' + ExtractFileName(rutaDot) + #10 +
+            'Instala Graphviz para generar imágenes PNG.'));
+  end;
 end;
 
 procedure OnVerMensajes(widget: PGtkWidget; data: gpointer); cdecl;
@@ -196,17 +249,24 @@ var
   store: PGtkListStore;
   iter: TGtkTreeIter;
   actualMensaje: PMensajeComunidad;
+  nombreComunidadCompleto: String;
 begin
   if (comunidad = nil) or (data = nil) then Exit;
   
   store := PGtkListStore(data);
   actualMensaje := comunidad^.mensajes;
   
+  // Construir nombre completo con jerarquía
+  if comunidad^.esSubcomunidad and (comunidad^.comunidadPadre <> nil) then
+    nombreComunidadCompleto := comunidad^.comunidadPadre^.nombre + ' - ' + comunidad^.nombre
+  else
+    nombreComunidadCompleto := comunidad^.nombre;
+  
   while actualMensaje <> nil do
   begin
     gtk_list_store_append(store, @iter);
     gtk_list_store_set(store, @iter,
-                       0, PChar(comunidad^.nombre),
+                       0, PChar(nombreComunidadCompleto),
                        1, PChar(IntToStr(actualMensaje^.id)),
                        2, PChar(actualMensaje^.fechaPublicacion),
                        3, PChar(actualMensaje^.correo),

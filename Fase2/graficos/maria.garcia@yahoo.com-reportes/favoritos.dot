@@ -1,0 +1,8 @@
+digraph Favoritos {
+  rankdir=TB;
+  node [shape=star, style=filled, fontname="Arial", fontsize=9, fillcolor="#FFE4B5"];
+  edge [color=gold, style=bold];
+  label="⭐ FAVORITOS (ÁRBOL B) - maria.garcia@yahoo.com"; labelloc=t; fontsize=14; fontcolor=orange;
+
+  fav_1 [label="⭐ ID: 1\nDe: juan.perez@gmail.com\nPara: maria.garcia@yahoo.c...\nAsunto: Reunion de proyecto"];
+}

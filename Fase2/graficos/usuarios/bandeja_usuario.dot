@@ -1,6 +1,0 @@
-digraph Bandeja {
-  rankdir=LR;
-  node [shape=box, style=filled, color="#4F81BD", fontname="Helvetica", fontsize=10, fillcolor="#DCE6F1"];
-  label="Bandeja de entrada de aux-luis@edd.com"; labelloc=t; fontsize=16;
-  correo_1 [label="ID: 5\nDe: aux-carlos@edd.com\nAsunto: Revisi?n pendiente"];
-}
