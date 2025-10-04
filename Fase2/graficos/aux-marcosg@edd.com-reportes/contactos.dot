@@ -1,0 +1,18 @@
+digraph Contactos {
+  rankdir=LR;
+  node [shape=record, style=filled, fontname="Arial", fontsize=9, fillcolor="#E6FFE6"];
+  edge [color=green];
+  label="👥 CONTACTOS (LISTA SIMPLE) - aux-marcosg@edd.com"; labelloc=t; fontsize=14; fontcolor=green;
+
+  contacto_1 [label="👤 ID: 1|Nombre: Luis Garcia|Usuario: aux-luis@edd.co...|Email: aux-luis@edd.com|Tel: "];
+  contacto_2 [label="👤 ID: 2|Nombre: Marcos Itzep|Usuario: aux-marcosg@edd...|Email: aux-marcosg@edd.com|Tel: "];
+  contacto_1 -> contacto_2;
+  contacto_3 [label="👤 ID: 3|Nombre: Ana L?pez|Usuario: aux-ana@edd.com|Email: aux-ana@edd.com|Tel: "];
+  contacto_2 -> contacto_3;
+  contacto_4 [label="👤 ID: 4|Nombre: Carlos P?rez|Usuario: aux-carlos@edd....|Email: aux-carlos@edd.com|Tel: "];
+  contacto_3 -> contacto_4;
+  contacto_5 [label="👤 ID: 5|Nombre: Sof?a Mart?nez|Usuario: aux-sofia@edd.c...|Email: aux-sofia@edd.com|Tel: "];
+  contacto_4 -> contacto_5;
+  contacto_6 [label="👤 ID: 6|Nombre: Jorge Ram?rez|Usuario: aux-jorge@edd.c...|Email: aux-jorge@edd.com|Tel: "];
+  contacto_5 -> contacto_6;
+}

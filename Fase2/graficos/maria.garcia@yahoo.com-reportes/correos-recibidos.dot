@@ -1,7 +1,0 @@
-digraph CorreosRecibidos {
-  rankdir=TB;
-  node [shape=record, style=filled, fontname="Arial", fontsize=9];
-  label="📥 CORREOS RECIBIDOS - maria.garcia@yahoo.com"; labelloc=t; fontsize=14; fontcolor=blue;
-
-  correo_1 [label="ID: 1|De: juan.perez@gmail.com|Asunto: Reunion de proyecto|Estado: LEÍDO", fillcolor="#E6F3FF"];
-}

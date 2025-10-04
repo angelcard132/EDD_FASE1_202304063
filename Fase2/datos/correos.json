@@ -6,26 +6,52 @@
       "destinatario": "aux-marcosg@edd.com",
       "estado": "NL",
       "asunto": "Reunión de proyecto",
-      "mensaje": "Confirmar asistencia a la reunión de equipo."
+      "mensaje": "Confirmar asistencia a la reunión de equipo el lunes."
     },
     {
       "id": 2,
       "remitente": "aux-luis@edd.com",
-      "destinatario": "aux-marcosg@edd.com",
+      "destinatario": "aux-ana@edd.com",
       "estado": "L",
-      "asunto": "Reporte semanal",
-      "mensaje": "Adjunto el reporte semanal de actividades."
+      "asunto": "Entrega de reportes",
+      "mensaje": "Adjunto el reporte semanal del área de soporte."
     },
     {
       "id": 3,
-      "remitente": "aux-marcosg@edd.com",
-      "destinatario": "aux-ana@edd.com",
-      "estado": "NL",
-      "asunto": "Solicitud de apoyo",
-      "mensaje": "¿Puedes ayudarme a revisar el módulo 2 del proyecto?"
+      "remitente": "aux-luis@edd.com",
+      "destinatario": "aux-carlos@edd.com",
+      "estado": "L",
+      "asunto": "Presentación cliente",
+      "mensaje": "Revisar la presentación del cliente, programada para el viernes."
     },
+
     {
       "id": 4,
+      "remitente": "aux-marcosg@edd.com",
+      "destinatario": "aux-luis@edd.com",
+      "estado": "NL",
+      "asunto": "Confirmación de reunión",
+      "mensaje": "Luis, confirmo mi asistencia al proyecto el lunes."
+    },
+    {
+      "id": 5,
+      "remitente": "aux-marcosg@edd.com",
+      "destinatario": "aux-sofia@edd.com",
+      "estado": "L",
+      "asunto": "Solicitud de capacitación",
+      "mensaje": "Sofía, ¿puedes apoyarme con el temario de capacitación?"
+    },
+    {
+      "id": 6,
+      "remitente": "aux-marcosg@edd.com",
+      "destinatario": "aux-jorge@edd.com",
+      "estado": "NL",
+      "asunto": "Actualización de proyecto",
+      "mensaje": "Adjunto el estado del módulo de integración."
+    },
+
+    {
+      "id": 7,
       "remitente": "aux-ana@edd.com",
       "destinatario": "aux-carlos@edd.com",
       "estado": "NL",
@@ -33,20 +59,95 @@
       "mensaje": "Se les invita a la capacitación de la nueva plataforma este viernes."
     },
     {
-      "id": 5,
-      "remitente": "aux-carlos@edd.com",
-      "destinatario": "aux-luis@edd.com",
-      "estado": "P",
-      "asunto": "Revisión pendiente",
-      "mensaje": "Revisar documentación antes de enviarla al cliente."
+      "id": 8,
+      "remitente": "aux-ana@edd.com",
+      "destinatario": "aux-sofia@edd.com",
+      "estado": "L",
+      "asunto": "Revisión de entregables",
+      "mensaje": "Revisar entregables antes de la junta con gerencia."
     },
     {
-      "id": 6,
+      "id": 9,
       "remitente": "aux-ana@edd.com",
+      "destinatario": "aux-jorge@edd.com",
+      "estado": "NL",
+      "asunto": "Aviso de reunión",
+      "mensaje": "Recordatorio de la junta del área técnica."
+    },
+
+    {
+      "id": 10,
+      "remitente": "aux-carlos@edd.com",
+      "destinatario": "aux-ana@edd.com",
+      "estado": "NL",
+      "asunto": "Confirmación de asistencia",
+      "mensaje": "Ana, gracias por la invitación. Asistiré a la capacitación."
+    },
+    {
+      "id": 11,
+      "remitente": "aux-carlos@edd.com",
       "destinatario": "aux-luis@edd.com",
       "estado": "L",
-      "asunto": "Confirmación",
-      "mensaje": "Luis, recibí tu mensaje. Gracias por la confirmación."
+      "asunto": "Revisión de documentación",
+      "mensaje": "Luis, por favor revisa la documentación adjunta."
+    },
+    {
+      "id": 12,
+      "remitente": "aux-carlos@edd.com",
+      "destinatario": "aux-marcosg@edd.com",
+      "estado": "NL",
+      "asunto": "Pendiente de aprobación",
+      "mensaje": "Requiere tu aprobación el flujo de procesos."
+    },
+
+    {
+      "id": 13,
+      "remitente": "aux-sofia@edd.com",
+      "destinatario": "aux-luis@edd.com",
+      "estado": "NL",
+      "asunto": "Consulta técnica",
+      "mensaje": "Luis, ¿me puedes apoyar con un error en el módulo 3?"
+    },
+    {
+      "id": 14,
+      "remitente": "aux-sofia@edd.com",
+      "destinatario": "aux-ana@edd.com",
+      "estado": "L",
+      "asunto": "Corrección en entregable",
+      "mensaje": "He corregido los puntos que mencionaste."
+    },
+    {
+      "id": 15,
+      "remitente": "aux-sofia@edd.com",
+      "destinatario": "aux-jorge@edd.com",
+      "estado": "NL",
+      "asunto": "Solicitud de reunión",
+      "mensaje": "Agendemos una reunión para coordinar los cambios."
+    },
+
+    {
+      "id": 16,
+      "remitente": "aux-jorge@edd.com",
+      "destinatario": "aux-sofia@edd.com",
+      "estado": "NL",
+      "asunto": "Confirmación de reunión",
+      "mensaje": "Sofía, la reunión puede realizarse mañana a las 10 am."
+    },
+    {
+      "id": 17,
+      "remitente": "aux-jorge@edd.com",
+      "destinatario": "aux-carlos@edd.com",
+      "estado": "L",
+      "asunto": "Avance de proyecto",
+      "mensaje": "Carlos, adjunto el avance técnico del sistema."
+    },
+    {
+      "id": 18,
+      "remitente": "aux-jorge@edd.com",
+      "destinatario": "aux-marcosg@edd.com",
+      "estado": "NL",
+      "asunto": "Reporte de errores",
+      "mensaje": "He detectado algunos errores en el último despliegue."
     }
   ]
 }

@@ -1,8 +1,0 @@
-digraph Programados {
-  rankdir=LR;
-  node [shape=ellipse, style=filled, fontname="Arial", fontsize=9, fillcolor="#FFFACD"];
-  edge [color=orange, style=bold];
-  label="📅 CORREOS PROGRAMADOS (COLA) - maria.garcia@yahoo.com"; labelloc=t; fontsize=14; fontcolor=orange;
-
-  prog_1 [label="📅 ID: 21966\nPara: miguel.torres@gmail.com\nAsunto: s\nEstado: PENDIENTE"];
-}

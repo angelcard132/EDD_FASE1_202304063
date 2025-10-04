@@ -1,0 +1,25 @@
+digraph BorradoresAVL {
+  rankdir=TB;
+  node [style=filled, fontname="Arial", fontsize=10];
+  edge [fontname="Arial", fontsize=8];
+  label="📝 BORRADORES (ÁRBOL AVL) - aux-marcosg@edd.com\\nEstructura: Rojo=Izquierdo, Azul=Derecho"; labelloc=t; fontsize=14; fontcolor=purple;
+
+  subgraph cluster_leyenda {
+    label="Leyenda";
+    style=filled;
+    fillcolor=lightgray;
+    leyenda_raiz [label="Nodos Cercanos\\na la Raíz", fillcolor="#E6F3FF", shape="diamond"];
+    leyenda_inter [label="Nodos\\nIntermedios", fillcolor="#FFF2E6", shape="diamond"];
+    leyenda_hoja [label="Nodos\\nProfundos", fillcolor="#FFE6E6", shape="diamond"];
+    leyenda_izq [label="Hijo Izquierdo", color="red"];
+    leyenda_der [label="Hijo Derecho", color="blue"];
+  }
+
+  nodo_4 [label="ID: 4\\nPara: aux-luis@edd.co...\\nAsunto: Confirmaci?n de reun...\\nAltura: 3", fillcolor="#FFF2E6", shape="diamond"];
+  nodo_4 -> nodo_6 [label="R", color="blue", fontcolor="blue"];
+  nodo_6 [label="ID: 6\\nPara: aux-jorge@edd.c...\\nAsunto: Actualizaci?n de pro...\\nAltura: 2", fillcolor="#E6F3FF", shape="diamond"];
+  nodo_6 -> nodo_5 [label="L", color="red", fontcolor="red"];
+  nodo_5 [label="ID: 5\\nPara: aux-sofia@edd.c...\\nAsunto: Solicitud de capacit...\\nAltura: 1", fillcolor="#E6F3FF", shape="diamond"];
+
+  info [label="Propiedades del Árbol AVL:\\n• Factor de balance: [-1, 0, 1]\\n• Altura balanceada automáticamente\\n• Búsqueda O(log n)", shape="note", fillcolor="#FFFFCC"];
+}

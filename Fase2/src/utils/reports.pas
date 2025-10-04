@@ -23,6 +23,12 @@ procedure GenerarReporteBSTComunidades(const rutaDot: String);
 // Función auxiliar para generar nodos BST recursivamente
 procedure GenerarNodosBST(var f: Text; nodo: PNodoComunidadBST);
 
+// Función auxiliar para generar nodos AVL recursivamente
+procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
+
+// Función auxiliar para generar nodos del árbol B recursivamente
+procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
+
 implementation
 
 uses
@@ -347,96 +353,227 @@ begin
   end;
 end;
 
-// Callback para recolectar favoritos
+// Función auxiliar para generar nodos del árbol B recursivamente
+procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
 var
-  FavoritosFile: Text;
-  FavoritosIdx: Integer;
-  FavoritosUsuario: String;
-
-procedure CallbackFavoritos(correo: TCorreoB; data: Pointer);
+  i: Integer;
+  colorNodo: String;
+  labelNodo: String;
+  tieneCorreosUsuario: Boolean;
+  nodoID: Integer;
+  correosUsuario: String;
+  conteoCorreos: Integer;
+  contadorAntes: Integer; // Mover la declaración aquí
 begin
-  if (correo.destinatario = FavoritosUsuario) or (correo.remitente = FavoritosUsuario) then
+  if nodo = nil then Exit;
+  
+  // Verificar si este nodo contiene correos del usuario
+  tieneCorreosUsuario := False;
+  correosUsuario := '';
+  conteoCorreos := 0;
+  
+  for i := 1 to nodo^.n do
   begin
-    Inc(FavoritosIdx);
-    WriteLn(FavoritosFile, Format('  fav_%d [label="⭐ ID: %d\nDe: %s\nPara: %s\nAsunto: %s"];',
-             [FavoritosIdx, correo.id,
-              LimitarTexto(SanearTexto(correo.remitente), 20),
-              LimitarTexto(SanearTexto(correo.destinatario), 20),
-              LimitarTexto(SanearTexto(correo.asunto), 25)]));
+    if (nodo^.claves[i].destinatario = emailUsuario) or (nodo^.claves[i].remitente = emailUsuario) then
+    begin
+      tieneCorreosUsuario := True;
+      Inc(conteoCorreos);
+      if correosUsuario <> '' then
+        correosUsuario := correosUsuario + '\\n';
+      correosUsuario := correosUsuario + IntToStr(nodo^.claves[i].id);
+    end;
+  end;
+  
+  // Si no tiene correos del usuario, seguir buscando en hijos
+  if not tieneCorreosUsuario then
+  begin
+    if not nodo^.hoja then
+    begin
+      for i := 0 to nodo^.n do
+        GenerarNodosArbolB(f, nodo^.hijos[i], emailUsuario, contadorNodos);
+    end;
+    Exit;
+  end;
+  
+  Inc(contadorNodos);
+  nodoID := contadorNodos;
+  
+  // Determinar color según si es hoja o nodo interno
+  if nodo^.hoja then
+    colorNodo := '#FFE4B5'  // Naranja claro para hojas
+  else
+    colorNodo := '#E6F3FF'; // Azul claro para nodos internos
+  
+  // Construir label del nodo mostrando solo IDs de correos del usuario
+  if nodo^.hoja then
+    labelNodo := 'HOJA ' + IntToStr(nodoID)
+  else
+    labelNodo := 'NODO ' + IntToStr(nodoID);
+    
+  labelNodo := labelNodo + '\\nClaves: ' + IntToStr(conteoCorreos) + '\\n';
+  labelNodo := labelNodo + correosUsuario;
+  
+  // Crear nodo en el gráfico
+  WriteLn(f, Format('  nodoB_%d [label="%s", fillcolor="%s", shape="record"];',
+                   [nodoID, labelNodo, colorNodo]));
+  
+  // Si no es hoja, generar conexiones a hijos que contengan correos del usuario
+  if not nodo^.hoja then
+  begin
+    for i := 0 to nodo^.n do
+    begin
+      if nodo^.hijos[i] <> nil then
+      begin
+        // Guardar el contador actual antes de procesar el hijo
+        contadorAntes := contadorNodos;
+        
+        // Procesar hijo recursivamente
+        GenerarNodosArbolB(f, nodo^.hijos[i], emailUsuario, contadorNodos);
+        
+        // Si se generó algún nodo hijo (contador aumentó), crear conexión
+        if contadorNodos > contadorAntes then
+        begin
+          WriteLn(f, Format('  nodoB_%d -> nodoB_%d [label="H%d", color="purple", fontcolor="purple"];', 
+                           [nodoID, contadorAntes + 1, i]));
+        end;
+      end;
+    end;
   end;
 end;
 
 procedure GenerarReporteFavoritos(const emailUsuario: String; var favoritos: PNodoB; const rutaDot: String);
+var
+  f: Text;
+  contadorNodos: Integer;
+  tieneCorreos: Boolean;
+  i: Integer;
 begin
-  AssignFile(FavoritosFile, rutaDot);
-  Rewrite(FavoritosFile);
+  AssignFile(f, rutaDot);
+  Rewrite(f);
   try
-    WriteLn(FavoritosFile, 'digraph Favoritos {');
-    WriteLn(FavoritosFile, '  rankdir=TB;');
-    WriteLn(FavoritosFile, '  node [shape=star, style=filled, fontname="Arial", fontsize=9, fillcolor="#FFE4B5"];');
-    WriteLn(FavoritosFile, '  edge [color=gold, style=bold];');
-    WriteLn(FavoritosFile, '  label="⭐ FAVORITOS (ÁRBOL B) - ' + SanearTexto(emailUsuario) + '"; labelloc=t; fontsize=14; fontcolor=orange;');
-    WriteLn(FavoritosFile, '');
-
-    FavoritosIdx := 0;
-    FavoritosUsuario := emailUsuario;
+    WriteLn(f, 'digraph FavoritosArbolB {');
+    WriteLn(f, '  rankdir=TB;');
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10];');
+    WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
+    WriteLn(f, '  label="⭐ FAVORITOS (ÁRBOL B) - ' + SanearTexto(emailUsuario) + '\\nEstructura Real del Árbol B con Nodos y Conexiones"; labelloc=t; fontsize=14; fontcolor=orange;');
+    WriteLn(f, '');
+    
+    // Agregar leyenda
+    WriteLn(f, '  subgraph cluster_leyenda {');
+    WriteLn(f, '    label="Leyenda del Árbol B";');
+    WriteLn(f, '    style=filled;');
+    WriteLn(f, '    fillcolor=lightgray;');
+    WriteLn(f, '    leyenda_hoja [label="Nodos Hoja\\n(Datos finales)", fillcolor="#FFE4B5", shape="record"];');
+    WriteLn(f, '    leyenda_interno [label="Nodos Internos\\n(Navegación)", fillcolor="#E6F3FF", shape="record"];');
+    WriteLn(f, '    leyenda_conexion [label="Conexión Padre-Hijo", color="purple"];');
+    WriteLn(f, '    leyenda_estructura [label="Estructura: Raíz → Nodos → Hojas", shape="plaintext"];');
+    WriteLn(f, '  }');
+    WriteLn(f, '');
+    
+    // Verificar si hay favoritos del usuario - verificación simple
+    contadorNodos := 0;
+    tieneCorreos := False;
     
     if favoritos <> nil then
-      RecorridoInOrden(favoritos, @CallbackFavoritos, nil);
-
-    if FavoritosIdx = 0 then
-      WriteLn(FavoritosFile, '  vacio [label="⭐ Sin favoritos", fillcolor="#F0F0F0", fontcolor="gray"];');
-
-    WriteLn(FavoritosFile, '}');
+    begin
+      // Verificación simple en la raíz
+      for i := 1 to favoritos^.n do
+      begin
+        if (favoritos^.claves[i].destinatario = emailUsuario) or (favoritos^.claves[i].remitente = emailUsuario) then
+        begin
+          tieneCorreos := True;
+          Break;
+        end;
+      end;
+      
+      // Si no hay en la raíz, verificar recursivamente si existe alguno
+      if not tieneCorreos and not favoritos^.hoja then
+      begin
+        // Aquí podríamos hacer una búsqueda más profunda si es necesario
+        tieneCorreos := True; // Asumimos que puede haber datos más profundo
+      end;
+    end;
+    
+    if (favoritos = nil) or not tieneCorreos then
+    begin
+      WriteLn(f, '  vacio [label="⭐ Árbol B vacío\\nNo hay favoritos del usuario\\n\\nPara agregar favoritos:\\n1. Ve a tu bandeja\\n2. Selecciona un correo\\n3. Clic en ⭐ A Favoritos", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+    end
+    else
+    begin
+      // Generar estructura real del árbol B
+      GenerarNodosArbolB(f, favoritos, emailUsuario, contadorNodos);
+      
+      // Agregar información del árbol si se generaron nodos
+      if contadorNodos > 0 then
+      begin
+        WriteLn(f, '');
+        WriteLn(f, '  info [label="Propiedades del Árbol B:\\n• Cada nodo puede tener múltiples claves\\n• Hojas en el mismo nivel\\n• Autobalanceado\\n• Búsqueda eficiente O(log n)\\n• Nodos mostrados: ' + IntToStr(contadorNodos) + '", shape="note", fillcolor="#FFFFCC"];');
+        
+        // Conectar info con la estructura
+        WriteLn(f, '  nodoB_1 -> info [style="dotted", color="gray"];');
+      end
+      else
+      begin
+        WriteLn(f, '  vacio2 [label="⭐ Sin favoritos del usuario\\nen la estructura actual del árbol", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+      end;
+    end;
+    
+    WriteLn(f, '}');
   finally
-    CloseFile(FavoritosFile);
+    CloseFile(f);
   end;
-end;
-
-// Callback para recolectar borradores
-var
-  BorradoresFile: Text;
-  BorradoresIdx: Integer;
-  BorradoresUsuario: String;
-
-procedure CallbackBorradores(correo: PCorreoAVL; data: Pointer);
-begin
-  if correo^.remitente = BorradoresUsuario then
-  begin
-    Inc(BorradoresIdx);
-    WriteLn(BorradoresFile, Format('  borr_%d [label="📝 ID: %d\nPara: %s\nAsunto: %s\nAltura: %d"];',
-             [BorradoresIdx, correo^.id,
-              LimitarTexto(SanearTexto(correo^.destinatario), 25),
-              LimitarTexto(SanearTexto(correo^.asunto), 30),
-              correo^.altura]));
-  end;
+  
+  WriteLn('⭐ Reporte Árbol B de favoritos generado: ', rutaDot);
 end;
 
 procedure GenerarReporteBorradores(const emailUsuario: String; var borradores: PCorreoAVL; const rutaDot: String);
+var
+  f: Text;
 begin
-  AssignFile(BorradoresFile, rutaDot);
-  Rewrite(BorradoresFile);
+  AssignFile(f, rutaDot);
+  Rewrite(f);
   try
-    WriteLn(BorradoresFile, 'digraph Borradores {');
-    WriteLn(BorradoresFile, '  rankdir=TB;');
-    WriteLn(BorradoresFile, '  node [shape=diamond, style=filled, fontname="Arial", fontsize=9, fillcolor="#E6E6FA"];');
-    WriteLn(BorradoresFile, '  edge [color=purple];');
-    WriteLn(BorradoresFile, '  label="📝 BORRADORES (ÁRBOL AVL) - ' + SanearTexto(emailUsuario) + '"; labelloc=t; fontsize=14; fontcolor=purple;');
-    WriteLn(BorradoresFile, '');
-
-    BorradoresIdx := 0;
-    BorradoresUsuario := emailUsuario;
+    WriteLn(f, 'digraph BorradoresAVL {');
+    WriteLn(f, '  rankdir=TB;');
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10];');
+    WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
+    WriteLn(f, '  label="📝 BORRADORES (ÁRBOL AVL) - ' + SanearTexto(emailUsuario) + '\\nEstructura: Rojo=Izquierdo, Azul=Derecho"; labelloc=t; fontsize=14; fontcolor=purple;');
+    WriteLn(f, '');
     
-    if borradores <> nil then
-      RecorridoPersonalizado(borradores, @CallbackBorradores, nil);
-
-    if BorradoresIdx = 0 then
-      WriteLn(BorradoresFile, '  vacio [label="📝 Sin borradores", fillcolor="#F0F0F0", fontcolor="gray"];');
-
-    WriteLn(BorradoresFile, '}');
+    // Agregar leyenda
+    WriteLn(f, '  subgraph cluster_leyenda {');
+    WriteLn(f, '    label="Leyenda";');
+    WriteLn(f, '    style=filled;');
+    WriteLn(f, '    fillcolor=lightgray;');
+    WriteLn(f, '    leyenda_raiz [label="Nodos Cercanos\\na la Raíz", fillcolor="#E6F3FF", shape="diamond"];');
+    WriteLn(f, '    leyenda_inter [label="Nodos\\nIntermedios", fillcolor="#FFF2E6", shape="diamond"];');
+    WriteLn(f, '    leyenda_hoja [label="Nodos\\nProfundos", fillcolor="#FFE6E6", shape="diamond"];');
+    WriteLn(f, '    leyenda_izq [label="Hijo Izquierdo", color="red"];');
+    WriteLn(f, '    leyenda_der [label="Hijo Derecho", color="blue"];');
+    WriteLn(f, '  }');
+    WriteLn(f, '');
+    
+    // Verificar si hay borradores
+    if borradores = nil then
+    begin
+      WriteLn(f, '  vacio [label="📝 Árbol AVL vacío\\nNo hay borradores del usuario", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+    end
+    else
+    begin
+      // Generar estructura del árbol AVL
+      GenerarNodosAVL(f, borradores, emailUsuario);
+      
+      // Agregar información del árbol
+      WriteLn(f, '');
+      WriteLn(f, '  info [label="Propiedades del Árbol AVL:\\n• Factor de balance: [-1, 0, 1]\\n• Altura balanceada automáticamente\\n• Búsqueda O(log n)", shape="note", fillcolor="#FFFFCC"];');
+    end;
+    
+    WriteLn(f, '}');
   finally
-    CloseFile(BorradoresFile);
+    CloseFile(f);
   end;
+  
+  WriteLn('📝 Reporte AVL de borradores generado: ', rutaDot);
 end;
 
 procedure GenerarReporteBSTComunidades(const rutaDot: String);
@@ -535,6 +672,70 @@ begin
   end;
 end;
 
+procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
+var
+  colorNodo: String;
+  factorBalance: Integer;
+begin
+  if nodo = nil then Exit;
+  
+  // Solo procesar nodos del usuario actual
+  if nodo^.remitente <> emailUsuario then
+  begin
+    // Continuar recorrido para encontrar nodos del usuario
+    GenerarNodosAVL(f, nodo^.izquierdo, emailUsuario);
+    GenerarNodosAVL(f, nodo^.derecho, emailUsuario);
+    Exit;
+  end;
+  
+  // Determinar color según la altura del nodo
+  if nodo^.altura <= 2 then
+    colorNodo := '#E6F3FF'  // Azul claro para nodos cerca de la raíz
+  else if nodo^.altura <= 4 then
+    colorNodo := '#FFF2E6'  // Naranja claro para nodos intermedios
+  else
+    colorNodo := '#FFE6E6'; // Rosa claro para nodos más profundos
+  
+  // Crear nodo actual with información del borrador
+  WriteLn(f, Format('  nodo_%d [label="ID: %d\\nPara: %s\\nAsunto: %s\\nAltura: %d", fillcolor="%s", shape="diamond"];',
+                   [nodo^.id, nodo^.id, 
+                    LimitarTexto(SanearTexto(nodo^.destinatario), 15),
+                    LimitarTexto(SanearTexto(nodo^.asunto), 20),
+                    nodo^.altura, colorNodo]));
+  
+  // Generar conexiones a hijos si existen
+  if nodo^.izquierdo <> nil then
+  begin
+    // Verificar si el hijo izquierdo es del usuario actual
+    if nodo^.izquierdo^.remitente = emailUsuario then
+      WriteLn(f, Format('  nodo_%d -> nodo_%d [label="L", color="red", fontcolor="red"];', 
+                       [nodo^.id, nodo^.izquierdo^.id]));
+    
+    GenerarNodosAVL(f, nodo^.izquierdo, emailUsuario);
+  end;
+  
+  if nodo^.derecho <> nil then
+  begin
+    // Verificar si el hijo derecho es del usuario actual
+    if nodo^.derecho^.remitente = emailUsuario then
+      WriteLn(f, Format('  nodo_%d -> nodo_%d [label="R", color="blue", fontcolor="blue"];', 
+                       [nodo^.id, nodo^.derecho^.id]));
+    
+    GenerarNodosAVL(f, nodo^.derecho, emailUsuario);
+  end;
+  
+  // Mostrar factor de balance si es diferente de 0
+  factorBalance := 0;
+  if nodo^.izquierdo <> nil then
+    Inc(factorBalance, nodo^.izquierdo^.altura);
+  if nodo^.derecho <> nil then
+    Dec(factorBalance, nodo^.derecho^.altura);
+  
+  if factorBalance <> 0 then
+    WriteLn(f, Format('  balance_%d [label="FB: %d", shape="plaintext", fontsize=10];', 
+                     [nodo^.id, factorBalance]));
+end;
+
 procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
 var
   rutaDir: String;
@@ -596,6 +797,26 @@ begin
   WriteLn('');
   WriteLn('📊 RESUMEN DE REPORTES GENERADOS:');
   WriteLn('=================================');
+  WriteLn('👤 Usuario: ', emailUsuario);
+  WriteLn('📁 Directorio: ', rutaDir);
+  WriteLn('📄 Archivos DOT: 6');
+  WriteLn('🖼️ Archivos PNG: ', pngsGenerados);
+  WriteLn('');
+  for i := 1 to 6 do
+    WriteLn('  ✓ ', nombres[i], ': ', ExtractFileName(archivos[i]));
+  
+  if pngsGenerados > 0 then
+  begin
+    WriteLn('');
+    WriteLn('🎉 ¡Reportes generados exitosamente!');
+    WriteLn('💡 Abre los archivos PNG para visualizar los gráficos.');
+  end;
+end;
+
+end.
+end;
+
+end.
   WriteLn('👤 Usuario: ', emailUsuario);
   WriteLn('📁 Directorio: ', rutaDir);
   WriteLn('📄 Archivos DOT: 6');
