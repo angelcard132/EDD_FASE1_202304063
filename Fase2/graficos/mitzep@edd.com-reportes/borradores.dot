@@ -1,0 +1,21 @@
+digraph BorradoresAVL {
+  rankdir=TB;
+  node [style=filled, fontname="Arial", fontsize=10];
+  edge [fontname="Arial", fontsize=8];
+  label="📝 BORRADORES (ÁRBOL AVL) - mitzep@edd.com\\nEstructura: Rojo=Izquierdo, Azul=Derecho"; labelloc=t; fontsize=14; fontcolor=purple;
+
+  subgraph cluster_leyenda {
+    label="Leyenda";
+    style=filled;
+    fillcolor=lightgray;
+    leyenda_raiz [label="Nodos Cercanos\\na la Raíz", fillcolor="#E6F3FF", shape="diamond"];
+    leyenda_inter [label="Nodos\\nIntermedios", fillcolor="#FFF2E6", shape="diamond"];
+    leyenda_hoja [label="Nodos\\nProfundos", fillcolor="#FFE6E6", shape="diamond"];
+    leyenda_izq [label="Hijo Izquierdo", color="red"];
+    leyenda_der [label="Hijo Derecho", color="blue"];
+  }
+
+  nodo_10659 [label="ID: 10659\\nAsunto: asd\\nAltura: 1", fillcolor="#E6F3FF", shape="oval"];
+
+  info [label="Propiedades del Árbol AVL:\\n• Factor de balance: [-1, 0, 1]\\n• Altura balanceada automáticamente\\n• Búsqueda O(log n)", shape="note", fillcolor="#FFFFCC"];
+}

@@ -2,6 +2,9 @@ unit arbol_b;
 
 interface
 
+uses
+  SysUtils;
+
 const
   ORDEN = 5;
   MAX = ORDEN - 1;
@@ -49,6 +52,16 @@ var
   i: Integer;
 begin
   New(nuevo);
+  if nuevo = nil then
+  begin
+    WriteLn('❌ Error: No se pudo asignar memoria para nuevo nodo B-Tree');
+    CrearNodo := nil;
+    Exit;
+  end;
+  
+  // Limpiar memoria completamente
+  FillChar(nuevo^, SizeOf(TNodoB), 0);
+  
   nuevo^.n := 0;
   nuevo^.hoja := hoja;
   for i := 0 to ORDEN do
@@ -61,25 +74,51 @@ var
   z: PNodoB;
   j: Integer;
 begin
+  if (x = nil) or (y = nil) then Exit;
+  
   z := CrearNodo(y^.hoja);
+  if z = nil then Exit;
+  
   z^.n := 2;
 
+  // Copiar claves de forma segura
   for j := 1 to 2 do
-    z^.claves[j] := y^.claves[j+2];
+  begin
+    if (j + 2 >= 1) and (j + 2 <= MAX) then
+      z^.claves[j] := y^.claves[j+2];
+  end;
 
+  // Copiar hijos si no es hoja
   if not y^.hoja then
+  begin
     for j := 0 to 2 do
-      z^.hijos[j] := y^.hijos[j+3];
+    begin
+      if (j + 3 >= 0) and (j + 3 <= ORDEN) then
+        z^.hijos[j] := y^.hijos[j+3];
+    end;
+  end;
 
   y^.n := 2;
 
+  // Mover hijos en x
   for j := x^.n downto i+1 do
-    x^.hijos[j+1] := x^.hijos[j];
-  x^.hijos[i+1] := z;
+  begin
+    if (j + 1 >= 0) and (j + 1 <= ORDEN) and (j >= 0) and (j <= ORDEN) then
+      x^.hijos[j+1] := x^.hijos[j];
+  end;
+  
+  if (i + 1 >= 0) and (i + 1 <= ORDEN) then
+    x^.hijos[i+1] := z;
 
+  // Mover claves en x
   for j := x^.n downto i do
-    x^.claves[j+1] := x^.claves[j];
-  x^.claves[i] := y^.claves[3];
+  begin
+    if (j + 1 >= 1) and (j + 1 <= MAX) and (j >= 1) and (j <= MAX) then
+      x^.claves[j+1] := x^.claves[j];
+  end;
+  
+  if (i >= 1) and (i <= MAX) then
+    x^.claves[i] := y^.claves[3];
 
   Inc(x^.n);
 end;
@@ -87,41 +126,83 @@ end;
 procedure InsertarNoLleno(x: PNodoB; correo: TCorreoB);
 var
   i: Integer;
+  correoSeguro: TCorreoB;
 begin
+  if x = nil then
+  begin
+    WriteLn('❌ Error: Nodo nulo en InsertarNoLleno B-Tree');
+    Exit;
+  end;
+  
+  // Crear copia extremadamente segura del correo
+  correoSeguro.id := correo.id;
+  correoSeguro.remitente := Copy(correo.remitente, 1, 50);
+  correoSeguro.destinatario := Copy(correo.destinatario, 1, 50);
+  correoSeguro.asunto := Copy(correo.asunto, 1, 80);
+  correoSeguro.mensaje := Copy(correo.mensaje, 1, 150);
+  
+  // Validar que los strings no estén vacíos
+  if correoSeguro.remitente = '' then correoSeguro.remitente := 'sin_remitente';
+  if correoSeguro.destinatario = '' then correoSeguro.destinatario := 'sin_destinatario';
+  if correoSeguro.asunto = '' then correoSeguro.asunto := 'sin_asunto';
+  if correoSeguro.mensaje = '' then correoSeguro.mensaje := 'sin_mensaje';
+
   i := x^.n;
   if x^.hoja then
   begin
-    while (i >= 1) and (correo.id < x^.claves[i].id) do
+    // Inserción en hoja
+    while (i >= 1) and (correoSeguro.id < x^.claves[i].id) do
     begin
-      x^.claves[i+1] := x^.claves[i];
+      if i + 1 <= MAX then
+        x^.claves[i+1] := x^.claves[i];
       Dec(i);
     end;
-    x^.claves[i+1] := correo;
-    Inc(x^.n);
+    
+    if (i + 1 >= 1) and (i + 1 <= MAX) then
+    begin
+      x^.claves[i+1] := correoSeguro;
+      Inc(x^.n);
+    end;
   end
   else
   begin
-    while (i >= 1) and (correo.id < x^.claves[i].id) do
+    // Inserción en nodo interno
+    while (i >= 1) and (correoSeguro.id < x^.claves[i].id) do
       Dec(i);
     Inc(i);
-    if x^.hijos[i]^.n = MAX then
+    
+    if (i >= 0) and (i <= ORDEN) and (x^.hijos[i] <> nil) then
     begin
-      DividirHijo(x, i, x^.hijos[i]);
-      if correo.id > x^.claves[i].id then
-        Inc(i);
+      if x^.hijos[i]^.n = MAX then
+      begin
+        DividirHijo(x, i, x^.hijos[i]);
+        if correoSeguro.id > x^.claves[i].id then
+          Inc(i);
+      end;
+      
+      if (i >= 0) and (i <= ORDEN) and (x^.hijos[i] <> nil) then
+        InsertarNoLleno(x^.hijos[i], correoSeguro);
     end;
-    InsertarNoLleno(x^.hijos[i], correo);
   end;
 end;
 
 procedure Insertar(var raiz: PNodoB; correo: TCorreoB);
 var
   s: PNodoB;
+  correoValidado: TCorreoB;
 begin
+  // Validar correo antes de insertar
+  correoValidado.id := correo.id;
+  correoValidado.remitente := Copy(correo.remitente, 1, 50);
+  correoValidado.destinatario := Copy(correo.destinatario, 1, 50);
+  correoValidado.asunto := Copy(correo.asunto, 1, 80);
+  correoValidado.mensaje := Copy(correo.mensaje, 1, 150);
+  
   if raiz = nil then
   begin
     raiz := CrearNodo(True);
-    raiz^.claves[1] := correo;
+    if raiz = nil then Exit;
+    raiz^.claves[1] := correoValidado;
     raiz^.n := 1;
   end
   else
@@ -129,16 +210,18 @@ begin
     if raiz^.n = MAX then
     begin
       s := CrearNodo(False);
+      if s = nil then Exit;
       s^.hijos[0] := raiz;
       DividirHijo(s, 0, raiz);
-      if correo.id > s^.claves[1].id then
-        InsertarNoLleno(s^.hijos[1], correo)
+      
+      if correoValidado.id > s^.claves[1].id then
+        InsertarNoLleno(s^.hijos[1], correoValidado)
       else
-        InsertarNoLleno(s^.hijos[0], correo);
+        InsertarNoLleno(s^.hijos[0], correoValidado);
       raiz := s;
     end
     else
-      InsertarNoLleno(raiz, correo);
+      InsertarNoLleno(raiz, correoValidado);
   end;
 end;
 

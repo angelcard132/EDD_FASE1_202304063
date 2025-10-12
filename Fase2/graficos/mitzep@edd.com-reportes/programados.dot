@@ -1,0 +1,8 @@
+digraph Programados {
+  rankdir=LR;
+  node [shape=ellipse, style=filled, fontname="Arial", fontsize=9, fillcolor="#FFFACD"];
+  edge [color=orange, style=bold];
+  label="📅 CORREOS PROGRAMADOS (COLA) - mitzep@edd.com"; labelloc=t; fontsize=14; fontcolor=orange;
+
+  vacio [label="📅 Sin correos programados", fillcolor="#F0F0F0", fontcolor="gray"];
+}

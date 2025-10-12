@@ -696,10 +696,10 @@ begin
   else
     colorNodo := '#FFE6E6'; // Rosa claro para nodos más profundos
   
-  // Crear nodo actual with información del borrador
-  WriteLn(f, Format('  nodo_%d [label="ID: %d\\nPara: %s\\nAsunto: %s\\nAltura: %d", fillcolor="%s", shape="diamond"];',
+  // CALIFICACION DE EDD FASE 2
+  // MODIFICACION: Quitar el remitente de el reporte del arbol avl, solo mostrar id, asunto y altura
+  WriteLn(f, Format('  nodo_%d [label="ID: %d\\nAsunto: %s\\nAltura: %d", fillcolor="%s", shape="oval"];',
                    [nodo^.id, nodo^.id, 
-                    LimitarTexto(SanearTexto(nodo^.destinatario), 15),
                     LimitarTexto(SanearTexto(nodo^.asunto), 20),
                     nodo^.altura, colorNodo]));
   
@@ -813,6 +813,7 @@ begin
   end;
 end;
 
+end.
 end.
 end;
 

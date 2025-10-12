@@ -38,6 +38,14 @@ procedure RegistrarCredencialesUsuario(const email, password, nombre: String);
 function ObtenerEstadoCorreo(correoID: Integer): String;
 procedure EstablecerEstadoCorreo(correoID: Integer; const estado: String);
 
+{ Limpiar estructuras }
+procedure LimpiarLista(var lista: TListaSimple);
+procedure LimpiarCola(var cola: TCola);
+
+{ Función auxiliar para contar elementos }
+function ContarElementosLista(var lista: TListaSimple): Integer;
+function ContarCorreosEnCola(var cola: TCola): Integer;
+
 implementation
 
 var
@@ -318,198 +326,318 @@ begin
   end;
 end;
 
-procedure CargaMasivaDesdeJSON(
-  const usuariosFile, correosFile: String;
-  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
-);
+function LimpiarStringSeguro(const s: String): String;
+var
+  i: Integer;
+  c: Char;
+begin
+  Result := '';
+  if Length(s) = 0 then 
+  begin
+    Result := 'vacio';
+    Exit;
+  end;
+  
+  for i := 1 to Length(s) do
+  begin
+    c := s[i];
+    // Solo permitir caracteres ASCII básicos
+    if (c >= 'a') and (c <= 'z') then
+      Result := Result + c
+    else if (c >= 'A') and (c <= 'Z') then
+      Result := Result + c
+    else if (c >= '0') and (c <= '9') then
+      Result := Result + c
+    else if (c = ' ') or (c = '.') or (c = ',') or (c = ':') or (c = '@') or (c = '-') or (c = '_') then
+      Result := Result + c
+    else if c = 'ñ' then
+      Result := Result + 'n'
+    else if c = 'ó' then
+      Result := Result + 'o'
+    else if c = 'í' then
+      Result := Result + 'i'
+    else if c = 'á' then
+      Result := Result + 'a'
+    else if c = 'é' then
+      Result := Result + 'e'
+    else if c = 'ú' then
+      Result := Result + 'u'
+    else if c = '¿' then
+      Result := Result + '?'
+    else if c = '¡' then
+      Result := Result + '!'
+    else
+      Result := Result + '?';
+  end;
+  
+  // Asegurar que no esté vacío
+  if Result = '' then
+    Result := 'texto_limpio';
+end;
+
+function ValidarYLimpiarCorreo(const correo: TCorreoB): TCorreoB;
+var
+  correoLimpio: TCorreoB;
+begin
+  correoLimpio.id := correo.id;
+  
+  // Limpiar y validar strings con límites estrictos
+  correoLimpio.remitente := Copy(LimpiarStringSeguro(correo.remitente), 1, 50);
+  correoLimpio.destinatario := Copy(LimpiarStringSeguro(correo.destinatario), 1, 50);
+  correoLimpio.asunto := Copy(LimpiarStringSeguro(correo.asunto), 1, 80);
+  correoLimpio.mensaje := Copy(LimpiarStringSeguro(correo.mensaje), 1, 200);
+  
+  // Validar que no estén vacíos
+  if correoLimpio.remitente = '' then correoLimpio.remitente := 'remitente_desconocido';
+  if correoLimpio.destinatario = '' then correoLimpio.destinatario := 'destinatario_desconocido';
+  if correoLimpio.asunto = '' then correoLimpio.asunto := 'sin_asunto';
+  if correoLimpio.mensaje = '' then correoLimpio.mensaje := 'sin_mensaje';
+  
+  Result := correoLimpio;
+end;
+
+{ Cargar correos desde JSON estándar a todas las estructuras }
+procedure CargarCorreosDesdeJSON(const archivo: String; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
   data: TStringList;
   json: TJSONData;
   arr: TJSONArray;
   obj: TJSONObject;
   i: Integer;
-  email, pass, nombre: String;
   correoID: Integer;
-  estado, remitente, destinatario, asunto, mensaje: String;
-  contadorUsuarios, contadorCorreos: Integer;
+  estado: String;
+  correo: TCorreoB;
+  remitente, destinatario, asunto, mensaje: String;
+  exitosoCola, exitosoAVL, exitosoBTree: Boolean;
 begin
-  WriteLn('🚀 Iniciando carga optimizada de datos...');
-  contadorUsuarios := 0;
-  contadorCorreos := 0;
-  
-  // === CARGA DE USUARIOS ===
-  WriteLn('👥 Cargando usuarios...');
-  if FileExists(usuariosFile) then
+  if not FileExists(archivo) then
   begin
-    data := TStringList.Create;
+    WriteLn('❌ No existe el archivo: ', archivo);
+    Exit;
+  end;
+
+  data := TStringList.Create;
+  try
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
     try
-      data.LoadFromFile(usuariosFile);
-      WriteLn('📄 Archivo de usuarios leído correctamente');
-      
-      json := GetJSON(data.Text);
-      try
-        arr := TJSONArray(json.FindPath('usuarios'));
-        if arr <> nil then
+      arr := TJSONArray(json.FindPath('correos'));
+      if arr <> nil then
+      begin
+        WriteLn('📂 Cargando correos con validación mejorada...');
+        for i := 0 to arr.Count - 1 do
         begin
-          WriteLn('📂 Usuarios encontrados en JSON: ', arr.Count);
-          
-          for i := 0 to arr.Count - 1 do
-          begin
+          try
             obj := arr.Objects[i];
-            email := obj.Get('email', '');
-            pass := obj.Get('password', '');
-            nombre := obj.Get('nombre', '');
+            correoID := obj.Get('id', 0);
             
-            if (email <> '') and (pass <> '') and (nombre <> '') then
+            // Obtener strings de forma muy segura
+            remitente := LimpiarStringSeguro(obj.Get('remitente', ''));
+            destinatario := LimpiarStringSeguro(obj.Get('destinatario', ''));
+            asunto := LimpiarStringSeguro(obj.Get('asunto', ''));
+            mensaje := LimpiarStringSeguro(obj.Get('mensaje', ''));
+            estado := obj.Get('estado', 'NL');
+            
+            // Validar datos básicos
+            if (correoID <= 0) or (Length(remitente) = 0) or (Length(destinatario) = 0) then
             begin
-              // Usar la función correcta según la interfaz de listasimple2
-              AgregarUsuario(lista, i + 1, nombre, email, email, '');
-              
-              // IMPORTANTE: Guardar credenciales para autenticación
-              if GPassByEmail <> nil then
-              begin
-                GPassByEmail.Values[email] := pass;
-                WriteLn('DEBUG - Credencial guardada: ', email, ' -> ', pass);
-              end;
-              if GNameByEmail <> nil then
-              begin
-                GNameByEmail.Values[email] := nombre;
-                WriteLn('DEBUG - Nombre guardado: ', email, ' -> ', nombre);
-              end;
-              
-              Inc(contadorUsuarios);
-              WriteLn('✅ Usuario cargado: ', nombre, ' (', email, ')');
-            end
-            else
-              WriteLn('⚠️ Usuario incompleto saltado en posición: ', i + 1);
-          end;
-          
-          WriteLn('📊 RESUMEN USUARIOS:');
-          WriteLn('  - Total procesados: ', contadorUsuarios, '/', arr.Count);
-          WriteLn('  - Credenciales en memoria: ', GPassByEmail.Count);
-          WriteLn('  - Estado: EXITOSO');
-        end
-        else
-          WriteLn('❌ No se encontró el array "usuarios" en el JSON');
-      finally
-        json.Free;
-      end;
-    except
-      on E: Exception do
-        WriteLn('❌ Error cargando usuarios: ', E.Message);
-    end;
-    data.Free;
-  end
-  else
-    WriteLn('⚠️ Archivo de usuarios no encontrado: ', usuariosFile);
-
-  WriteLn; // Línea en blanco para separar secciones
-
-  // === CARGA DE CORREOS ===
-  WriteLn('📧 Cargando correos...');
-  if FileExists(correosFile) then
-  begin
-    // Limpiar estados previos
-    if GEstadosCorreos <> nil then 
-    begin
-      GEstadosCorreos.Clear;
-      WriteLn('🧹 Estados de correos limpiados');
-    end;
-    
-    data := TStringList.Create;
-    try
-      data.LoadFromFile(correosFile);
-      WriteLn('📄 Archivo de correos leído correctamente');
-      WriteLn('📏 Tamaño del contenido: ', Length(data.Text), ' caracteres');
-      
-      json := GetJSON(data.Text);
-      try
-        arr := TJSONArray(json.FindPath('correos'));
-        if arr <> nil then
-        begin
-          WriteLn('📂 Correos encontrados en JSON: ', arr.Count);
-          
-          for i := 0 to arr.Count - 1 do
-          begin
+              WriteLn('⚠️ Correo ID ', correoID, ' inválido, omitiendo...');
+              Continue;
+            end;
+            
+            exitosoCola := False;
+            exitosoAVL := False;
+            exitosoBTree := False;
+            
+            // Insertar en Cola (más simple y confiable)
             try
-              obj := arr.Objects[i];
-              correoID := obj.Get('id', 0);
-              estado := obj.Get('estado', 'NL');
-              remitente := obj.Get('remitente', '');
-              destinatario := obj.Get('destinatario', '');
-              asunto := obj.Get('asunto', '');
-              mensaje := obj.Get('mensaje', '');
-
-              // Debug detallado de cada correo
-              WriteLn('DEBUG - Procesando correo #', i + 1);
-              WriteLn('  ID: ', correoID);
-              WriteLn('  Remitente: "', remitente, '"');
-              WriteLn('  Destinatario: "', destinatario, '"');
-              WriteLn('  Asunto: "', asunto, '"');
-              WriteLn('  Mensaje: "', Copy(mensaje, 1, 100), '..."');
-              WriteLn('  Estado: "', estado, '"');
-
-              if (correoID > 0) and (remitente <> '') and (destinatario <> '') then
-              begin
-                // Insertar en cola (programados) - CRÍTICO PARA BANDEJA
-                Encolar(programados, correoID, remitente, destinatario, asunto, mensaje);
-                WriteLn('✅ Encolado exitosamente');
-                
-                // Insertar en AVL (borradores)
-                borradores := arbol_avl.Insertar(borradores, correoID, remitente, destinatario, asunto, mensaje);
-                WriteLn('✅ Insertado en AVL exitosamente');
-                
-                // Establecer estado - IMPORTANTE PARA VISUALIZACIÓN
-                EstablecerEstadoCorreo(correoID, estado);
-                WriteLn('✅ Estado establecido: ', estado);
-                
-                Inc(contadorCorreos);
-                WriteLn('✅ Correo cargado ID: ', correoID, ' | De: ', remitente, ' → ', destinatario);
-                WriteLn('   Asunto: "', asunto, '" | Estado: ', estado);
-                WriteLn('   Mensaje completo guardado');
-              end
-              else
-              begin
-                WriteLn('⚠️ Correo inválido saltado ID: ', correoID, ' en posición: ', i + 1);
-                WriteLn('  Validaciones: ID>0? ', correoID > 0, ' Remitente? ', remitente <> '', ' Destinatario? ', destinatario <> '');
-              end;
-                
+              Encolar(programados, correoID, remitente, destinatario, asunto, mensaje);
+              exitosoCola := True;
+              WriteLn('✓ Cola: Correo ', correoID, ' agregado');
             except
               on E: Exception do
-                WriteLn('❌ Error procesando correo #', i + 1, ': ', E.Message);
+                WriteLn('❌ Error en cola correo ', correoID, ': ', E.Message);
+            end;
+            
+            // Solo insertar en AVL si la cola fue exitosa
+            if exitosoCola then
+            begin
+              try
+                if borradores <> nil then
+                  borradores := arbol_avl.Insertar(borradores, correoID, remitente, destinatario, asunto, mensaje);
+                if borradores <> nil then
+                begin
+                  exitosoAVL := True;
+                  WriteLn('✓ AVL: Correo ', correoID, ' agregado');
+                end
+                else
+                  WriteLn('❌ AVL devolvió nil para correo ', correoID);
+              except
+                on E: Exception do
+                  WriteLn('❌ Error en AVL correo ', correoID, ': ', E.Message);
+              end;
+            end;
+            
+            // Solo insertar en B-Tree si ambos anteriores fueron exitosos
+            if exitosoCola then
+            begin
+              try
+                // Preparar estructura para B-Tree con límites estrictos
+                correo.id := correoID;
+                correo.remitente := Copy(remitente, 1, 30);
+                correo.destinatario := Copy(destinatario, 1, 30);
+                correo.asunto := Copy(asunto, 1, 50);
+                correo.mensaje := Copy(mensaje, 1, 100);
+                
+                arbol_b.Insertar(favoritos, correo);
+                exitosoBTree := True;
+                WriteLn('✓ B-Tree: Correo ', correoID, ' agregado');
+              except
+                on E: Exception do
+                  WriteLn('❌ Error en B-Tree correo ', correoID, ': ', E.Message);
+              end;
+            end;
+            
+            // Establecer estado solo si al menos la cola fue exitosa
+            if exitosoCola then
+            begin
+              try
+                EstablecerEstadoCorreo(correoID, estado);
+              except
+                on E: Exception do
+                  WriteLn('❌ Error estableciendo estado correo ', correoID, ': ', E.Message);
+              end;
+            end;
+            
+            if exitosoCola then
+              WriteLn('📧 Correo procesado: ', correoID, ' (Cola:✓ AVL:', exitosoAVL, ' B-Tree:', exitosoBTree, ')');
+              
+          except
+            on E: Exception do
+            begin
+              WriteLn('❌ Error general procesando correo ', i + 1, ': ', E.Message);
             end;
           end;
-          
-          WriteLn('📊 RESUMEN CORREOS:');
-          WriteLn('  - Total procesados: ', contadorCorreos, '/', arr.Count);
-          WriteLn('  - En cola (programados): ', contadorCorreos);
-          WriteLn('  - En AVL (borradores): ', contadorCorreos);
-          WriteLn('  - Estados en memoria: ', GEstadosCorreos.Count);
-          WriteLn('  - Estado: EXITOSO');
-        end
-        else
-          WriteLn('❌ No se encontró array "correos" en JSON');
-      finally
-        json.Free;
+        end;
+        WriteLn('📊 Total correos procesados: ', arr.Count);
       end;
-    except
-      on E: Exception do
-        WriteLn('❌ Error crítico cargando correos: ', E.Message);
+    finally
+      json.Free;
     end;
+  finally
     data.Free;
-  end
-  else
-    WriteLn('⚠️ Archivo de correos no encontrado: ', correosFile);
+  end;
+end;
 
-  WriteLn; // Línea en blanco final
-  WriteLn('🎉 CARGA COMPLETADA');
-  WriteLn('📈 ESTADÍSTICAS FINALES:');
-  WriteLn('  👥 Usuarios cargados: ', contadorUsuarios);
-  WriteLn('  🔐 Credenciales en memoria: ', GPassByEmail.Count);
-  WriteLn('  📧 Correos cargados: ', contadorCorreos);
-  WriteLn('  📊 Estados en memoria: ', GEstadosCorreos.Count);
-  WriteLn('  💾 Estructuras inicializadas correctamente');
-  WriteLn('===============================================');
+procedure CargaMasivaDesdeJSON(
+  const usuariosFile, correosFile: String;
+  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
+);
+begin
+  WriteLn('🔄 Iniciando carga masiva desde JSON...');
+  WriteLn('📁 Usuarios: ', usuariosFile);
+  WriteLn('📁 Correos: ', correosFile);
+  
+  // Limpiar estructuras antes de cargar
+  WriteLn('🧹 Limpiando estructuras existentes...');
+  LimpiarLista(lista);
+  LimpiarCola(programados);
+  arbol_avl.LiberarArbol(borradores);
+  arbol_b.LiberarArbol(favoritos);
+  
+  // Reinicializar completamente
+  InicializarLista(lista);
+  InicializarCola(programados);
+  arbol_avl.Inicializar(borradores);
+  arbol_b.Inicializar(favoritos);
+  
+  // Cargar usuarios primero
+  WriteLn('👥 Cargando usuarios...');
+  if FileExists(usuariosFile) then
+    CargarUsuariosDesdeJSON(usuariosFile, lista)
+  else
+    WriteLn('❌ Error: Archivo de usuarios no encontrado');
+  
+  // Cargar correos después
+  WriteLn('📧 Cargando correos...');
+  if FileExists(correosFile) then
+    CargarCorreosDesdeJSON(correosFile, programados, borradores, favoritos)
+  else
+    WriteLn('❌ Error: Archivo de correos no encontrado');
+  
+  // Mostrar resumen de carga
+  WriteLn('');
+  WriteLn('📊 RESUMEN DE CARGA MASIVA:');
+  WriteLn('===========================');
+  WriteLn('👥 Usuarios cargados: ', ContarElementosLista(lista));
+  WriteLn('📧 Correos en cola: ', ContarCorreosEnCola(programados));
+  WriteLn('📝 Borradores en AVL: ', arbol_avl.ContarNodos(borradores));
+  WriteLn('⭐ Favoritos en B-Tree: ', arbol_b.ContarCorreos(favoritos));
+  WriteLn('===========================');
+  WriteLn('✅ Carga masiva completada exitosamente');
+end;
+
+// Función auxiliar para contar correos en la cola
+function ContarCorreosEnCola(var cola: TCola): Integer;
+var
+  actual: cola2.PCorreo;
+  contador: Integer;
+begin
+  contador := 0;
+  actual := cola.frente;
+  while actual <> nil do
+  begin
+    Inc(contador);
+    actual := actual^.siguiente;
+  end;
+  ContarCorreosEnCola := contador;
+end;
+
+// Función auxiliar para contar usuarios en la lista
+function ContarElementosLista(var lista: TListaSimple): Integer;
+var
+  actual: PUsuario;
+  contador: Integer;
+begin
+  contador := 0;
+  actual := lista.cabeza;
+  while actual <> nil do
+  begin
+    Inc(contador);
+    actual := actual^.siguiente;
+  end;
+  ContarElementosLista := contador;
+end;
+
+// Agregar función para limpiar completamente la lista
+procedure LimpiarLista(var lista: TListaSimple);
+var
+  actual, temp: PUsuario;
+begin
+  actual := lista.cabeza;
+  while actual <> nil do
+  begin
+    temp := actual^.siguiente;
+    Dispose(actual);
+    actual := temp;
+  end;
+  lista.cabeza := nil;
+end;
+
+// Agregar función para limpiar completamente la cola
+procedure LimpiarCola(var cola: TCola);
+var
+  actual, temp: cola2.PCorreo;
+begin
+  actual := cola.frente;
+  while actual <> nil do
+  begin
+    temp := actual^.siguiente;
+    Dispose(actual);
+    actual := temp;
+  end;
+  cola.frente := nil;
+  cola.final := nil;
 end;
 
 function NombreDeEmail(const email: String): String;
@@ -527,180 +655,6 @@ begin
     GPassByEmail.Values[email] := password;
     GNameByEmail.Values[email] := nombre;
     WriteLn('DEBUG - Credenciales registradas para: ', email);
-  end;
-end;
-
-initialization
-  GPassByEmail := TStringList.Create;
-  GPassByEmail.CaseSensitive := False;
-  GPassByEmail.Sorted := False;
-  GPassByEmail.NameValueSeparator := '=';
-
-  GNameByEmail := TStringList.Create;
-  GNameByEmail.CaseSensitive := False;
-  GNameByEmail.Sorted := False;
-  GNameByEmail.NameValueSeparator := '=';
-
-  GEstadosCorreos := TStringList.Create;
-  GEstadosCorreos.CaseSensitive := False;
-  GEstadosCorreos.Sorted := False;
-  GEstadosCorreos.NameValueSeparator := '=';
-
-finalization
-  FreeAndNil(GPassByEmail);
-  FreeAndNil(GNameByEmail);
-  FreeAndNil(GEstadosCorreos);
-
-end.
-              begin
-                // Fin del objeto correo - procesarlo de forma segura
-                if (id > 0) and (remitente <> '') and (destinatario <> '') then
-                begin
-                  try
-                    // Establecer estado de forma segura
-                    if estado <> '' then
-                    begin
-                      EstablecerEstadoCorreo(id, estado);
-                    end
-                    else
-                    begin
-                      EstablecerEstadoCorreo(id, 'NL');
-                    end;
-                    
-                    // Encolar en programados de forma segura
-                    try
-                      Encolar(programados, id, remitente, destinatario, asunto, mensaje);
-                    except
-                      on E: Exception do
-                      begin
-                        WriteLn('❌ Error al encolar correo ID ', id, ': ', E.Message);
-                        Continue;
-                      end;
-                    end;
-                    
-                    // Insertar en AVL de forma segura
-                    try
-                      borradores := arbol_avl.Insertar(borradores, id, remitente, destinatario, asunto, mensaje);
-                    except
-                      on E: Exception do
-                      begin
-                        WriteLn('❌ Error al insertar en AVL correo ID ', id, ': ', E.Message);
-                      end;
-                    end;
-                    
-                    // Insertar en Árbol B de forma segura
-                    try
-                      correoB.id := id;
-                      correoB.remitente := remitente;
-                      correoB.destinatario := destinatario;
-                      correoB.asunto := asunto;
-                      correoB.mensaje := mensaje;
-                      arbol_b.Insertar(favoritos, correoB);
-                    except
-                      on E: Exception do
-                      begin
-                        WriteLn('❌ Error al insertar en Árbol B correo ID ', id, ': ', E.Message);
-                      end;
-                    end;
-                    
-                    WriteLn('  📧 Correo cargado ID: ', id, ' - Estado: ', ObtenerEstadoCorreo(id));
-                  except
-                    on E: Exception do
-                    begin
-                      WriteLn('❌ Error general al procesar correo ID ', id, ': ', E.Message);
-                      Continue;
-                    end;
-                  end;
-                end
-                else
-                begin
-                  WriteLn('❌ Correo incompleto ignorado - ID: ', id, ' Remitente: ', remitente, ' Destinatario: ', destinatario);
-                end;
-                dentroObjeto := False;
-              end;
-            end;
-            
-          '[':
-            if nivel = 1 then
-              dentroArray := True;
-              
-          ']':
-            if nivel = 1 then
-              dentroArray := False;
-              
-          '"':
-            begin
-              enString := not enString;
-              if not enString then
-              begin
-                // Fin de string - procesar campo:valor
-                if esperandoValor and (campoActual <> '') then
-                begin
-                  // Asignar valor al campo correspondiente
-                  if campoActual = 'id' then
-                  begin
-                    try
-                      id := StrToInt(valorActual);
-                    except
-                      id := 0;
-                      WriteLn('❌ Error al convertir ID: ', valorActual);
-                    end;
-                  end
-                  else if campoActual = 'remitente' then
-                    remitente := valorActual
-                  else if campoActual = 'destinatario' then
-                    destinatario := valorActual
-                  else if campoActual = 'estado' then
-                    estado := valorActual
-                  else if campoActual = 'asunto' then
-                    asunto := valorActual
-                  else if campoActual = 'mensaje' then
-                    mensaje := valorActual;
-                    
-                  esperandoValor := False;
-                  valorActual := '';
-                end
-                else
-                begin
-                  campoActual := valorActual;
-                  valorActual := '';
-                end;
-              end;
-            end;
-            
-          ':':
-            if not enString then
-              esperandoValor := True;
-              
-          ',', #10, #13:
-            // Ignorar separadores fuera de strings
-            if not enString then
-            begin
-              // No hacer nada especial
-            end;
-            
-          else
-            if enString then
-              valorActual := valorActual + c;
-        end;
-        
-        Inc(i);
-      end;
-    end;
-    
-    CloseFile(archivo);
-    WriteLn('✅ Correos cargados exitosamente');
-    
-  except
-    on E: Exception do
-    begin
-      WriteLn('❌ Error crítico al cargar correos: ', E.Message);
-      try
-        CloseFile(archivo);
-      except
-        // Ignorar errores al cerrar archivo
-      end;
-    end;
   end;
 end;
 

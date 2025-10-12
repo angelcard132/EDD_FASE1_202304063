@@ -1,0 +1,22 @@
+digraph FavoritosArbolB {
+  rankdir=TB;
+  node [style=filled, fontname="Arial", fontsize=10];
+  edge [fontname="Arial", fontsize=8];
+  label="⭐ FAVORITOS (ÁRBOL B) - mitzep@edd.com\\nEstructura Real del Árbol B con Nodos y Conexiones"; labelloc=t; fontsize=14; fontcolor=orange;
+
+  subgraph cluster_leyenda {
+    label="Leyenda del Árbol B";
+    style=filled;
+    fillcolor=lightgray;
+    leyenda_hoja [label="Nodos Hoja\\n(Datos finales)", fillcolor="#FFE4B5", shape="record"];
+    leyenda_interno [label="Nodos Internos\\n(Navegación)", fillcolor="#E6F3FF", shape="record"];
+    leyenda_conexion [label="Conexión Padre-Hijo", color="purple"];
+    leyenda_estructura [label="Estructura: Raíz → Nodos → Hojas", shape="plaintext"];
+  }
+
+  nodoB_1 [label="HOJA 1\\nClaves: 2\\n1\\n2", fillcolor="#FFE4B5", shape="record"];
+  nodoB_2 [label="HOJA 2\\nClaves: 1\\n3", fillcolor="#FFE4B5", shape="record"];
+
+  info [label="Propiedades del Árbol B:\\n• Cada nodo puede tener múltiples claves\\n• Hojas en el mismo nivel\\n• Autobalanceado\\n• Búsqueda eficiente O(log n)\\n• Nodos mostrados: 2", shape="note", fillcolor="#FFFFCC"];
+  nodoB_1 -> info [style="dotted", color="gray"];
+}

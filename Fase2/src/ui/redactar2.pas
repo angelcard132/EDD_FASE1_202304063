@@ -54,16 +54,57 @@ begin
   g_free(texto);
 end;
 
+function ValidarDestinatarioExiste(const emailDestinatario: String): Boolean;
+var
+  actual: PUsuario;
+begin
+  Result := False;
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+function ObtenerNombreContactoPorEmail(const emailDestinatario: String): String;
+var
+  actual: PUsuario;
+begin
+  Result := emailDestinatario; // Por defecto retornar el email
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := String(actual^.nombre);
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
 procedure OnEnviarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 var
   para, asunto, mensaje: String;
   nuevoID: Integer;
+  nombreContacto: String;
 begin
   para := StrPas(gtk_entry_get_text(PGtkEntry(EntryPara)));
   asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
   mensaje := ObtenerTextoTextView(TextViewMensaje);
 
-  // Validaciones
+  // Validaciones básicas
   if (para = '') or (asunto = '') or (mensaje = '') then
   begin
     MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
@@ -76,15 +117,32 @@ begin
     Exit;
   end;
 
+  // NUEVA VALIDACIÓN: Verificar que el destinatario existe
+  if not ValidarDestinatarioExiste(para) then
+  begin
+    nombreContacto := para;
+    MostrarMensaje('Contacto No Encontrado', 
+      'El destinatario "' + nombreContacto + '" no existe en tu lista de contactos.' + LineEnding + LineEnding +
+      'Para enviar correos debes:' + LineEnding +
+      '1. Ir a "👥 Agregar Contacto" y registrar este email, o' + LineEnding +
+      '2. Pedirle al administrador que haga una carga masiva incluyendo este usuario' + LineEnding + LineEnding +
+      'Solo puedes enviar correos a contactos que estén registrados en el sistema.', 
+      GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Si el destinatario existe, obtener su nombre para mostrar confirmación
+  nombreContacto := ObtenerNombreContactoPorEmail(para);
+
   // Generar ID y enviar SOLO a Cola
   nuevoID := GenerarNuevoIDCorreo();
   Encolar(GProgramados^, nuevoID, GEmailRemitente, para, asunto, mensaje);
   
-  WriteLn('✅ Correo enviado exitosamente: ', asunto);
+  WriteLn('✅ Correo enviado exitosamente a: ', para);
   
   MostrarMensaje('Correo Enviado', 
-    'El correo ha sido enviado exitosamente.' + LineEnding + 
-    'Para: ' + para + LineEnding +
+    'El correo ha sido enviado exitosamente.' + LineEnding + LineEnding +
+    'Para: ' + nombreContacto + ' (' + para + ')' + LineEnding +
     'Asunto: ' + asunto + LineEnding + LineEnding +
     'El correo aparecerá en la bandeja del destinatario.', 
     GTK_MESSAGE_INFO);
@@ -150,6 +208,7 @@ var
 begin
   // Guardar referencias globales
   GEmailRemitente := emailRemitente;
+  GUsuarios := @usuarios;  // Agregar esta línea
   GProgramados := @programados;
   GBorradores := @borradores;
   GFavoritos := @favoritos;
@@ -208,30 +267,6 @@ begin
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
 
-  // Botones con el nuevo botón de borrador
-  btnBox := gtk_hbox_new(True, 10);
-  gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
-
-  btnEnviar := gtk_button_new_with_label('📤 Enviar Correo');
-  g_signal_connect(btnEnviar, 'clicked', G_CALLBACK(@OnEnviarCorreo), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnEnviar, True, True, 0);
-
-  btnBorrador := gtk_button_new_with_label('📝 Guardar Borrador');
-  g_signal_connect(btnBorrador, 'clicked', G_CALLBACK(@OnGuardarBorrador), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnBorrador, True, True, 0);
-
-  btnCancelar := gtk_button_new_with_label('❌ Cancelar');
-  g_signal_connect(btnCancelar, 'clicked', G_CALLBACK(@OnCancelarRedactar), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnCancelar, True, True, 0);
-
-  gtk_widget_show_all(RedactarWindow);
-end;
-
-end.
-  TextViewMensaje := gtk_text_view_new();
-  gtk_text_view_set_wrap_mode(PGtkTextView(TextViewMensaje), GTK_WRAP_WORD);
-  gtk_container_add(GTK_CONTAINER(scrolledWindow), TextViewMensaje);
-
   // Botones
   btnBox := gtk_hbox_new(True, 10);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
@@ -243,10 +278,6 @@ end.
   btnBorrador := gtk_button_new_with_label('Guardar Borrador');
   g_signal_connect(btnBorrador, 'clicked', G_CALLBACK(@OnGuardarBorrador), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnBorrador, True, True, 0);
-
-  btnFavoritos := gtk_button_new_with_label('A Favoritos');
-  g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
 
   btnCancelar := gtk_button_new_with_label('Cancelar');
   g_signal_connect(btnCancelar, 'clicked', G_CALLBACK(@OnCancelarRedactar), nil);

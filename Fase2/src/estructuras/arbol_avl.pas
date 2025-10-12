@@ -2,6 +2,9 @@ unit arbol_avl;
 
 interface
 
+uses
+  SysUtils;
+
 type
   PCorreoAVL = ^TCorreoAVL;
   TCorreoAVL = record
@@ -59,11 +62,22 @@ var
   nuevo: PCorreoAVL;
 begin
   New(nuevo);
+  if nuevo = nil then
+  begin
+    WriteLn('❌ Error: No se pudo asignar memoria para nuevo nodo AVL');
+    CrearNodo := nil;
+    Exit;
+  end;
+  
+  // Limpiar memoria antes de usar
+  FillChar(nuevo^, SizeOf(TCorreoAVL), 0);
+  
   nuevo^.id := id;
-  nuevo^.remitente := remitente;
-  nuevo^.destinatario := destinatario;
-  nuevo^.asunto := asunto;
-  nuevo^.mensaje := mensaje;
+  // Limitar y validar strings
+  nuevo^.remitente := Copy(remitente, 1, 100);
+  nuevo^.destinatario := Copy(destinatario, 1, 100);
+  nuevo^.asunto := Copy(asunto, 1, 150);
+  nuevo^.mensaje := Copy(mensaje, 1, 300);
   nuevo^.izquierdo := nil;
   nuevo^.derecho := nil;
   nuevo^.altura := 1;
@@ -74,12 +88,19 @@ function RotarDerecha(y: PCorreoAVL): PCorreoAVL;
 var
   x, T2: PCorreoAVL;
 begin
+  if (y = nil) or (y^.izquierdo = nil) then
+  begin
+    RotarDerecha := y;
+    Exit;
+  end;
+  
   x := y^.izquierdo;
   T2 := x^.derecho;
 
   x^.derecho := y;
   y^.izquierdo := T2;
 
+  // Actualizar alturas de forma segura
   y^.altura := Max(Altura(y^.izquierdo), Altura(y^.derecho)) + 1;
   x^.altura := Max(Altura(x^.izquierdo), Altura(x^.derecho)) + 1;
 
@@ -90,12 +111,19 @@ function RotarIzquierda(x: PCorreoAVL): PCorreoAVL;
 var
   y, T2: PCorreoAVL;
 begin
+  if (x = nil) or (x^.derecho = nil) then
+  begin
+    RotarIzquierda := x;
+    Exit;
+  end;
+  
   y := x^.derecho;
   T2 := y^.izquierdo;
 
   y^.izquierdo := x;
   x^.derecho := T2;
 
+  // Actualizar alturas de forma segura
   x^.altura := Max(Altura(x^.izquierdo), Altura(x^.derecho)) + 1;
   y^.altura := Max(Altura(y^.izquierdo), Altura(y^.derecho)) + 1;
 
@@ -112,51 +140,73 @@ end;
 
 function Insertar(var raiz: PCorreoAVL; id: Integer; remitente, destinatario, asunto, mensaje: String): PCorreoAVL;
 var
-  balanceFactor: Integer; // renombrada para evitar colisión con la función Balance
+  balanceFactor: Integer;
+  nuevoNodo: PCorreoAVL;
 begin
+  // Caso base: crear nuevo nodo
   if raiz = nil then
   begin
-    raiz := CrearNodo(id, remitente, destinatario, asunto, mensaje);
+    nuevoNodo := CrearNodo(id, remitente, destinatario, asunto, mensaje);
+    if nuevoNodo = nil then
+    begin
+      WriteLn('❌ Error: No se pudo crear nodo AVL para ID ', id);
+      Insertar := nil;
+      Exit;
+    end;
+    raiz := nuevoNodo;
     Insertar := raiz;
     Exit;
   end;
 
+  // Inserción recursiva con validación
   if id < raiz^.id then
-    raiz^.izquierdo := Insertar(raiz^.izquierdo, id, remitente, destinatario, asunto, mensaje)
+  begin
+    raiz^.izquierdo := Insertar(raiz^.izquierdo, id, remitente, destinatario, asunto, mensaje);
+    if raiz^.izquierdo = nil then
+    begin
+      WriteLn('❌ Error: Fallo en inserción izquierda AVL para ID ', id);
+      Insertar := raiz;
+      Exit;
+    end;
+  end
   else if id > raiz^.id then
-    raiz^.derecho := Insertar(raiz^.derecho, id, remitente, destinatario, asunto, mensaje)
+  begin
+    raiz^.derecho := Insertar(raiz^.derecho, id, remitente, destinatario, asunto, mensaje);
+    if raiz^.derecho = nil then
+    begin
+      WriteLn('❌ Error: Fallo en inserción derecha AVL para ID ', id);
+      Insertar := raiz;
+      Exit;
+    end;
+  end
   else
   begin
-    Insertar := raiz; // No insertar duplicados
+    // Duplicado - no insertar
+    Insertar := raiz;
     Exit;
   end;
 
+  // Actualizar altura de forma segura
   raiz^.altura := 1 + Max(Altura(raiz^.izquierdo), Altura(raiz^.derecho));
+  
+  // Verificar balance
   balanceFactor := Balance(raiz);
 
-  { === Rotaciones === }
-
-  // Caso Izquierda - Izquierda
-  if (balanceFactor > 1) and (id < raiz^.izquierdo^.id) then
+  // Aplicar rotaciones solo si es necesario
+  if (balanceFactor > 1) and (raiz^.izquierdo <> nil) and (id < raiz^.izquierdo^.id) then
   begin
     raiz := RotarDerecha(raiz);
-  end;
-
-  // Caso Derecha - Derecha
-  if (balanceFactor < -1) and (id > raiz^.derecho^.id) then
+  end
+  else if (balanceFactor < -1) and (raiz^.derecho <> nil) and (id > raiz^.derecho^.id) then
   begin
     raiz := RotarIzquierda(raiz);
-  end;
-
-  // Caso Izquierda - Derecha
-  if (balanceFactor > 1) and (id > raiz^.izquierdo^.id) then
+  end
+  else if (balanceFactor > 1) and (raiz^.izquierdo <> nil) and (id > raiz^.izquierdo^.id) then
   begin
     raiz^.izquierdo := RotarIzquierda(raiz^.izquierdo);
     raiz := RotarDerecha(raiz);
-  end;
-
-  // Caso Derecha - Izquierda
-  if (balanceFactor < -1) and (id < raiz^.derecho^.id) then
+  end
+  else if (balanceFactor < -1) and (raiz^.derecho <> nil) and (id < raiz^.derecho^.id) then
   begin
     raiz^.derecho := RotarDerecha(raiz^.derecho);
     raiz := RotarIzquierda(raiz);
@@ -336,6 +386,27 @@ begin
     ListarBorradorsPorRemitente(raiz^.izquierdo, remitente);
     if raiz^.remitente = remitente then
       WriteLn('📝 Borrador ID: ', raiz^.id, ' | Asunto: ', raiz^.asunto, ' | Para: ', raiz^.destinatario);
+    ListarBorradorsPorRemitente(raiz^.derecho, remitente);
+  end;
+end;
+
+procedure LiberarArbol(var raiz: PCorreoAVL);
+begin
+  if raiz <> nil then
+  begin
+    LiberarArbol(raiz^.izquierdo);
+    LiberarArbol(raiz^.derecho);
+    Dispose(raiz);
+    raiz := nil;
+  end;
+end;
+
+procedure Inicializar(var raiz: PCorreoAVL);
+begin
+  raiz := nil;
+end;
+
+end.
     ListarBorradorsPorRemitente(raiz^.derecho, remitente);
   end;
 end;

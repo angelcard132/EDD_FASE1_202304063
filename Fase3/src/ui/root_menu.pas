@@ -1,0 +1,695 @@
+unit root_menu;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  glib2, gtk2, gdk2, SysUtils,
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, json_loader, comunidad, arbolbst, reports, control_login; // ✅ AGREGAR control_login
+
+// Mostrar el menú root utilizando las mismas estructuras compartidas en toda la app
+procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain);
+
+implementation
+
+uses
+  login; // Mover el uses de login aquí para evitar referencia circular
+
+var
+  // Referencias compartidas a las estructuras de datos (no crear copias locales)
+  GUsuarios: ^TListaSimple = nil;
+  GProgramados: ^TCola = nil;
+  GBorradores: ^PCorreoAVL = nil;
+  GFavoritos: ^PNodoB = nil;
+  GBlockchain: ^TBlockchain = nil; // Add blockchain reference
+  ComboComunidades: PGtkWidget = nil; // Combo para mostrar comunidades
+  MensajesWindow: PGtkWidget = nil; // Ventana para ver todos los mensajes
+  ControlLoginWindow: PGtkWidget = nil; // Nueva ventana para control de login
+
+{ --- Callbacks --- }
+
+// ✅ DECLARACIÓN FORWARD CORRECTA
+procedure MostrarControlLoginWindow(); forward;
+
+// Declaración forward de la función
+procedure MostrarTodosMensajesComunidades(); forward;
+
+function OnDeleteEventMensajes(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
+begin
+  WriteLn('🔓 Cerrando vista de mensajes...');
+  if Assigned(MensajesWindow) then
+    gtk_widget_destroy(MensajesWindow);
+  Result := True;
+end;
+
+procedure OnCerrarMensajes(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  if Assigned(MensajesWindow) then
+    gtk_widget_destroy(MensajesWindow);
+end;
+
+// Callback para recolectar información de comunidades
+procedure CallbackActualizarCombo(comunidad: PNodoComunidadBST; data: Pointer);
+var
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  textoComunidad: String;
+begin
+  if (comunidad <> nil) and (data <> nil) then
+  begin
+    store := PGtkListStore(data);
+    textoComunidad := comunidad^.nombre + ' (ID: ' + IntToStr(comunidad^.id) + ') - ' + IntToStr(comunidad^.totalMensajes) + ' mensajes';
+    
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter, 0, PChar(textoComunidad), -1);
+  end;
+end;
+
+procedure ActualizarComboComunidades();
+var
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  totalComunidades: Integer;
+begin
+  if ComboComunidades = nil then Exit;
+  
+  // Limpiar combo
+  store := PGtkListStore(gtk_combo_box_get_model(PGtkComboBox(ComboComunidades)));
+  if store <> nil then
+    gtk_list_store_clear(store);
+  
+  // Contar comunidades primero
+  totalComunidades := ContarComunidades(ArbolComunidades);
+  
+  if totalComunidades = 0 then
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter, 0, PChar('No hay comunidades creadas'), -1);
+  end
+  else
+  begin
+    // Usar recorrido personalizado para llenar combo
+    RecorridoPersonalizadoBST(ArbolComunidades, @CallbackActualizarCombo, store);
+  end;
+end;
+
+procedure OnActualizarCombo(); // Callback para cuando se crea una comunidad
+begin
+  ActualizarComboComunidades();
+  WriteLn('🔄 Combo de comunidades actualizado');
+end;
+
+procedure OnCargaMasiva(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaUsuarios, rutaCorreos: String;
+  dialog: PGtkWidget;
+begin
+  if (GUsuarios = nil) or (GProgramados = nil) or (GBorradores = nil) or (GFavoritos = nil) then
+  begin
+    g_print('>> ❌ Error: estructuras no inicializadas en root_menu' + LineEnding);
+    Exit;
+  end;
+
+  // Usar las rutas correctas de los archivos JSON
+  rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/usuarios.json';
+  rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json';
+
+  WriteLn('🔄 Iniciando carga masiva desde root menu...');
+  WriteLn('📁 Archivo usuarios: ', rutaUsuarios);
+  WriteLn('📁 Archivo correos: ', rutaCorreos);
+
+  // Verificar que los archivos existen
+  if not FileExists(rutaUsuarios) then
+  begin
+    WriteLn('❌ Error: No se encuentra el archivo de usuarios');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_ERROR,
+      GTK_BUTTONS_OK,
+      PChar('Error: No se encuentra el archivo de usuarios en:' + #10 + rutaUsuarios));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+
+  if not FileExists(rutaCorreos) then
+  begin
+    WriteLn('❌ Error: No se encuentra el archivo de correos');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_ERROR,
+      GTK_BUTTONS_OK,
+      PChar('Error: No se encuentra el archivo de correos en:' + #10 + rutaCorreos));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+
+  // Carga masiva unificada con las rutas correctas
+  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+
+  g_print('>> ✅ Carga masiva completada.' + LineEnding);
+
+  dialog := gtk_message_dialog_new(nil,
+    GTK_DIALOG_MODAL,
+    GTK_MESSAGE_INFO,
+    GTK_BUTTONS_OK,
+    PChar('✅ Carga masiva completada correctamente.' + #10 + #10 +
+          'Usuarios cargados: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
+          'Correos cargados: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 + #10 +
+          'Ahora puedes usar "Salir" para acceder con los nuevos usuarios.'));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
+
+procedure OnCrearComunidad(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  // Establecer callback para actualizar combo cuando se cree comunidad
+  OnComunidadCreada := @OnActualizarCombo;
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) then
+    MostrarGestionComunidades(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+end;
+
+procedure OnReporteComunidades(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaDir, rutaDot, rutaPng: String;
+  dialog: PGtkWidget;
+begin
+  // Mostrar reporte en consola
+  WriteLn('🌳 REPORTE DE COMUNIDADES BST');
+  WriteLn('=============================');
+  WriteLn('📊 Total de comunidades: ', ContarComunidades(ArbolComunidades));
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido In-Orden:');
+  InOrdenBST(ArbolComunidades);
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido Pre-Orden:');
+  PreOrdenBST(ArbolComunidades);
+  WriteLn;
+  
+  WriteLn('🔄 Recorrido Post-Orden:');
+  PostOrdenBST(ArbolComunidades);
+  WriteLn('=============================');
+  
+  // Generar reporte gráfico en carpeta root
+  rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/root';
+  if not DirectoryExists(rutaDir) then
+    CreateDir(rutaDir);
+  
+  rutaDot := rutaDir + '/bst-comunidades.dot';
+  rutaPng := rutaDir + '/bst-comunidades.png';
+  
+  // Generar DOT del BST
+  GenerarReporteBSTComunidades(rutaDot);
+  
+  // Intentar generar PNG
+  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
+  begin
+    if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + rutaDot + '" -o "' + rutaPng + '"'], []) = 0 then
+    begin
+      WriteLn('🖼️ Gráfico BST generado: ', rutaPng);
+      
+      // Mostrar diálogo informativo
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO,
+        GTK_BUTTONS_OK,
+        PChar('🌳 Reporte BST generado exitosamente!' + #10 + #10 +
+              'Archivos generados:' + #10 +
+              '📄 DOT: ' + ExtractFileName(rutaDot) + #10 +
+              '🖼️ PNG: ' + ExtractFileName(rutaPng) + #10 + #10 +
+              'Ubicación: /graficos/root/'));
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end
+    else
+    begin
+      WriteLn('⚠️ Error generando PNG del BST');
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_OK,
+        'Archivo DOT generado, pero no se pudo crear el PNG.');
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end;
+  end
+  else
+  begin
+    WriteLn('ℹ️ Graphviz no instalado, solo DOT generado');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('Archivo DOT generado: ' + ExtractFileName(rutaDot) + #10 +
+            'Instala Graphviz para generar imágenes PNG.'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+  end;
+end;
+
+procedure OnVerMensajes(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  MostrarTodosMensajesComunidades();
+end;
+
+procedure OnControlLogin(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  WriteLn('🔐 DEBUG: Llamando a MostrarControlLoginWindow');
+  MostrarControlLoginWindow();
+end;
+
+procedure OnExportarLoginJSON(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaDir, rutaJSON: String;
+  dialog: PGtkWidget;
+begin
+  rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/root';
+  if not DirectoryExists(rutaDir) then
+    CreateDir(rutaDir);
+  
+  rutaJSON := rutaDir + '/control-login.json';
+  
+  ExportarLoginJSON(rutaJSON);
+  
+  dialog := gtk_message_dialog_new(nil,
+    GTK_DIALOG_MODAL,
+    GTK_MESSAGE_INFO,
+    GTK_BUTTONS_OK,
+    PChar('📄 Control de login exportado exitosamente!' + #10 + #10 +
+          'Archivo: control-login.json' + #10 +
+          'Ubicación: /graficos/root/' + #10 + #10 +
+          'El archivo contiene los registros de entrada y salida de usuarios.'));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
+
+procedure OnCerrarControlLogin(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  if Assigned(ControlLoginWindow) then
+    gtk_widget_destroy(ControlLoginWindow);
+end;
+
+function OnDeleteEventControlLogin(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
+begin
+  WriteLn('🔓 Cerrando control de login...');
+  if Assigned(ControlLoginWindow) then
+    gtk_widget_destroy(ControlLoginWindow);
+  Result := True;
+end;
+
+procedure MostrarControlLoginWindow();
+var
+  vbox, scrolledLista, btnBox: PGtkWidget;
+  lblTitulo, lblInfo: PGtkWidget;
+  treeView: PGtkWidget;
+  store: PGtkListStore;
+  column: PGtkTreeViewColumn;
+  renderer: PGtkCellRenderer;
+  iter: TGtkTreeIter;
+  btnExportar, btnCerrar: PGtkWidget;
+  actual: PRegistroLogin;
+  contador: Integer;
+  fechaEntrada, fechaSalida, estado: String;
+begin
+  WriteLn('🔐 DEBUG: Iniciando MostrarControlLoginWindow');
+  
+  if Assigned(ControlLoginWindow) then
+    gtk_widget_destroy(ControlLoginWindow);
+
+  ControlLoginWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW(ControlLoginWindow), PChar('🔐 Control de Logueo - Root'));
+  gtk_window_set_default_size(GTK_WINDOW(ControlLoginWindow), 800, 500);
+  gtk_window_set_position(GTK_WINDOW(ControlLoginWindow), GTK_WIN_POS_CENTER);
+
+  g_signal_connect(ControlLoginWindow, 'delete-event', G_CALLBACK(@OnDeleteEventControlLogin), nil);
+
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
+  gtk_container_add(GTK_CONTAINER(ControlLoginWindow), vbox);
+
+  lblTitulo := gtk_label_new('🔐 Registro de Accesos al Sistema');
+  gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
+
+  lblInfo := gtk_label_new('Historial de entradas y salidas de usuarios (incluyendo root)');
+  gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
+
+  scrolledLista := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledLista), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_start(GTK_BOX(vbox), scrolledLista, True, True, 0);
+
+  store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  treeView := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+  gtk_container_add(GTK_CONTAINER(scrolledLista), treeView);
+
+  renderer := gtk_cell_renderer_text_new();
+  
+  column := gtk_tree_view_column_new_with_attributes('Usuario', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 200);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Fecha Entrada', renderer, 'text', 1, nil);
+  gtk_tree_view_column_set_min_width(column, 160);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Fecha Salida', renderer, 'text', 2, nil);
+  gtk_tree_view_column_set_min_width(column, 160);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 100);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  contador := 0;
+  actual := ObtenerRegistrosLogin();
+  
+  WriteLn('🔐 DEBUG: Obteniendo registros de login');
+  
+  while actual <> nil do
+  begin
+    fechaEntrada := FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaEntrada);
+    
+    if actual^.activo then
+    begin
+      fechaSalida := '-- ACTIVO --';
+      estado := '🟢 CONECTADO';
+    end
+    else if actual^.fechaSalida > 0 then
+    begin
+      fechaSalida := FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaSalida);
+      estado := '🔴 DESCONECTADO';
+    end
+    else
+    begin
+      fechaSalida := '-- ERROR --';
+      estado := '⚠️ SIN SALIDA';
+    end;
+    
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+                       0, PChar(actual^.usuario),
+                       1, PChar(fechaEntrada),
+                       2, PChar(fechaSalida),
+                       3, PChar(estado),
+                       -1);
+    
+    Inc(contador);
+    actual := actual^.siguiente;
+  end;
+
+  if contador = 0 then
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+                       0, PChar('-- Sin registros --'),
+                       1, PChar('--'),
+                       2, PChar('--'),
+                       3, PChar('No hay accesos registrados'),
+                       -1);
+  end;
+
+  btnBox := gtk_hbox_new(True, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
+
+  btnExportar := gtk_button_new_with_label('📄 Exportar JSON');
+  g_signal_connect(btnExportar, 'clicked', G_CALLBACK(@OnExportarLoginJSON), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnExportar, True, True, 0);
+
+  btnCerrar := gtk_button_new_with_label('❌ Cerrar');
+  g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarControlLogin), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, True, 0);
+
+  WriteLn('🔐 Mostrando control de login - Total registros: ', contador);
+  gtk_widget_show_all(ControlLoginWindow);
+end;
+
+procedure OnSalir(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  WriteLn('👋 Cerrando sesión ROOT');
+  
+  // ✅ REGISTRAR SALIDA DE ROOT
+  RegistrarSalida('root@sistema.admin');
+  
+  // Cerrar ventana actual y regresar al login
+  if Assigned(widget) then
+    gtk_widget_destroy(gtk_widget_get_toplevel(widget));
+  
+  // Reabrir login para que usuarios normales puedan autenticarse
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GBlockchain <> nil) then
+    MostrarLogin(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GBlockchain^);
+end;
+
+procedure OnSeleccionarComunidad(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  indiceActivo: Integer;
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  textoComunidadPtr: PChar;
+  textoComunidad: String;
+begin
+  indiceActivo := gtk_combo_box_get_active(PGtkComboBox(ComboComunidades));
+  if indiceActivo < 0 then
+  begin
+    g_print(PChar('No hay comunidad seleccionada' + LineEnding));
+    Exit;
+  end;
+
+  // Obtener texto de comunidad seleccionada
+  store := PGtkListStore(gtk_combo_box_get_model(PGtkComboBox(ComboComunidades)));
+  if gtk_combo_box_get_active_iter(PGtkComboBox(ComboComunidades), @iter) then
+  begin
+    gtk_tree_model_get(GTK_TREE_MODEL(store), @iter, 0, @textoComunidadPtr, -1);
+    textoComunidad := StrPas(textoComunidadPtr);
+    g_free(textoComunidadPtr);
+    
+    g_print(PChar('📋 Comunidad seleccionada: ' + textoComunidad + LineEnding));
+  end;
+end;
+
+// Callback para recolectar mensajes del BST
+procedure CallbackRecolectarMensajes(comunidad: PNodoComunidadBST; data: Pointer);
+var
+  store: PGtkListStore;
+  iter: TGtkTreeIter;
+  actualMensaje: PMensajeComunidad;
+  nombreComunidadCompleto: String;
+begin
+  if (comunidad = nil) or (data = nil) then Exit;
+  
+  store := PGtkListStore(data);
+  actualMensaje := comunidad^.mensajes;
+  
+  // Construir nombre completo con jerarquía
+  if comunidad^.esSubcomunidad and (comunidad^.comunidadPadre <> nil) then
+    nombreComunidadCompleto := comunidad^.comunidadPadre^.nombre + ' - ' + comunidad^.nombre
+  else
+    nombreComunidadCompleto := comunidad^.nombre;
+  
+  while actualMensaje <> nil do
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+                       0, PChar(nombreComunidadCompleto),
+                       1, PChar(IntToStr(actualMensaje^.id)),
+                       2, PChar(actualMensaje^.fechaPublicacion),
+                       3, PChar(actualMensaje^.correo),
+                       4, PChar(actualMensaje^.mensaje),
+                       -1);
+    actualMensaje := actualMensaje^.siguiente;
+  end;
+end;
+
+procedure MostrarTodosMensajesComunidades();
+var
+  vbox, scrolledLista, btnBox: PGtkWidget;
+  lblTitulo, lblInfo: PGtkWidget;
+  treeView: PGtkWidget;
+  store: PGtkListStore;
+  column: PGtkTreeViewColumn;
+  renderer: PGtkCellRenderer;
+  iter: TGtkTreeIter;
+  btnCerrar: PGtkWidget;
+  totalMensajes, totalComunidades: Integer;
+begin
+  if Assigned(MensajesWindow) then
+    gtk_widget_destroy(MensajesWindow);
+
+  MensajesWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW(MensajesWindow), PChar('💬 Todos los Mensajes de Comunidades BST - Root'));
+  gtk_window_set_default_size(GTK_WINDOW(MensajesWindow), 900, 600);
+  gtk_window_set_position(GTK_WINDOW(MensajesWindow), GTK_WIN_POS_CENTER);
+
+  g_signal_connect(MensajesWindow, 'delete-event', G_CALLBACK(@OnDeleteEventMensajes), nil);
+
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
+  gtk_container_add(GTK_CONTAINER(MensajesWindow), vbox);
+
+  lblTitulo := gtk_label_new('💬 Vista Global de Mensajes del Árbol BST');
+  gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
+
+  // Contar totales
+  totalComunidades := ContarComunidades(ArbolComunidades);
+  totalMensajes := 0; // Se contará durante el llenado
+
+  lblInfo := gtk_label_new(PChar('Total: ' + IntToStr(totalComunidades) + ' comunidades en el BST'));
+  gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
+
+  // Lista de mensajes
+  scrolledLista := gtk_scrolled_window_new(nil, nil);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledLista), 
+                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_start(GTK_BOX(vbox), scrolledLista, True, True, 0);
+
+  // Crear modelo y vista
+  store := gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  treeView := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+  gtk_container_add(GTK_CONTAINER(scrolledLista), treeView);
+
+  // Columnas
+  renderer := gtk_cell_renderer_text_new();
+  
+  column := gtk_tree_view_column_new_with_attributes('Comunidad', renderer, 'text', 0, nil);
+  gtk_tree_view_column_set_min_width(column, 150);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('ID Msg', renderer, 'text', 1, nil);
+  gtk_tree_view_column_set_min_width(column, 70);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Fecha', renderer, 'text', 2, nil);
+  gtk_tree_view_column_set_min_width(column, 130);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Autor', renderer, 'text', 3, nil);
+  gtk_tree_view_column_set_min_width(column, 180);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  column := gtk_tree_view_column_new_with_attributes('Mensaje', renderer, 'text', 4, nil);
+  gtk_tree_view_column_set_min_width(column, 300);
+  gtk_tree_view_column_set_resizable(column, True);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  // Cargar todos los mensajes usando recorrido personalizado del BST
+  if ArbolComunidades <> nil then
+    RecorridoPersonalizadoBST(ArbolComunidades, @CallbackRecolectarMensajes, store);
+
+  // Si no hay mensajes, mostrar mensaje informativo
+  if totalComunidades = 0 then
+  begin
+    gtk_list_store_append(store, @iter);
+    gtk_list_store_set(store, @iter,
+                       0, PChar('--- Sin comunidades ---'),
+                       1, PChar('--'),
+                       2, PChar('--'),
+                       3, PChar('--'),
+                       4, PChar('No hay comunidades creadas en el BST'),
+                       -1);
+  end;
+
+  // Botón cerrar
+  btnBox := gtk_hbox_new(False, 0);
+  gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
+
+  btnCerrar := gtk_button_new_with_label('❌ Cerrar');
+  g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarMensajes), nil);
+  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, False, False, 0);
+
+  WriteLn('💬 Mostrando mensajes de ', totalComunidades, ' comunidades del BST');
+  gtk_widget_show_all(MensajesWindow);
+end;
+
+{ --- Ventana principal --- }
+
+procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain);
+var
+  window: PGtkWidget;
+  vbox, hboxCombo: PGtkWidget;
+  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnSalir: PGtkWidget; // ✅ AGREGAR btnControlLogin
+  lblComunidades: PGtkWidget;
+  store: PGtkListStore;
+  renderer: PGtkCellRenderer;
+begin
+  // Guardar referencias a las estructuras compartidas
+  GUsuarios := @usuarios;
+  GProgramados := @programados;
+  GBorradores := @borradores;
+  GFavoritos := @favoritos;
+  GBlockchain := @blockchainMail;
+
+  { Ventana }
+  window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW(window), 'Menú Root - EDDMail BST');
+  gtk_window_set_default_size(GTK_WINDOW(window), 500, 450); // ✅ AUMENTAR altura
+  gtk_container_set_border_width(GTK_CONTAINER(window), 20);
+
+  g_signal_connect(window, 'destroy', G_CALLBACK(@OnSalir), nil);
+
+  { Caja vertical }
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_add(GTK_CONTAINER(window), vbox);
+
+  { Botones principales }
+  btnCarga := gtk_button_new_with_label('1. Carga masiva JSON');
+  g_signal_connect(btnCarga, 'clicked', G_CALLBACK(@OnCargaMasiva), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnCarga, False, False, 0);
+
+  btnComunidad := gtk_button_new_with_label('2. 🌳 Crear comunidad BST');
+  g_signal_connect(btnComunidad, 'clicked', G_CALLBACK(@OnCrearComunidad), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnComunidad, False, False, 0);
+
+  { Sección de comunidades existentes }
+  lblComunidades := gtk_label_new('📋 Comunidades Existentes (BST):');
+  gtk_misc_set_alignment(GTK_MISC(lblComunidades), 0.0, 0.5);
+  gtk_box_pack_start(GTK_BOX(vbox), lblComunidades, False, False, 5);
+
+  hboxCombo := gtk_hbox_new(False, 10);
+  gtk_box_pack_start(GTK_BOX(vbox), hboxCombo, False, False, 0);
+
+  // Crear combo para comunidades
+  store := gtk_list_store_new(1, G_TYPE_STRING);
+  ComboComunidades := gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
+  
+  renderer := gtk_cell_renderer_text_new();
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(ComboComunidades), renderer, True);
+  gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(ComboComunidades), renderer, 'text', 0, nil);
+  
+  g_signal_connect(ComboComunidades, 'changed', G_CALLBACK(@OnSeleccionarComunidad), nil);
+  gtk_box_pack_start(GTK_BOX(hboxCombo), ComboComunidades, True, True, 0);
+
+  { Botones restantes }
+  btnReporte := gtk_button_new_with_label('3. 🌳 Reporte BST comunidades');
+  g_signal_connect(btnReporte, 'clicked', G_CALLBACK(@OnReporteComunidades), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnReporte, False, False, 0);
+
+  btnMensajes := gtk_button_new_with_label('4. 💬 Ver mensajes BST');
+  g_signal_connect(btnMensajes, 'clicked', G_CALLBACK(@OnVerMensajes), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnMensajes, False, False, 0);
+
+  // ✅ NUEVO BOTÓN: Control de Login
+  btnControlLogin := gtk_button_new_with_label('5. 🔐 Control de Logueo');
+  g_signal_connect(btnControlLogin, 'clicked', G_CALLBACK(@OnControlLogin), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnControlLogin, False, False, 0);
+
+  btnSalir := gtk_button_new_with_label('Salir');
+  g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnSalir), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnSalir, False, False, 0);
+
+  // Cargar comunidades iniciales en el combo
+  ActualizarComboComunidades();
+
+  gtk_widget_show_all(window);
+end;
+
+end.

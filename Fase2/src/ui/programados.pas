@@ -62,16 +62,57 @@ begin
   g_free(texto);
 end;
 
+function ValidarDestinatarioExiste(const emailDestinatario: String): Boolean;
+var
+  actual: PUsuario;
+begin
+  Result := False;
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+function ObtenerNombreContactoPorEmail(const emailDestinatario: String): String;
+var
+  actual: PUsuario;
+begin
+  Result := emailDestinatario; // Por defecto retornar el email
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := String(actual^.nombre);
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
 procedure OnProgramarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 var
   destinatario, asunto, mensaje: String;
   nuevoID: Integer;
+  nombreContacto: String;
 begin
   destinatario := StrPas(gtk_entry_get_text(PGtkEntry(EntryDestinatario)));
   asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
   mensaje := ObtenerTextoTextView(TextViewMensaje);
 
-  // Validaciones
+  // Validaciones básicas
   if (destinatario = '') or (asunto = '') or (mensaje = '') then
   begin
     MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
@@ -84,16 +125,33 @@ begin
     Exit;
   end;
 
+  // NUEVA VALIDACIÓN: Verificar que el destinatario existe
+  if not ValidarDestinatarioExiste(destinatario) then
+  begin
+    nombreContacto := destinatario;
+    MostrarMensaje('Contacto No Encontrado', 
+      'El destinatario "' + nombreContacto + '" no existe en tu lista de contactos.' + LineEnding + LineEnding +
+      'Para programar correos debes:' + LineEnding +
+      '1. Ir a "👥 Agregar Contacto" y registrar este email, o' + LineEnding +
+      '2. Pedirle al administrador que haga una carga masiva incluyendo este usuario' + LineEnding + LineEnding +
+      'Solo puedes enviar correos a contactos que estén registrados en el sistema.', 
+      GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Si el destinatario existe, obtener su nombre para mostrar confirmación
+  nombreContacto := ObtenerNombreContactoPorEmail(destinatario);
+
   // Programar correo (no enviar inmediatamente)
   nuevoID := GenerarNuevoIDCorreo();
   Encolar(GProgramados^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
   EstablecerEstadoCorreo(nuevoID, 'PROGRAMADO'); // Estado especial para programados
   
-  WriteLn('📅 Correo programado exitosamente: ', asunto);
+  WriteLn('📅 Correo programado exitosamente para: ', destinatario);
   
   MostrarMensaje('Correo Programado', 
-    'El correo ha sido programado exitosamente.' + LineEnding + 
-    'Para: ' + destinatario + LineEnding +
+    'El correo ha sido programado exitosamente.' + LineEnding + LineEnding +
+    'Para: ' + nombreContacto + ' (' + destinatario + ')' + LineEnding +
     'Asunto: ' + asunto + LineEnding + LineEnding +
     'Ve a "Ver Programados" para enviarlo cuando desees.', 
     GTK_MESSAGE_INFO);
@@ -107,12 +165,13 @@ procedure OnEnviarAhora(widget: PGtkWidget; data: gpointer); cdecl;
 var
   destinatario, asunto, mensaje: String;
   nuevoID: Integer;
+  nombreContacto: String;
 begin
   destinatario := StrPas(gtk_entry_get_text(PGtkEntry(EntryDestinatario)));
   asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
   mensaje := ObtenerTextoTextView(TextViewMensaje);
 
-  // Validaciones
+  // Validaciones básicas
   if (destinatario = '') or (asunto = '') or (mensaje = '') then
   begin
     MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
@@ -125,16 +184,33 @@ begin
     Exit;
   end;
 
+  // NUEVA VALIDACIÓN: Verificar que el destinatario existe
+  if not ValidarDestinatarioExiste(destinatario) then
+  begin
+    nombreContacto := destinatario;
+    MostrarMensaje('Contacto No Encontrado', 
+      'El destinatario "' + nombreContacto + '" no existe en tu lista de contactos.' + LineEnding + LineEnding +
+      'Para enviar correos debes:' + LineEnding +
+      '1. Ir a "👥 Agregar Contacto" y registrar este email, o' + LineEnding +
+      '2. Pedirle al administrador que haga una carga masiva incluyendo este usuario' + LineEnding + LineEnding +
+      'Solo puedes enviar correos a contactos que estén registrados en el sistema.', 
+      GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Si el destinatario existe, obtener su nombre para mostrar confirmación
+  nombreContacto := ObtenerNombreContactoPorEmail(destinatario);
+
   // Enviar correo inmediatamente a la cola
   nuevoID := GenerarNuevoIDCorreo();
   Encolar(GProgramados^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
   EstablecerEstadoCorreo(nuevoID, 'NL'); // No leído
   
-  WriteLn('✅ Correo enviado inmediatamente: ', asunto);
+  WriteLn('✅ Correo enviado inmediatamente a: ', destinatario);
   
   MostrarMensaje('Correo Enviado', 
-    'El correo ha sido enviado inmediatamente.' + LineEnding + 
-    'Para: ' + destinatario + LineEnding +
+    'El correo ha sido enviado inmediatamente.' + LineEnding + LineEnding +
+    'Para: ' + nombreContacto + ' (' + destinatario + ')' + LineEnding +
     'Asunto: ' + asunto, 
     GTK_MESSAGE_INFO);
   

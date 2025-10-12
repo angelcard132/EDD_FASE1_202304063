@@ -93,6 +93,9 @@ begin
 end;
 
 procedure OnCargaMasiva(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaUsuarios, rutaCorreos: String;
+  dialog: PGtkWidget;
 begin
   if (GUsuarios = nil) or (GProgramados = nil) or (GBorradores = nil) or (GFavoritos = nil) then
   begin
@@ -100,23 +103,56 @@ begin
     Exit;
   end;
 
-  // Reiniciar estructuras y cargar desde JSON
-  InicializarLista(GUsuarios^);
-  InicializarCola(GProgramados^);
-  arbol_avl.Inicializar(GBorradores^);
-  arbol_b.Inicializar(GFavoritos^);
+  // Usar las rutas correctas de los archivos JSON
+  rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/usuarios.json';
+  rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json';
 
-  // Carga masiva unificada (permite recargar si se desea)
-  CargaMasivaDesdeJSON('/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/usuarios.json', '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/datos/correos.json',
-                       GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+  WriteLn('🔄 Iniciando carga masiva desde root menu...');
+  WriteLn('📁 Archivo usuarios: ', rutaUsuarios);
+  WriteLn('📁 Archivo correos: ', rutaCorreos);
+
+  // Verificar que los archivos existen
+  if not FileExists(rutaUsuarios) then
+  begin
+    WriteLn('❌ Error: No se encuentra el archivo de usuarios');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_ERROR,
+      GTK_BUTTONS_OK,
+      PChar('Error: No se encuentra el archivo de usuarios en:' + #10 + rutaUsuarios));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+
+  if not FileExists(rutaCorreos) then
+  begin
+    WriteLn('❌ Error: No se encuentra el archivo de correos');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_ERROR,
+      GTK_BUTTONS_OK,
+      PChar('Error: No se encuentra el archivo de correos en:' + #10 + rutaCorreos));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+
+  // Carga masiva unificada con las rutas correctas
+  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
   g_print('>> ✅ Carga masiva completada.' + LineEnding);
 
-  gtk_message_dialog_new(nil,
+  dialog := gtk_message_dialog_new(nil,
     GTK_DIALOG_MODAL,
     GTK_MESSAGE_INFO,
     GTK_BUTTONS_OK,
-    'Carga masiva completada correctamente.');
+    PChar('✅ Carga masiva completada correctamente.' + #10 + #10 +
+          'Usuarios cargados: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
+          'Correos cargados: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 + #10 +
+          'Ahora puedes usar "Salir" para acceder con los nuevos usuarios.'));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
 end;
 
 procedure OnCrearComunidad(widget: PGtkWidget; data: gpointer); cdecl;

@@ -25,15 +25,56 @@ type
 
 var
   GEmailUsuario: String;
+  GUsuarios: ^TListaSimple = nil;
   GProgramados: ^TCola = nil;
+  GBorradores: ^PCorreoAVL = nil;
   GFavoritos: ^PNodoB = nil;
   GPapelera: ^TPila = nil;
   
   BandejaWindow: PGtkWidget = nil;
   ListaCorreos: PGtkWidget = nil;
   TextViewDetalle: PGtkWidget = nil;
+  LabelInfo: PGtkWidget = nil;
+  RespuestaWindow: PGtkWidget = nil;
   
-  CorreoSeleccionadoID: Integer = 0;
+  // Variables para el formulario de respuesta
+  EntryRespuestaPara: PGtkWidget = nil;
+  EntryRespuestaAsunto: PGtkWidget = nil;
+  TextViewRespuestaMensaje: PGtkWidget = nil;
+  
+  CorreoSeleccionado: Integer = 0;
+  CorreoSeleccionadoID: Integer = 0; // Agregar esta variable que falta
+
+{ === FUNCIONES AUXILIARES === }
+
+function GenerarNuevoIDCorreo(): Integer;
+begin
+  Result := Trunc(Now * 86400) mod 100000;
+end;
+
+procedure MostrarMensaje(const titulo, mensaje: String; tipoMensaje: TGtkMessageType);
+var
+  dialog: PGtkWidget;
+begin
+  dialog := gtk_message_dialog_new(nil, GTK_DIALOG_MODAL, tipoMensaje, GTK_BUTTONS_OK, PChar(mensaje));
+  gtk_window_set_title(GTK_WINDOW(dialog), PChar(titulo));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
+
+function ObtenerTextoTextView(textView: PGtkWidget): String;
+var
+  buffer: PGtkTextBuffer;
+  startIter, endIter: TGtkTextIter;
+  texto: PChar;
+begin
+  buffer := gtk_text_view_get_buffer(PGtkTextView(textView));
+  gtk_text_buffer_get_start_iter(buffer, @startIter);
+  gtk_text_buffer_get_end_iter(buffer, @endIter);
+  texto := gtk_text_buffer_get_text(buffer, @startIter, @endIter, False);
+  Result := StrPas(texto);
+  g_free(texto);
+end;
 
 function SanearUTF8(const s: String): String;
 var
@@ -736,6 +777,105 @@ begin
     MostrarNotificacion('❌ No se pudo encontrar el correo seleccionado', GTK_MESSAGE_ERROR);
 end;
 
+function ValidarDestinatarioExiste(const emailDestinatario: String): Boolean;
+var
+  actual: PUsuario;
+begin
+  Result := False;
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+function ObtenerNombreContactoPorEmail(const emailDestinatario: String): String;
+var
+  actual: PUsuario;
+begin
+  Result := emailDestinatario; // Por defecto retornar el email
+  
+  if GUsuarios = nil then Exit;
+  
+  actual := GUsuarios^.cabeza;
+  while actual <> nil do
+  begin
+    if LowerCase(String(actual^.email)) = LowerCase(emailDestinatario) then
+    begin
+      Result := String(actual^.nombre);
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+procedure OnEnviarRespuesta(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  para, asunto, mensaje: String;
+  nuevoID: Integer;
+  nombreContacto: String;
+begin
+  para := StrPas(gtk_entry_get_text(PGtkEntry(EntryRespuestaPara)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryRespuestaAsunto)));
+  mensaje := ObtenerTextoTextView(TextViewRespuestaMensaje);
+
+  // Validaciones básicas
+  if (para = '') or (asunto = '') or (mensaje = '') then
+  begin
+    MostrarMensaje('Error de Validación', 'Todos los campos son obligatorios.', GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  if Pos('@', para) = 0 then
+  begin
+    MostrarMensaje('Error de Validación', 'El email del destinatario debe contener @.', GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // NUEVA VALIDACIÓN: Verificar que el destinatario existe
+  if not ValidarDestinatarioExiste(para) then
+  begin
+    nombreContacto := para;
+    MostrarMensaje('Contacto No Encontrado', 
+      'El destinatario "' + nombreContacto + '" no existe en tu lista de contactos.' + LineEnding + LineEnding +
+      'Para enviar correos debes:' + LineEnding +
+      '1. Agregar el contacto desde "👥 Agregar Contacto", o' + LineEnding +
+      '2. Pedirle al administrador que cargue masivamente a este usuario' + LineEnding + LineEnding +
+      'Solo puedes enviar correos a contactos registrados en el sistema.', 
+      GTK_MESSAGE_ERROR);
+    Exit;
+  end;
+
+  // Si el destinatario existe, obtener su nombre para mostrar confirmación
+  nombreContacto := ObtenerNombreContactoPorEmail(para);
+
+  // Generar ID y enviar correo
+  nuevoID := GenerarNuevoIDCorreo();
+  Encolar(GProgramados^, nuevoID, GEmailUsuario, para, asunto, mensaje);
+  EstablecerEstadoCorreo(nuevoID, 'NL'); // Estado: No Leído
+  
+  WriteLn('✅ Respuesta enviada exitosamente a: ', para);
+  
+  MostrarMensaje('Respuesta Enviada', 
+    'La respuesta ha sido enviada exitosamente.' + LineEnding + LineEnding +
+    'Para: ' + nombreContacto + ' (' + para + ')' + LineEnding +
+    'Asunto: ' + asunto + LineEnding + LineEnding +
+    'El correo aparecerá en la bandeja del destinatario.', 
+    GTK_MESSAGE_INFO);
+  
+  // Cerrar ventana de respuesta
+  if Assigned(RespuestaWindow) then
+    gtk_widget_destroy(RespuestaWindow);
+end;
+
 procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
@@ -855,116 +995,6 @@ begin
   // Establecer mensaje inicial en TextView
   gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), 
     'Selecciona un correo de la lista para ver sus detalles completos aquí.', -1);
-
-  // Cargar correos iniciales
-  WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
-  lista := ObtenerCorreosRecibidos(GEmailUsuario);
-  CargarCorreosEnLista(lista);
-  LiberarListaCorreos(lista);
-
-  WriteLn('DEBUG - Bandeja de entrada mostrada completamente');
-  gtk_widget_show_all(BandejaWindow);
-end;
-
-end.
-    'Selecciona un correo de la lista para ver sus detalles completos aquí.', -1);
-
-  // Cargar correos iniciales
-  WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
-  lista := ObtenerCorreosRecibidos(GEmailUsuario);
-  CargarCorreosEnLista(lista);
-  LiberarListaCorreos(lista);
-
-  WriteLn('DEBUG - Bandeja de entrada mostrada completamente');
-  gtk_widget_show_all(BandejaWindow);
-end;
-
-end.
-  gtk_container_add(GTK_CONTAINER(BandejaWindow), hpaned);
-
-  // Panel izquierdo - Lista de correos
-  vboxIzq := gtk_vbox_new(False, 10);
-  gtk_container_set_border_width(GTK_CONTAINER(vboxIzq), 10);
-  gtk_paned_add1(GTK_PANED(hpaned), vboxIzq);
-
-  lblTitulo := gtk_label_new('Correos Recibidos');
-  gtk_box_pack_start(GTK_BOX(vboxIzq), lblTitulo, False, False, 0);
-
-  // Lista de correos
-  scrolledLista := gtk_scrolled_window_new(nil, nil);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledLista), 
-                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_box_pack_start(GTK_BOX(vboxIzq), scrolledLista, True, True, 0);
-
-  // Crear modelo y vista - solo 4 columnas
-  store := gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-  ListaCorreos := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
-  gtk_container_add(GTK_CONTAINER(scrolledLista), ListaCorreos);
-
-  // Columnas
-  renderer := gtk_cell_renderer_text_new();
-  
-  column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
-  gtk_tree_view_column_set_min_width(column, 40);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
-
-  column := gtk_tree_view_column_new_with_attributes('De', renderer, 'text', 1, nil);
-  gtk_tree_view_column_set_min_width(column, 180);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
-
-  column := gtk_tree_view_column_new_with_attributes('Asunto', renderer, 'text', 2, nil);
-  gtk_tree_view_column_set_min_width(column, 200);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
-
-  column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
-  gtk_tree_view_column_set_min_width(column, 120);
-  gtk_tree_view_append_column(GTK_TREE_VIEW(ListaCorreos), column);
-
-  // Conectar selección
-  g_signal_connect(gtk_tree_view_get_selection(PGtkTreeView(ListaCorreos)), 
-                   'changed', G_CALLBACK(@OnSeleccionarCorreo), nil);
-
-  // Botones - agregar botón de eliminar
-  btnBox := gtk_hbox_new(True, 5);
-  gtk_box_pack_start(GTK_BOX(vboxIzq), btnBox, False, False, 0);
-
-  btnActualizar := gtk_button_new_with_label('🔄 Actualizar');
-  g_signal_connect(btnActualizar, 'clicked', G_CALLBACK(@OnActualizarBandeja), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnActualizar, True, True, 0);
-
-  btnFavoritos := gtk_button_new_with_label('⭐ A Favoritos');
-  g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnAgregarAFavoritos), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnFavoritos, True, True, 0);
-
-  btnEliminar := gtk_button_new_with_label('🗑️ Eliminar');
-  g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarCorreo), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnEliminar, True, True, 0);
-
-  btnGrafica := gtk_button_new_with_label('📊 Gráfica');
-  g_signal_connect(btnGrafica, 'clicked', G_CALLBACK(@OnGenerarGrafica), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnGrafica, True, True, 0);
-
-  btnCerrar := gtk_button_new_with_label('❌ Cerrar');
-  g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarBandeja), nil);
-  gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, True, 0);
-
-  // Panel derecho - Detalle del correo
-  vboxDer := gtk_vbox_new(False, 10);
-  gtk_container_set_border_width(GTK_CONTAINER(vboxDer), 10);
-  gtk_paned_add2(GTK_PANED(hpaned), vboxDer);
-
-  lblDetalle := gtk_label_new('Detalle del correo:');
-  gtk_box_pack_start(GTK_BOX(vboxDer), lblDetalle, False, False, 0);
-
-  scrolledDetalle := gtk_scrolled_window_new(nil, nil);
-  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledDetalle), 
-                                 GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_box_pack_start(GTK_BOX(vboxDer), scrolledDetalle, True, True, 0);
-
-  TextViewDetalle := gtk_text_view_new();
-  gtk_text_view_set_editable(PGtkTextView(TextViewDetalle), False);
-  gtk_text_view_set_wrap_mode(PGtkTextView(TextViewDetalle), GTK_WRAP_WORD);
-  gtk_container_add(GTK_CONTAINER(scrolledDetalle), TextViewDetalle);
 
   // Cargar correos iniciales
   WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
