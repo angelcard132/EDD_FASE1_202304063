@@ -2,7 +2,7 @@ program Main;
 
 uses
   gtk2, glib2,
-  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login, // ✅ AGREGAR control_login
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login,
   json_loader, login;
 
 var
@@ -11,16 +11,21 @@ var
   borradores: PCorreoAVL;
   favoritos: PNodoB;
   blockchainMail: TBlockchain;
-  papelera: TPila; // ✅ AGREGAR papelera
+  papelera: TPila;
 
 begin
+  // ✅ INICIALIZAR GENERADOR DE NÚMEROS ALEATORIOS
+  Randomize;
+  
   // Inicializar todas las estructuras
   InicializarLista(usuarios);
   InicializarCola(programados);
   arbol_avl.Inicializar(borradores);
   arbol_b.Inicializar(favoritos);
   InicializarBlockchain(blockchainMail);
-  InicializarPila(papelera); // ✅ INICIALIZAR papelera
+  InicializarPila(papelera);
+
+  WriteLn('🔧 DEBUG: Aplicación iniciada, generador aleatorio inicializado');
 
   // Inicializar GTK y mostrar login
   gtk_init(@argc, @argv);
@@ -29,5 +34,5 @@ begin
   
   // Limpiar memoria al final
   LiberarBlockchain(blockchainMail);
-  LiberarControlLogin(); // ✅ LIMPIAR control de login
+  LiberarControlLogin();
 end.

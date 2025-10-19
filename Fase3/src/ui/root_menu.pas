@@ -111,9 +111,9 @@ begin
     Exit;
   end;
 
-  // Usar las rutas correctas de los archivos JSON
-  rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/usuarios.json';
-  rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase2/assets/correos.json';
+  // ✅ USAR RUTAS CORRECTAS DE FASE3
+  rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/usuarios.json';
+  rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/correos.json';
 
   WriteLn('🔄 Iniciando carga masiva desde root menu...');
   WriteLn('📁 Archivo usuarios: ', rutaUsuarios);
@@ -127,7 +127,8 @@ begin
       GTK_DIALOG_MODAL,
       GTK_MESSAGE_ERROR,
       GTK_BUTTONS_OK,
-      PChar('Error: No se encuentra el archivo de usuarios en:' + #10 + rutaUsuarios));
+      PChar('Error: No se encuentra el archivo de usuarios en:' + #10 + rutaUsuarios + #10 + #10 +
+            'Por favor verifica que el archivo existe en la carpeta Fase3/assets/'));
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
     Exit;
@@ -140,13 +141,14 @@ begin
       GTK_DIALOG_MODAL,
       GTK_MESSAGE_ERROR,
       GTK_BUTTONS_OK,
-      PChar('Error: No se encuentra el archivo de correos en:' + #10 + rutaCorreos));
+      PChar('Error: No se encuentra el archivo de correos en:' + #10 + rutaCorreos + #10 + #10 +
+            'Por favor verifica que el archivo existe en la carpeta Fase3/assets/'));
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
     Exit;
   end;
 
-  // Carga masiva unificada con las rutas correctas
+  // ✅ CARGA MASIVA SIMPLIFICADA
   CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
   g_print('>> ✅ Carga masiva completada.' + LineEnding);
@@ -158,6 +160,8 @@ begin
     PChar('✅ Carga masiva completada correctamente.' + #10 + #10 +
           'Usuarios cargados: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
           'Correos cargados: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 + #10 +
+          '📝 Borradores y favoritos inician vacíos' + #10 +
+          '📧 Solo se cargan correos con estado NL (No Leído) o L (Leído)' + #10 + #10 +
           'Ahora puedes usar "Salir" para acceder con los nuevos usuarios.'));
   gtk_dialog_run(GTK_DIALOG(dialog));
   gtk_widget_destroy(dialog);
@@ -365,6 +369,7 @@ begin
 
   column := gtk_tree_view_column_new_with_attributes('Estado', renderer, 'text', 3, nil);
   gtk_tree_view_column_set_min_width(column, 100);
+  gtk_tree_view_column_set_resizable(column, True);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   contador := 0;
@@ -437,11 +442,15 @@ begin
   // ✅ REGISTRAR SALIDA DE ROOT
   RegistrarSalida('root@sistema.admin');
   
-  // Cerrar ventana actual y regresar al login
+  // ✅ CERRAR ventana actual sin terminar la aplicación
   if Assigned(widget) then
+  begin
+    WriteLn('🔧 DEBUG: Cerrando ventana root...');
     gtk_widget_destroy(gtk_widget_get_toplevel(widget));
+  end;
   
-  // Reabrir login para que usuarios normales puedan autenticarse
+  // ✅ VOLVER AL LOGIN SIN TERMINAR LA APLICACIÓN
+  WriteLn('🔧 DEBUG: Regresando al login desde ROOT...');
   if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GBlockchain <> nil) then
     MostrarLogin(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GBlockchain^);
 end;
@@ -616,11 +625,13 @@ procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; va
 var
   window: PGtkWidget;
   vbox, hboxCombo: PGtkWidget;
-  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnSalir: PGtkWidget; // ✅ AGREGAR btnControlLogin
+  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnSalir: PGtkWidget;
   lblComunidades: PGtkWidget;
   store: PGtkListStore;
   renderer: PGtkCellRenderer;
 begin
+  WriteLn('🔧 DEBUG: Iniciando MostrarMenuRoot');
+  
   // Guardar referencias a las estructuras compartidas
   GUsuarios := @usuarios;
   GProgramados := @programados;
@@ -628,12 +639,19 @@ begin
   GFavoritos := @favoritos;
   GBlockchain := @blockchainMail;
 
+  WriteLn('🔧 DEBUG: Referencias guardadas');
+
   { Ventana }
   window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), 'Menú Root - EDDMail BST');
-  gtk_window_set_default_size(GTK_WINDOW(window), 500, 450); // ✅ AUMENTAR altura
+  gtk_window_set_default_size(GTK_WINDOW(window), 500, 450);
+  gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width(GTK_CONTAINER(window), 20);
 
+  WriteLn('🔧 DEBUG: Ventana creada');
+
+  // ✅ CONECTAR EVENTO DELETE PARA NO TERMINAR LA APLICACIÓN
+  g_signal_connect(window, 'delete-event', G_CALLBACK(@gtk_widget_hide_on_delete), nil);
   g_signal_connect(window, 'destroy', G_CALLBACK(@OnSalir), nil);
 
   { Caja vertical }
@@ -677,19 +695,22 @@ begin
   g_signal_connect(btnMensajes, 'clicked', G_CALLBACK(@OnVerMensajes), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnMensajes, False, False, 0);
 
-  // ✅ NUEVO BOTÓN: Control de Login
   btnControlLogin := gtk_button_new_with_label('5. 🔐 Control de Logueo');
   g_signal_connect(btnControlLogin, 'clicked', G_CALLBACK(@OnControlLogin), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnControlLogin, False, False, 0);
 
-  btnSalir := gtk_button_new_with_label('Salir');
+  btnSalir := gtk_button_new_with_label('🚪 Cerrar Sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnSalir), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnSalir, False, False, 0);
+
+  WriteLn('🔧 DEBUG: Botones creados');
 
   // Cargar comunidades iniciales en el combo
   ActualizarComboComunidades();
 
+  WriteLn('🔧 DEBUG: Mostrando ventana root...');
   gtk_widget_show_all(window);
+  WriteLn('✅ Menú root mostrado exitosamente');
 end;
 
 end.

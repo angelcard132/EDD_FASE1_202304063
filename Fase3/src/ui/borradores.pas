@@ -6,9 +6,9 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  arbol_avl, cola2, json_loader, blockchain;
+  arbol_avl, cola2, json_loader, blockchain, pila2; 
 
-procedure MostrarGestorBorradores(const emailUsuario: String; var borradores: PCorreoAVL; var programados: TCola; var blockchainMail: TBlockchain);
+procedure MostrarGestorBorradores(const emailUsuario: String; var borradores: PCorreoAVL; var programados: TCola; var blockchainMail: TBlockchain; var papelera: TPila); // ✅ AGREGAR papelera
 
 implementation
 
@@ -28,6 +28,7 @@ var
   GBorradores: ^PCorreoAVL;
   GProgramados: ^TCola;
   GBlockchain: ^TBlockchain = nil; // ✅ AGREGAR referencia blockchain
+  GPapelera: ^TPila = nil; // ✅ NUEVA: referencia a papelera
   
   BorradoresWindow: PGtkWidget;
   ListaBorradores: PGtkWidget;
@@ -216,63 +217,61 @@ begin
   WriteLn('📝 Nuevo borrador iniciado');
 end;
 
-procedure OnGuardarBorrador(widget: PGtkWidget; data: gpointer); cdecl;
-var
-  destinatario, asunto, mensaje: String;
-  buffer: PGtkTextBuffer;
-  start_iter, end_iter: TGtkTextIter;
-  texto: PChar;
-  nuevoID: Integer;
+function GenerarNuevoIDBorrador(): Integer;
 begin
-  destinatario := StrPas(gtk_entry_get_text(GTK_ENTRY(EntryDestinatario)));
-  asunto := StrPas(gtk_entry_get_text(GTK_ENTRY(EntryAsunto)));
-  
-  buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewMensaje));
-  gtk_text_buffer_get_start_iter(buffer, @start_iter);
-  gtk_text_buffer_get_end_iter(buffer, @end_iter);
-  texto := gtk_text_buffer_get_text(buffer, @start_iter, @end_iter, False);
-  mensaje := StrPas(texto);
-  g_free(texto);
-  
-  if (destinatario = '') or (asunto = '') then
-  begin
-    WriteLn('⚠️ Destinatario y asunto son obligatorios');
-    Exit;
-  end;
-  
-  if BorradorSeleccionado > 0 then
-  begin
-    // Actualizar borrador existente
-    if Actualizar(GBorradores^, BorradorSeleccionado, GEmailUsuario, destinatario, asunto, mensaje) then
-    begin
-      WriteLn('✅ Borrador actualizado ID: ', BorradorSeleccionado);
-      CargarBorradoresEnLista;
-    end
-    else
-      WriteLn('❌ Error al actualizar borrador');
-  end
-  else
-  begin
-    // Crear nuevo borrador
-    Inc(ContadorID);
-    nuevoID := ContadorID;
-    GBorradores^ := Insertar(GBorradores^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
+  // ✅ GENERAR SIEMPRE IDs POSITIVOS para borradores con offset específico
+  Inc(ContadorID);
+  Result := Abs(5000 + ContadorID + Trunc(Now * 1000) mod 1000); // Base 5000 + contador + milisegundos
+  if Result <= 0 then
+    Result := 5000 + ContadorID; // Fallback simple
     
-    WriteLn('✅ Nuevo borrador guardado ID: ', nuevoID);
-    CargarBorradoresEnLista;
-    LimpiarFormulario;
-  end;
+  WriteLn('🔧 DEBUG: ID borrador generado: ', Result, ' (Contador: ', ContadorID, ')');
 end;
 
 procedure OnEliminarBorrador(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  nodo: PCorreoAVL;
 begin
   if BorradorSeleccionado > 0 then
   begin
-    GBorradores^ := Eliminar(GBorradores^, BorradorSeleccionado);
-    WriteLn('🗑️ Borrador eliminado ID: ', BorradorSeleccionado);
-    
-    CargarBorradoresEnLista;
-    LimpiarFormulario;
+    // ✅ BUSCAR EL BORRADOR ANTES DE ELIMINARLO
+    nodo := Buscar(GBorradores^, BorradorSeleccionado);
+    if nodo <> nil then
+    begin
+      // ✅ MOVER A PAPELERA EN LUGAR DE SOLO ELIMINAR
+      if GPapelera <> nil then
+      begin
+        Apilar(GPapelera^, nodo^.id, nodo^.remitente, nodo^.destinatario, nodo^.asunto, nodo^.mensaje);
+        WriteLn('🗑️ Borrador movido a papelera ID: ', BorradorSeleccionado);
+      end;
+      
+      // ✅ ELIMINAR DEL ÁRBOL AVL
+      GBorradores^ := Eliminar(GBorradores^, BorradorSeleccionado);
+      WriteLn('📝 Borrador eliminado del AVL ID: ', BorradorSeleccionado);
+      
+      CargarBorradoresEnLista;
+      LimpiarFormulario;
+      
+      // ✅ MOSTRAR MENSAJE INFORMATIVO SOBRE PAPELERA
+      gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO,
+        GTK_BUTTONS_OK,
+        PChar('🗑️ Borrador movido a papelera' + #10 + #10 +
+              'El borrador ha sido:' + #10 +
+              '• Eliminado de borradores' + #10 +
+              '• Movido a la papelera' + #10 + #10 +
+              'Puedes recuperarlo desde "🗑️ Papelera"'));
+    end
+    else
+    begin
+      WriteLn('❌ Error: Borrador no encontrado en AVL');
+      gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_ERROR,
+        GTK_BUTTONS_OK,
+        'Error: No se pudo encontrar el borrador seleccionado.');
+    end;
   end
   else
     WriteLn('⚠️ Selecciona un borrador para eliminar');
@@ -354,7 +353,62 @@ begin
   Result := True;
 end;
 
-procedure MostrarGestorBorradores(const emailUsuario: String; var borradores: PCorreoAVL; var programados: TCola; var blockchainMail: TBlockchain);
+procedure OnGuardarBorrador(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  destinatario, asunto, mensaje: String;
+  buffer: PGtkTextBuffer;
+  start_iter, end_iter: TGtkTextIter;
+  texto: PChar;
+  nuevoID: Integer;
+begin
+  destinatario := StrPas(gtk_entry_get_text(PGtkEntry(EntryDestinatario)));
+  asunto := StrPas(gtk_entry_get_text(PGtkEntry(EntryAsunto)));
+  
+  buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewMensaje));
+  gtk_text_buffer_get_start_iter(buffer, @start_iter);
+  gtk_text_buffer_get_end_iter(buffer, @end_iter);
+  texto := gtk_text_buffer_get_text(buffer, @start_iter, @end_iter, False);
+  mensaje := StrPas(texto);
+  g_free(texto);
+  
+  if (destinatario = '') or (asunto = '') then
+  begin
+    WriteLn('⚠️ Destinatario y asunto son obligatorios');
+    Exit;
+  end;
+  
+  if BorradorSeleccionado > 0 then
+  begin
+    // Actualizar borrador existente
+    if Actualizar(GBorradores^, BorradorSeleccionado, GEmailUsuario, destinatario, asunto, mensaje) then
+    begin
+      WriteLn('✅ Borrador actualizado ID: ', BorradorSeleccionado);
+      CargarBorradoresEnLista;
+    end
+    else
+      WriteLn('❌ Error al actualizar borrador');
+  end
+  else
+  begin
+    // ✅ CREAR NUEVO BORRADOR CON ID POSITIVO GARANTIZADO
+    nuevoID := GenerarNuevoIDBorrador();
+    
+    // ✅ VERIFICACIÓN ADICIONAL: Asegurar que sea positivo
+    if nuevoID <= 0 then
+    begin
+      nuevoID := 5000 + Random(50000); // ID aleatorio entre 5000-54999
+      WriteLn('⚠️ ID corregido a positivo: ', nuevoID);
+    end;
+    
+    GBorradores^ := Insertar(GBorradores^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
+    
+    WriteLn('✅ Nuevo borrador guardado ID: ', nuevoID, ' (POSITIVO GARANTIZADO)');
+    CargarBorradoresEnLista;
+    LimpiarFormulario;
+  end;
+end;
+
+procedure MostrarGestorBorradores(const emailUsuario: String; var borradores: PCorreoAVL; var programados: TCola; var blockchainMail: TBlockchain; var papelera: TPila); // ✅ AGREGAR papelera
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledMensaje: PGtkWidget;
   lblTitulo, lblDestinatario, lblAsunto, lblMensaje: PGtkWidget;
@@ -370,9 +424,12 @@ begin
   GBorradores := @borradores;
   GProgramados := @programados;
   GBlockchain := @blockchainMail; // ✅ AGREGAR referencia blockchain
+  GPapelera := @papelera; // ✅ NUEVA: inicializar referencia papelera
 
   BorradorSeleccionado := 0;
-  ContadorID := 1000;
+  ContadorID := Random(1000) + 1000; // ✅ INICIALIZAR con número aleatorio positivo base
+  
+  WriteLn('🔧 DEBUG: Contador ID inicializado en: ', ContadorID);
   
   if Assigned(BorradoresWindow) then
     gtk_widget_destroy(BorradoresWindow);
@@ -490,7 +547,7 @@ begin
   g_signal_connect(btnGuardar, 'clicked', G_CALLBACK(@OnGuardarBorrador), nil);
   gtk_box_pack_start(GTK_BOX(btnBox1), btnGuardar, True, True, 0);
   
-  btnEliminar := gtk_button_new_with_label('Eliminar');
+  btnEliminar := gtk_button_new_with_label('🗑️ Mover a Papelera'); // ✅ CAMBIAR TEXTO DEL BOTÓN
   g_signal_connect(btnEliminar, 'clicked', G_CALLBACK(@OnEliminarBorrador), nil);
   gtk_box_pack_start(GTK_BOX(btnBox1), btnEliminar, True, True, 0);
   

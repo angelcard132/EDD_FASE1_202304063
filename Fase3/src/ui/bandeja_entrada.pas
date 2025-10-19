@@ -6,7 +6,7 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar, blockchain;
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar, blockchain, lzw_compression; // ✅ AGREGAR lzw_compression
 
 procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain);
 
@@ -45,6 +45,8 @@ var
   
   CorreoSeleccionado: Integer = 0;
   CorreoSeleccionadoID: Integer = 0; // Agregar esta variable que falta
+
+  btnDescargar: PGtkWidget = nil; // Nuevo botón de descarga
 
 { === FUNCIONES AUXILIARES === }
 
@@ -272,6 +274,128 @@ begin
   Result := Pos(buscadoNormalizado, emailNormalizado) > 0;
 end;
 
+procedure OnDescargarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  actual: cola2.PCorreo;
+  encontrado: Boolean;
+  contenidoCorreo: String;
+  contenidoComprimido: String;
+  contenidoDescomprimido: String;
+  rutaDir, rutaArchivo: String;
+  archivo: TextFile;
+  tamanoOriginal, tamanoComprimido: Integer;
+  ratioCompresion: Real;
+  fechaHora: String;
+begin
+  if CorreoSeleccionadoID <= 0 then
+  begin
+    MostrarMensaje('Error', 'Selecciona un correo para descargar.', GTK_MESSAGE_WARNING);
+    Exit;
+  end;
+
+  WriteLn('📥 Iniciando descarga con compresión LZW para correo ID: ', CorreoSeleccionadoID);
+
+  // Buscar el correo completo en la cola
+  encontrado := False;
+  actual := GProgramados^.frente;
+  
+  while actual <> nil do
+  begin
+    if actual^.id = CorreoSeleccionadoID then
+    begin
+      encontrado := True;
+      
+      // ✅ CREAR CONTENIDO SIMPLIFICADO: solo fecha, hora y mensaje
+      fechaHora := FormatDateTime('yyyy-mm-dd hh:nn:ss', Now);
+      
+      contenidoCorreo := fechaHora + #13#10 + String(actual^.mensaje);
+      
+      WriteLn('📄 Contenido simplificado preparado. Tamaño original: ', Length(contenidoCorreo), ' caracteres');
+      
+      // Comprimir con LZW
+      WriteLn('🗜️ Aplicando compresión LZW...');
+      contenidoComprimido := ComprimirLZW(contenidoCorreo);
+      
+      // ✅ DESCOMPRIMIR PARA VERIFICAR QUE FUNCIONA CORRECTAMENTE
+      WriteLn('🔄 Descomprimiendo para verificación...');
+      contenidoDescomprimido := DescomprimirLZW(contenidoComprimido);
+      
+      // Calcular estadísticas de compresión
+      tamanoOriginal := Length(contenidoCorreo);
+      tamanoComprimido := Length(contenidoComprimido);
+      
+      if tamanoOriginal > 0 then
+        ratioCompresion := (1 - (tamanoComprimido / tamanoOriginal)) * 100
+      else
+        ratioCompresion := 0;
+      
+      WriteLn('📊 Estadísticas de compresión:');
+      WriteLn('   Tamaño original: ', tamanoOriginal, ' caracteres');
+      WriteLn('   Tamaño comprimido: ', tamanoComprimido, ' caracteres');
+      WriteLn('   Ratio de compresión: ', ratioCompresion:0:2, '%');
+      
+      // Crear directorio de descargas si no existe
+      rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/descargas';
+      if not DirectoryExists(rutaDir) then
+      begin
+        CreateDir(rutaDir);
+        WriteLn('📁 Directorio de descargas creado: ', rutaDir);
+      end;
+      
+      // Crear nombre de archivo único
+      rutaArchivo := rutaDir + '/correo_' + IntToStr(actual^.id) + '_' + 
+                     FormatDateTime('yyyymmdd_hhnnss', Now) + '_comprimido.txt';
+      
+      // ✅ GUARDAR ARCHIVO CON AMBOS: COMPRIMIDO Y DESCOMPRIMIDO
+      try
+        AssignFile(archivo, rutaArchivo);
+        Rewrite(archivo);
+        
+        // Escribir los datos comprimidos (códigos LZW)
+        WriteLn(archivo, '=== DATOS COMPRIMIDOS LZW ===');
+        WriteLn(archivo, contenidoComprimido);
+        WriteLn(archivo, '');
+        WriteLn(archivo, '=== DATOS DESCOMPRIMIDOS ===');
+        WriteLn(archivo, contenidoDescomprimido);
+        
+        CloseFile(archivo);
+        
+        WriteLn('✅ Archivo guardado exitosamente: ', rutaArchivo);
+        
+        // Mostrar mensaje de éxito con estadísticas
+        MostrarMensaje('📥 Descarga Completada', 
+          'Correo descargado y comprimido exitosamente!' + LineEnding + LineEnding +
+          '📄 Archivo: ' + ExtractFileName(rutaArchivo) + LineEnding +
+          '📁 Ubicación: /descargas/' + LineEnding + LineEnding +
+          '📊 Estadísticas de compresión LZW:' + LineEnding +
+          '• Tamaño original: ' + IntToStr(tamanoOriginal) + ' caracteres' + LineEnding +
+          '• Tamaño comprimido: ' + IntToStr(tamanoComprimido) + ' caracteres' + LineEnding +
+          '• Compresión: ' + FloatToStrF(ratioCompresion, ffFixed, 0, 2) + '%' + LineEnding + LineEnding +
+          '💡 El archivo contiene datos comprimidos y descomprimidos.',
+          GTK_MESSAGE_INFO);
+          
+      except
+        on E: Exception do
+        begin
+          WriteLn('❌ Error al guardar archivo: ', E.Message);
+          MostrarMensaje('Error de Archivo', 
+            'No se pudo guardar el archivo:' + LineEnding + E.Message, 
+            GTK_MESSAGE_ERROR);
+        end;
+      end;
+      
+      Break;
+    end;
+    actual := actual^.siguiente;
+  end;
+  
+  if not encontrado then
+  begin
+    WriteLn('❌ Correo no encontrado en cola');
+    MostrarMensaje('Error', 'No se pudo encontrar el correo seleccionado.', GTK_MESSAGE_ERROR);
+  end;
+end;
+
 procedure OnSeleccionarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 var
   selection: PGtkTreeSelection;
@@ -313,10 +437,10 @@ begin
     
     // Obtener datos de la fila seleccionada
     gtk_tree_model_get(model, @iter, 
-                       0, @idStr,       // Columna 0: ID
-                       1, @remitente,   // Columna 1: De (remitente)  
-                       2, @asunto,      // Columna 2: Asunto
-                       3, @estado,      // Columna 3: Estado
+                       0, @idStr,
+                       1, @remitente,
+                       2, @asunto,
+                       3, @estado,
                        -1);
 
     WriteLn('DEBUG - Datos obtenidos del modelo GTK');
@@ -357,20 +481,17 @@ begin
 
     if correoID <> 0 then
     begin
-      CorreoSeleccionadoID := correoID; // Guardar ID para otras operaciones
+      CorreoSeleccionadoID := correoID;
       WriteLn('DEBUG - Buscando mensaje completo para ID: ', correoID);
 
-      // Obtener estado actual del correo
       estadoAnterior := ObtenerEstadoCorreo(correoID);
       WriteLn('DEBUG - Estado anterior del correo: "', estadoAnterior, '"');
 
-      // Si el correo está "No Leído", marcarlo como "Leído"
       if (estadoAnterior = 'NL') or (estadoStr = 'No Leído') then
       begin
         EstablecerEstadoCorreo(correoID, 'L');
         WriteLn('📖 Correo marcado como LEÍDO: ID ', correoID);
         
-        // Actualizar la fila en la interfaz inmediatamente
         store := PGtkListStore(model);
         gtk_list_store_set(store, @iter, 3, PChar('Leído'), -1);
         WriteLn('✅ Estado actualizado en interfaz: No Leído -> Leído');
@@ -413,41 +534,44 @@ begin
       asuntoStr := LimpiarTextoParaGTK(asuntoStr);
       mensaje := LimpiarTextoParaGTK(mensaje);
 
-      // Construir texto de detalle con estado actualizado
+      // ✅ AGREGAR BOTÓN DE DESCARGA AL DETALLE
       textoDetalle := 'DETALLE DEL CORREO' + #13#10 +
                       '==================' + #13#10 + #13#10 +
                       'ID: ' + IntToStr(correoID) + #13#10 +
                       'De: ' + remitenteStr + #13#10 +
                       'Para: ' + LimpiarTextoParaGTK(GEmailUsuario) + #13#10 +
-                      'Estado: Leído' + #13#10 + #13#10 +  // Siempre mostrar como "Leído" después de ver
+                      'Estado: Leído' + #13#10 + #13#10 +
                       'ASUNTO:' + #13#10 +
                       asuntoStr + #13#10 + #13#10 +
                       'MENSAJE:' + #13#10 +
                       '--------' + #13#10 +
-                      mensaje;
+                      mensaje + #13#10 + #13#10 +
+                      '==================' + #13#10 +
+                      '💡 Usa el botón "📥 Descargar" para guardar' + #13#10 +
+                      'este correo como archivo .txt comprimido con LZW';
 
       WriteLn('DEBUG - Texto detalle construido, longitud: ', Length(textoDetalle));
-      WriteLn('DEBUG - Primeros 200 chars limpios: "', Copy(textoDetalle, 1, 200), '"');
 
-      // Mostrar en TextView de forma segura
       if TextViewDetalle <> nil then
       begin
         buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
         if buffer <> nil then
         begin
           try
-            // Limpiar buffer primero
             gtk_text_buffer_set_text(buffer, '', 0);
-            
-            // Establecer texto limpio
             gtk_text_buffer_set_text(buffer, PChar(textoDetalle), Length(textoDetalle));
-            WriteLn('DEBUG - Texto establecido en buffer exitosamente sin errores UTF-8');
+            WriteLn('DEBUG - Texto establecido en buffer exitosamente');
             
-            // Forzar actualización de la interfaz
+            // ✅ HABILITAR BOTÓN DE DESCARGA
+            if btnDescargar <> nil then
+            begin
+              gtk_widget_set_sensitive(btnDescargar, True);
+              WriteLn('📥 Botón de descarga habilitado para correo ID: ', correoID);
+            end;
+            
             gtk_widget_queue_draw(TextViewDetalle);
-            gtk_widget_queue_draw(ListaCorreos); // También actualizar la lista
+            gtk_widget_queue_draw(ListaCorreos);
             
-            // Procesar eventos pendientes
             while gtk_events_pending() > 0 do
               gtk_main_iteration();
               
@@ -459,22 +583,22 @@ begin
               gtk_text_buffer_set_text(buffer, 'Error mostrando correo - caracteres especiales', -1);
             end;
           end;
-        end
-        else
-          WriteLn('DEBUG - ERROR: buffer es nil');
-      end
-      else
-        WriteLn('DEBUG - ERROR: TextViewDetalle es nil');
-        
-      WriteLn('DEBUG - Proceso completado para correo ID: ', correoID);
-    end
-    else
-      WriteLn('DEBUG - ID inválido o 0');
+        end;
+      end;
+    end;
   end
   else
   begin
     WriteLn('DEBUG - No hay selección válida');
-    CorreoSeleccionadoID := 0; // Reset selección
+    CorreoSeleccionadoID := 0;
+    
+    // ✅ DESHABILITAR BOTÓN DE DESCARGA
+    if btnDescargar <> nil then
+    begin
+      gtk_widget_set_sensitive(btnDescargar, False);
+      WriteLn('📥 Botón de descarga deshabilitado');
+    end;
+    
     if TextViewDetalle <> nil then
     begin
       buffer := gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle));
@@ -889,6 +1013,7 @@ var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
   lblTitulo, lblDetalle: PGtkWidget;
   btnActualizar, btnCerrar, btnGrafica, btnFavoritos, btnEliminar, btnBox: PGtkWidget;
+  btnBoxDetalle: PGtkWidget; // ✅ NUEVO: Box para botones del detalle
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -899,7 +1024,7 @@ begin
   GProgramados := @programados;
   GFavoritos := @favoritos;
   GPapelera := @papelera;
-  GBlockchain := @blockchainMail; // Add blockchain reference
+  GBlockchain := @blockchainMail;
   CorreoSeleccionadoID := 0;
 
   // Si existe una ventana previa, destruirla
@@ -1001,9 +1126,21 @@ begin
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewDetalle), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledDetalle), TextViewDetalle);
 
+  // ✅ NUEVO: Botones específicos del detalle
+  btnBoxDetalle := gtk_hbox_new(True, 10);
+  gtk_box_pack_start(GTK_BOX(vboxDer), btnBoxDetalle, False, False, 0);
+
+  // ✅ BOTÓN DE DESCARGA CON COMPRESIÓN LZW
+  btnDescargar := gtk_button_new_with_label('📥 Descargar (LZW)');
+  g_signal_connect(btnDescargar, 'clicked', G_CALLBACK(@OnDescargarCorreo), nil);
+  gtk_widget_set_sensitive(btnDescargar, False); // Inicialmente deshabilitado
+  gtk_box_pack_start(GTK_BOX(btnBoxDetalle), btnDescargar, True, True, 0);
+
   // Establecer mensaje inicial en TextView
   gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), 
-    'Selecciona un correo de la lista para ver sus detalles completos aquí.', -1);
+    'Selecciona un correo de la lista para ver sus detalles completos aquí.' + #13#10 + #13#10 +
+    '💡 Al seleccionar un correo, podrás descargarlo como archivo .txt' + #13#10 +
+    'comprimido usando el algoritmo LZW (Lempel-Ziv-Welch).', -1);
 
   // Cargar correos iniciales
   WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
@@ -1012,6 +1149,8 @@ begin
   LiberarListaCorreos(lista);
 
   gtk_widget_show_all(BandejaWindow);
+  
+  WriteLn('📥 Funcionalidad de descarga con compresión LZW habilitada');
 end;
 
 end.

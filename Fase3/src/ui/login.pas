@@ -6,12 +6,15 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  json_loader, menuusuario, root_menu, registro_usuario, // ✅ AGREGAR registro_usuario
-  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login;
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2,
+  json_loader, control_login;
 
 procedure MostrarLogin(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain);
 
 implementation
+
+uses
+  menuusuario, root_menu, registro_usuario;
 
 var
   GUsuarios: ^TListaSimple = nil;
@@ -19,133 +22,150 @@ var
   GBorradores: ^PCorreoAVL = nil;
   GFavoritos: ^PNodoB = nil;
   GBlockchain: ^TBlockchain = nil;
-  GPapelera: TPila; // ✅ DECLARAR GPapelera como variable local
+  GPapelera: TPila;
 
   LoginWindow: PGtkWidget = nil;
   EntryEmail: PGtkWidget = nil;
   EntryPassword: PGtkWidget = nil;
 
+// ✅ AGREGAR función MostrarMensaje que falta
+procedure MostrarMensaje(const titulo, mensaje: String; tipoMensaje: TGtkMessageType);
+var
+  dialog: PGtkWidget;
+begin
+  dialog := gtk_message_dialog_new(nil, GTK_DIALOG_MODAL, tipoMensaje, GTK_BUTTONS_OK, PChar(mensaje));
+  gtk_window_set_title(GTK_WINDOW(dialog), PChar(titulo));
+  gtk_dialog_run(GTK_DIALOG(dialog));
+  gtk_widget_destroy(dialog);
+end;
+
 procedure OnLogin(widget: PGtkWidget; data: gpointer); cdecl;
 var
   email, password: String;
-  nombre: String;
 begin
   email := StrPas(gtk_entry_get_text(PGtkEntry(EntryEmail)));
   password := StrPas(gtk_entry_get_text(PGtkEntry(EntryPassword)));
-  
-  WriteLn('🔐 Intento de login: ', email);
-  
-  // ✅ VERIFICAR CREDENCIALES ROOT PRIMERO
-  if (email = 'root') and (password = 'admin123') then
+
+  WriteLn('🔐 Intentando login - Email: "', email, '" Password: "', password, '"');
+
+  if (email = 'root') and (password = 'admin') then
   begin
-    WriteLn('👑 LOGIN ROOT EXITOSO');
+    WriteLn('🔑 Acceso ROOT concedido');
     
     // ✅ REGISTRAR ENTRADA DE ROOT
     RegistrarEntrada('root@sistema.admin');
     
-    // Mostrar menú root
+    // ✅ OCULTAR ventana de login en lugar de destruirla
     if Assigned(LoginWindow) then
-      gtk_widget_destroy(LoginWindow);
+    begin
+      gtk_widget_hide(LoginWindow);
+      WriteLn('🔧 DEBUG: Ventana de login ocultada para ROOT');
+    end;
     
+    WriteLn('🔧 DEBUG: Llamando a MostrarMenuRoot...');
     MostrarMenuRoot(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GBlockchain^);
-    Exit;
-  end;
-  
-  // Verificar credenciales de usuario normal
-  if ValidarLogin(email, password) then
+    WriteLn('🔧 DEBUG: MostrarMenuRoot completado');
+  end
+  else if ValidarLogin(email, password) then
   begin
-    nombre := NombreDeEmail(email);
-    WriteLn('✅ LOGIN EXITOSO: ', email, ' (', nombre, ')');
+    WriteLn('✅ Login exitoso para: ', email);
     
-    // ✅ REGISTRAR ENTRADA DE USUARIO
+    // ✅ REGISTRAR ENTRADA DEL USUARIO
     RegistrarEntrada(email);
     
-    // Cerrar ventana de login
+    // ✅ OCULTAR ventana de login en lugar de destruirla
     if Assigned(LoginWindow) then
-      gtk_widget_destroy(LoginWindow);
+    begin
+      gtk_widget_hide(LoginWindow);
+      WriteLn('🔧 DEBUG: Ventana de login ocultada para usuario: ', email);
+    end;
     
-    // Mostrar menú de usuario con papelera - ✅ CORREGIR: usar GPapelera local
-    MostrarMenuUsuario(email, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera, GBlockchain^);
+    WriteLn('🔧 DEBUG: Llamando a MostrarMenuUsuario...');
+    MostrarMenuUsuario(email, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GBlockchain^, GPapelera);
+    WriteLn('🔧 DEBUG: MostrarMenuUsuario completado');
   end
   else
   begin
-    WriteLn('❌ LOGIN FALLIDO: ', email);
-    gtk_message_dialog_new(nil,
-      GTK_DIALOG_MODAL,
-      GTK_MESSAGE_ERROR,
-      GTK_BUTTONS_OK,
-      PChar('❌ Credenciales incorrectas' + #10 + #10 +
-            'Usuario o contraseña inválidos.' + #10 +
-            'Para acceso root usa: root / admin123'));
+    WriteLn('❌ Login fallido para: ', email);
+    MostrarMensaje('Error', 'Credenciales incorrectas', GTK_MESSAGE_ERROR);
   end;
 end;
 
-procedure OnRegistrarse(widget: PGtkWidget; data: gpointer); cdecl;
+procedure OnRegistro(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  // ✅ CORREGIR: llamar a la función correcta
-  MostrarRegistroUsuario(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) then
+    MostrarRegistroUsuario(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
 procedure OnSalir(widget: PGtkWidget; data: gpointer); cdecl;
 begin
+  WriteLn('🚪 Cerrando aplicación desde login');
   gtk_main_quit();
-end;
-
-function OnDeleteEvent(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
-begin
-  gtk_main_quit();
-  Result := False;
 end;
 
 procedure MostrarLogin(var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain);
 var
-  vbox, form, hbox, btnBox: PGtkWidget;
-  lblTitulo, lblSubtitulo, lblEmail, lblPassword: PGtkWidget;
+  vbox, formBox, hbox, btnBox: PGtkWidget;
+  lblTitulo, lblEmail, lblPassword: PGtkWidget;
   btnLogin, btnRegistro, btnSalir: PGtkWidget;
 begin
-  // Guardar referencias globales
+  WriteLn('🔧 DEBUG: Iniciando MostrarLogin');
+  
+  // Guardar referencias a las estructuras
   GUsuarios := @usuarios;
   GProgramados := @programados;
   GBorradores := @borradores;
   GFavoritos := @favoritos;
   GBlockchain := @blockchainMail;
   
-  // ✅ INICIALIZAR papelera local
-  InicializarPila(GPapelera);
+  // ✅ INICIALIZAR PAPELERA SOLO SI ES NECESARIO
+  if GPapelera.tope = nil then
+  begin
+    WriteLn('🔧 DEBUG: Inicializando papelera en login');
+    InicializarPila(GPapelera);
+  end;
 
-  WriteLn('🔑 Mostrando pantalla de login...');
-  
-  // Si existe una ventana previa, destruirla
+  // ✅ SI LA VENTANA YA EXISTE, MOSTRARLA EN LUGAR DE CREAR UNA NUEVA
   if Assigned(LoginWindow) then
-    gtk_widget_destroy(LoginWindow);
+  begin
+    WriteLn('🔧 DEBUG: Reutilizando ventana de login existente');
+    
+    // Limpiar campos
+    if Assigned(EntryEmail) then
+      gtk_entry_set_text(PGtkEntry(EntryEmail), '');
+    if Assigned(EntryPassword) then
+      gtk_entry_set_text(PGtkEntry(EntryPassword), '');
+    
+    // Mostrar la ventana
+    gtk_widget_show_all(LoginWindow);
+    WriteLn('✅ Ventana de login mostrada nuevamente');
+    Exit;
+  end;
+
+  WriteLn('🔧 DEBUG: Creando nueva ventana de login');
 
   LoginWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(LoginWindow), PChar('Login - EDDMail con Blockchain'));
+  gtk_window_set_title(GTK_WINDOW(LoginWindow), PChar('EDDMail - Iniciar Sesión'));
   gtk_window_set_default_size(GTK_WINDOW(LoginWindow), 400, 300);
   gtk_window_set_position(GTK_WINDOW(LoginWindow), GTK_WIN_POS_CENTER);
   gtk_window_set_resizable(GTK_WINDOW(LoginWindow), False);
 
-  g_signal_connect(LoginWindow, 'delete-event', G_CALLBACK(@OnDeleteEvent), nil);
+  // ✅ SOLO TERMINAR LA APLICACIÓN CUANDO SE CIERRE DESDE EL LOGIN
+  g_signal_connect(LoginWindow, 'destroy', G_CALLBACK(@OnSalir), nil);
 
   vbox := gtk_vbox_new(False, 20);
   gtk_container_set_border_width(GTK_CONTAINER(vbox), 30);
   gtk_container_add(GTK_CONTAINER(LoginWindow), vbox);
 
-  lblTitulo := gtk_label_new('📧 EDDMail con Blockchain');
-  gtk_misc_set_alignment(GTK_MISC(lblTitulo), 0.5, 0.5);
+  lblTitulo := gtk_label_new('📧 EDDMail Sistema');
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
-  lblSubtitulo := gtk_label_new('Sistema de Correos con Estructuras de Datos');
-  gtk_misc_set_alignment(GTK_MISC(lblSubtitulo), 0.5, 0.5);
-  gtk_box_pack_start(GTK_BOX(vbox), lblSubtitulo, False, False, 0);
-
-  // Formulario de login
-  form := gtk_vbox_new(False, 15);
-  gtk_box_pack_start(GTK_BOX(vbox), form, True, True, 0);
+  formBox := gtk_vbox_new(False, 15);
+  gtk_box_pack_start(GTK_BOX(vbox), formBox, True, True, 0);
 
   // Email
   hbox := gtk_hbox_new(False, 10);
-  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  gtk_box_pack_start(GTK_BOX(formBox), hbox, False, False, 0);
   lblEmail := gtk_label_new('Email:');
   gtk_widget_set_size_request(lblEmail, 80, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblEmail, False, False, 0);
@@ -154,7 +174,7 @@ begin
 
   // Password
   hbox := gtk_hbox_new(False, 10);
-  gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
+  gtk_box_pack_start(GTK_BOX(formBox), hbox, False, False, 0);
   lblPassword := gtk_label_new('Password:');
   gtk_widget_set_size_request(lblPassword, 80, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblPassword, False, False, 0);
@@ -163,29 +183,25 @@ begin
   gtk_entry_set_invisible_char(PGtkEntry(EntryPassword), Ord('*'));
   gtk_box_pack_start(GTK_BOX(hbox), EntryPassword, True, True, 0);
 
-  // Conectar Enter en password para hacer login
-  g_signal_connect(EntryPassword, 'activate', G_CALLBACK(@OnLogin), nil);
-
   // Botones
   btnBox := gtk_hbox_new(True, 15);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, False, False, 0);
 
-  btnLogin := gtk_button_new_with_label('Iniciar Sesión');
+  btnLogin := gtk_button_new_with_label('Ingresar');
   g_signal_connect(btnLogin, 'clicked', G_CALLBACK(@OnLogin), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnLogin, True, True, 0);
 
-  btnRegistro := gtk_button_new_with_label('Registrarse');
-  g_signal_connect(btnRegistro, 'clicked', G_CALLBACK(@OnRegistrarse), nil);
+  btnRegistro := gtk_button_new_with_label('Registro');
+  g_signal_connect(btnRegistro, 'clicked', G_CALLBACK(@OnRegistro), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnRegistro, True, True, 0);
 
   btnSalir := gtk_button_new_with_label('Salir');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnSalir), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnSalir, True, True, 0);
 
+  WriteLn('🔧 DEBUG: Mostrando ventana de login...');
   gtk_widget_show_all(LoginWindow);
-  
-  WriteLn('✅ Login mostrado exitosamente');
-  WriteLn('💡 Usa root/admin123 para acceso de administrador');
+  WriteLn('✅ Ventana de login creada y mostrada');
 end;
 
 end.

@@ -3,82 +3,50 @@
     {
       "id": 1,
       "nombre": "Luis Garcia",
-      "usuario": "lgarcia",
-      "password": "lgarcia123",
-      "email": "lgarcia@edd.com",
+      "usuario": "auxluis",
+      "password": "auxluis123",
+      "email": "aux-luis@edd.com",
       "telefono": "12345678"
     },
     {
       "id": 2,
       "nombre": "Marcos Itzep",
-      "usuario": "mitzep",
-      "password": "mitzep123",
-      "email": "mitzep@edd.com",
+      "usuario": "auxmarcos",
+      "password": "auxmarcos123",
+      "email": "aux-marcosg@edd.com",
       "telefono": "87654321"
     },
     {
       "id": 3,
-      "nombre": "Greg Kroah-Hartman",
-      "usuario": "gkroah-hartman",
-      "password": "hartman123",
-      "email": "gkroah-hartman@edd.com",
-      "telefono": "31628954"
+      "nombre": "Ana López",
+      "usuario": "auxana",
+      "password": "auxana123",
+      "email": "aux-ana@edd.com",
+      "telefono": "11223344"
     },
     {
       "id": 4,
-      "nombre": "Mark Shuttleworth",
-      "usuario": "mshuttleworth",
-      "password": "shut123",
-      "email": "mshuttleworth@edd.com",
-      "telefono": "76018423"
+      "nombre": "Carlos Pérez",
+      "usuario": "auxcarlos",
+      "password": "auxcarlos123",
+      "email": "aux-carlos@edd.com",
+      "telefono": "44332211"
     },
     {
       "id": 5,
-      "nombre": "Steven Mejia",
-      "usuario": "smejia",
-      "password": "smejia123",
-      "email": "smejia@edd.com",
-      "telefono": "23419875"
+      "nombre": "Sofía Martínez",
+      "usuario": "auxsofia",
+      "password": "auxsofia123",
+      "email": "aux-sofia@edd.com",
+      "telefono": "99887766"
     },
     {
       "id": 6,
-      "nombre": "Brian Fox",
-      "usuario": "bfox",
-      "password": "bfox123",
-      "email": "bfox@edd.com",
-      "telefono": "64578231"
-    },
-    {
-      "id": 7,
-      "nombre": "Jon Corbet",
-      "usuario": "jcorbet",
-      "password": "jcorbet123",
-      "email": "jcorbet@edd.com",
-      "telefono": "75849231"
-    },
-    {
-      "id": 8,
-      "nombre": "Karen Sandler",
-      "usuario": "ksandler",
-      "password": "ksandler123",
-      "email": "ksandler@edd.com",
-      "telefono": "89514362"
-    },
-    {
-      "id": 9,
-      "nombre": "Mitchell Baker",
-      "usuario": "mbaker",
-      "password": "mbaker123",
-      "email": "mbaker@edd.com",
-      "telefono": "19384756"
-    },
-    {
-      "id": 10,
-      "nombre": "Ian Murdock",
-      "usuario": "imurdock",
-      "password": "imurdock123",
-      "email": "imurdock@edd.com",
-      "telefono": "41235678"
+      "nombre": "Jorge Ramírez",
+      "usuario": "auxjorge",
+      "password": "auxjorge123",
+      "email": "aux-jorge@edd.com",
+      "telefono": "66778899"
     }
   ]
 }

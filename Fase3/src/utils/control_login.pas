@@ -5,7 +5,7 @@ unit control_login;
 interface
 
 uses
-  SysUtils, DateUtils, Classes, fpjson, jsonparser;
+  SysUtils, Classes, fpjson, jsonparser;
 
 type
   PRegistroLogin = ^TRegistroLogin;
@@ -18,70 +18,55 @@ type
   end;
 
 var
-  GControlLogin: record
-    cabeza: PRegistroLogin;
-  end;
+  RegistrosLogin: PRegistroLogin = nil;
 
-// Funciones públicas
-procedure InicializarControlLogin();
-procedure RegistrarEntrada(const emailUsuario: String);
-procedure RegistrarSalida(const emailUsuario: String);
-procedure ExportarLoginJSON(const rutaArchivo: String);
+// Funciones principales
+procedure RegistrarEntrada(const usuario: String);
+procedure RegistrarSalida(const usuario: String);
 function ObtenerRegistrosLogin(): PRegistroLogin;
+procedure ExportarLoginJSON(const rutaArchivo: String);
 procedure LiberarControlLogin();
 
 implementation
 
-procedure InicializarControlLogin();
-begin
-  GControlLogin.cabeza := nil;
-  WriteLn('🔐 Control de login inicializado');
-end;
-
-procedure RegistrarEntrada(const emailUsuario: String);
+procedure RegistrarEntrada(const usuario: String);
 var
   nuevo: PRegistroLogin;
-  fechaActual: TDateTime;
 begin
-  fechaActual := Now;
-  
   New(nuevo);
-  nuevo^.usuario := emailUsuario;
-  nuevo^.fechaEntrada := fechaActual;
+  nuevo^.usuario := usuario;
+  nuevo^.fechaEntrada := Now;
   nuevo^.fechaSalida := 0;
   nuevo^.activo := True;
-  nuevo^.siguiente := GControlLogin.cabeza;
-  GControlLogin.cabeza := nuevo;
+  nuevo^.siguiente := RegistrosLogin;
+  RegistrosLogin := nuevo;
   
-  WriteLn('🔑 LOGIN registrado: ', emailUsuario, ' - ', FormatDateTime('yyyy-mm-dd hh:nn:ss', fechaActual));
+  WriteLn('🔐 Entrada registrada: ', usuario, ' a las ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
 end;
 
-procedure RegistrarSalida(const emailUsuario: String);
+procedure RegistrarSalida(const usuario: String);
 var
   actual: PRegistroLogin;
-  fechaActual: TDateTime;
 begin
-  fechaActual := Now;
-  actual := GControlLogin.cabeza;
-  
+  actual := RegistrosLogin;
   while actual <> nil do
   begin
-    if (actual^.usuario = emailUsuario) and actual^.activo then
+    if (actual^.usuario = usuario) and actual^.activo then
     begin
-      actual^.fechaSalida := fechaActual;
+      actual^.fechaSalida := Now;
       actual^.activo := False;
-      WriteLn('🔐 LOGOUT registrado: ', emailUsuario, ' - ', FormatDateTime('yyyy-mm-dd hh:nn:ss', fechaActual));
+      WriteLn('🔐 Salida registrada: ', usuario, ' a las ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
       Exit;
     end;
     actual := actual^.siguiente;
   end;
   
-  WriteLn('⚠️ No se encontró sesión activa para: ', emailUsuario);
+  WriteLn('⚠️ No se encontró entrada activa para: ', usuario);
 end;
 
 function ObtenerRegistrosLogin(): PRegistroLogin;
 begin
-  Result := GControlLogin.cabeza;
+  Result := RegistrosLogin;
 end;
 
 procedure ExportarLoginJSON(const rutaArchivo: String);
@@ -89,43 +74,37 @@ var
   jsonArray: TJSONArray;
   jsonObj: TJSONObject;
   actual: PRegistroLogin;
-  archivoTexto: TStringList;
-  fechaEntrada, fechaSalida: String;
+  archivo: TStringList;
 begin
   jsonArray := TJSONArray.Create;
-  archivoTexto := TStringList.Create;
+  archivo := TStringList.Create;
   
   try
-    actual := GControlLogin.cabeza;
-    
+    actual := RegistrosLogin;
     while actual <> nil do
     begin
-      if not actual^.activo and (actual^.fechaSalida > 0) then
-      begin
-        jsonObj := TJSONObject.Create;
-        
-        fechaEntrada := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', actual^.fechaEntrada);
-        fechaSalida := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', actual^.fechaSalida);
-        
-        jsonObj.Add('usuario', actual^.usuario);
-        jsonObj.Add('entrada', fechaEntrada);
-        jsonObj.Add('salida', fechaSalida);
-        
-        jsonArray.Add(jsonObj);
-      end;
+      jsonObj := TJSONObject.Create;
+      jsonObj.Add('usuario', actual^.usuario);
+      jsonObj.Add('fechaEntrada', FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaEntrada));
       
+      if actual^.fechaSalida > 0 then
+        jsonObj.Add('fechaSalida', FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaSalida))
+      else
+        jsonObj.Add('fechaSalida', 'null');
+        
+      jsonObj.Add('activo', actual^.activo);
+      
+      jsonArray.Add(jsonObj);
       actual := actual^.siguiente;
     end;
     
-    archivoTexto.Text := jsonArray.FormatJSON();
-    archivoTexto.SaveToFile(rutaArchivo);
-    
-    WriteLn('📄 JSON de control de login exportado: ', rutaArchivo);
-    WriteLn('📊 Total de registros exportados: ', jsonArray.Count);
+    archivo.Text := jsonArray.FormatJSON;
+    archivo.SaveToFile(rutaArchivo);
+    WriteLn('📄 Control de login exportado a: ', rutaArchivo);
     
   finally
     jsonArray.Free;
-    archivoTexto.Free;
+    archivo.Free;
   end;
 end;
 
@@ -133,21 +112,14 @@ procedure LiberarControlLogin();
 var
   actual, temp: PRegistroLogin;
 begin
-  actual := GControlLogin.cabeza;
+  actual := RegistrosLogin;
   while actual <> nil do
   begin
     temp := actual^.siguiente;
     Dispose(actual);
     actual := temp;
   end;
-  GControlLogin.cabeza := nil;
-  WriteLn('🧹 Control de login liberado');
+  RegistrosLogin := nil;
 end;
-
-initialization
-  InicializarControlLogin();
-
-finalization
-  LiberarControlLogin();
 
 end.

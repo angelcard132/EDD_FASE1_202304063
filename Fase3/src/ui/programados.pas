@@ -28,7 +28,12 @@ var
 
 function GenerarNuevoIDCorreo(): Integer;
 begin
-  Result := Trunc(Now * 86400) mod 100000;
+  // ✅ GENERAR SIEMPRE IDs POSITIVOS usando timestamp + offset específico para programados
+  Result := Abs(Trunc(Now * 86400)) mod 30000 + 20000; // Rango: 20000-49999
+  if Result <= 0 then
+    Result := 20000 + Random(29999); // Fallback con random positivo
+    
+  WriteLn('🔧 DEBUG: ID generado en programados: ', Result);
 end;
 
 procedure MostrarMensaje(const titulo, mensaje: String; tipoMensaje: TGtkMessageType);
@@ -244,16 +249,22 @@ begin
     Exit;
   end;
 
-  // Generar ID y guardar en AVL de borradores
-  nuevoID := GenerarNuevoIDCorreo();
+  // ✅ GENERAR ID POSITIVO CON OFFSET ESPECÍFICO Y VERIFICACIÓN
+  nuevoID := Abs(Trunc(Now * 86400)) mod 20000 + 30000; // Rango: 30000-49999 para programados->borradores
+  if nuevoID <= 0 then
+    nuevoID := 30000 + Random(19999); // Fallback específico
+    
+  WriteLn('🔧 DEBUG: ID borrador desde programados: ', nuevoID);
+    
   GBorradores^ := arbol_avl.Insertar(GBorradores^, nuevoID, GEmailUsuario, destinatario, asunto, mensaje);
   
-  WriteLn('✅ Borrador guardado desde programar correo ID: ', nuevoID);
+  WriteLn('✅ Borrador guardado desde programar correo ID: ', nuevoID, ' (POSITIVO GARANTIZADO)');
   
   MostrarMensaje('Borrador Guardado', 
     'El borrador ha sido guardado exitosamente.' + LineEnding + 
     'Para: ' + destinatario + LineEnding +
     'Asunto: ' + asunto + LineEnding + LineEnding +
+    'ID generado: ' + IntToStr(nuevoID) + LineEnding +
     'Puedes editarlo y enviarlo desde el gestor de borradores.', 
     GTK_MESSAGE_INFO);
   

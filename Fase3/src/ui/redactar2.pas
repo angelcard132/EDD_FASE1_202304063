@@ -27,8 +27,12 @@ var
 
 function GenerarNuevoIDCorreo(): Integer;
 begin
-  // Generar ID simple basado en timestamp
-  Result := Trunc(Now * 86400) mod 100000;
+  // ✅ GENERAR SIEMPRE IDs POSITIVOS usando timestamp absoluto + offset
+  Result := Abs(Trunc(Now * 86400)) mod 50000 + 10000; // Rango: 10000-59999
+  if Result <= 0 then
+    Result := 10000 + Random(40000); // Fallback con random positivo
+  
+  WriteLn('🔧 DEBUG: ID generado en redactar: ', Result);
 end;
 
 procedure MostrarMensaje(const titulo, mensaje: String; tipoMensaje: TGtkMessageType);
