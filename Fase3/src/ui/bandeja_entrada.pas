@@ -6,9 +6,9 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar, blockchain, lzw_compression; // ✅ AGREGAR lzw_compression
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader, reports, pila2, eliminar, blockchain, lzw_compression, merkle_tree, correos_privados; // ✅ AGREGAR merkle_tree y correos_privados
 
-procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain);
+procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
 
 implementation
 
@@ -30,7 +30,8 @@ var
   GBorradores: ^PCorreoAVL = nil;
   GFavoritos: ^PNodoB = nil;
   GPapelera: ^TPila = nil;
-  GBlockchain: ^TBlockchain = nil; // Add blockchain reference
+  GBlockchain: ^TBlockchain = nil;
+  GMerklePrivados: ^TArbolMerkle = nil; // ✅ NUEVA: referencia al árbol de Merkle
   
   BandejaWindow: PGtkWidget = nil;
   ListaCorreos: PGtkWidget = nil;
@@ -44,9 +45,10 @@ var
   TextViewRespuestaMensaje: PGtkWidget = nil;
   
   CorreoSeleccionado: Integer = 0;
-  CorreoSeleccionadoID: Integer = 0; // Agregar esta variable que falta
+  CorreoSeleccionadoID: Integer = 0;
 
-  btnDescargar: PGtkWidget = nil; // Nuevo botón de descarga
+  btnDescargar: PGtkWidget = nil;
+  btnPrivados: PGtkWidget = nil; // ✅ NUEVO: botón para correos privados
 
 { === FUNCIONES AUXILIARES === }
 
@@ -396,6 +398,52 @@ begin
   end;
 end;
 
+procedure OnAgregarAPrivados(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  actual: cola2.PCorreo;
+  encontrado: Boolean;
+begin
+  if CorreoSeleccionadoID <= 0 then
+  begin
+    MostrarMensaje('Error', 'Selecciona un correo para agregar a privados.', GTK_MESSAGE_WARNING);
+    Exit;
+  end;
+  
+  // Buscar el correo en la cola de programados
+  encontrado := False;
+  actual := GProgramados^.frente;
+  while actual <> nil do
+  begin
+    if actual^.id = CorreoSeleccionadoID then
+    begin
+      encontrado := True;
+      Break;
+    end;
+    actual := actual^.siguiente;
+  end;
+  
+  if encontrado and (actual <> nil) then
+  begin
+    // Agregar al Merkle Tree de correos privados
+    if GMerklePrivados <> nil then
+    begin
+      AgregarCorreoAPrivados(actual^.id, String(actual^.remitente), String(actual^.destinatario), 
+                            String(actual^.asunto), String(actual^.mensaje), GMerklePrivados^);
+      WriteLn('🔒 Correo agregado a privados con Merkle Tree - ID: ', actual^.id);
+    end
+    else
+    begin
+      WriteLn('❌ Error: Merkle Tree no inicializado');
+      MostrarMensaje('Error', 'Sistema de correos privados no disponible.', GTK_MESSAGE_ERROR);
+    end;
+  end
+  else
+  begin
+    WriteLn('❌ No se pudo encontrar el correo seleccionado');
+    MostrarMensaje('Error', 'No se pudo encontrar el correo seleccionado.', GTK_MESSAGE_ERROR);
+  end;
+end;
+
 procedure OnSeleccionarCorreo(widget: PGtkWidget; data: gpointer); cdecl;
 var
   selection: PGtkTreeSelection;
@@ -562,11 +610,17 @@ begin
             gtk_text_buffer_set_text(buffer, PChar(textoDetalle), Length(textoDetalle));
             WriteLn('DEBUG - Texto establecido en buffer exitosamente');
             
-            // ✅ HABILITAR BOTÓN DE DESCARGA
+            // ✅ HABILITAR BOTONES CUANDO SE SELECCIONA UN CORREO
             if btnDescargar <> nil then
             begin
               gtk_widget_set_sensitive(btnDescargar, True);
               WriteLn('📥 Botón de descarga habilitado para correo ID: ', correoID);
+            end;
+            
+            if btnPrivados <> nil then
+            begin
+              gtk_widget_set_sensitive(btnPrivados, True);
+              WriteLn('🔒 Botón A Privados habilitado para correo ID: ', correoID);
             end;
             
             gtk_widget_queue_draw(TextViewDetalle);
@@ -592,11 +646,17 @@ begin
     WriteLn('DEBUG - No hay selección válida');
     CorreoSeleccionadoID := 0;
     
-    // ✅ DESHABILITAR BOTÓN DE DESCARGA
+    // ✅ DESHABILITAR BOTONES CUANDO NO HAY SELECCIÓN
     if btnDescargar <> nil then
     begin
       gtk_widget_set_sensitive(btnDescargar, False);
       WriteLn('📥 Botón de descarga deshabilitado');
+    end;
+    
+    if btnPrivados <> nil then
+    begin
+      gtk_widget_set_sensitive(btnPrivados, False);
+      WriteLn('🔒 Botón A Privados deshabilitado');
     end;
     
     if TextViewDetalle <> nil then
@@ -1008,12 +1068,12 @@ begin
     gtk_widget_destroy(RespuestaWindow);
 end;
 
-procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain);
+procedure MostrarBandejaEntrada(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
 var
   hpaned, vboxIzq, vboxDer, scrolledLista, scrolledDetalle: PGtkWidget;
   lblTitulo, lblDetalle: PGtkWidget;
   btnActualizar, btnCerrar, btnGrafica, btnFavoritos, btnEliminar, btnBox: PGtkWidget;
-  btnBoxDetalle: PGtkWidget; // ✅ NUEVO: Box para botones del detalle
+  btnBoxDetalle: PGtkWidget;
   store: PGtkListStore;
   column: PGtkTreeViewColumn;
   renderer: PGtkCellRenderer;
@@ -1021,10 +1081,12 @@ var
 begin
   // Guardar referencias globales
   GEmailUsuario := NormalizarEmail(emailUsuario);
+  GUsuarios := @usuarios; // ✅ AGREGAR esta línea que faltaba
   GProgramados := @programados;
   GFavoritos := @favoritos;
   GPapelera := @papelera;
   GBlockchain := @blockchainMail;
+  GMerklePrivados := @merklePrivados; // ✅ NUEVA: guardar referencia al Merkle Tree
   CorreoSeleccionadoID := 0;
 
   // Si existe una ventana previa, destruirla
@@ -1126,21 +1188,28 @@ begin
   gtk_text_view_set_wrap_mode(PGtkTextView(TextViewDetalle), GTK_WRAP_WORD);
   gtk_container_add(GTK_CONTAINER(scrolledDetalle), TextViewDetalle);
 
-  // ✅ NUEVO: Botones específicos del detalle
-  btnBoxDetalle := gtk_hbox_new(True, 10);
+  // ✅ NUEVO: Botones específicos del detalle con A Privados
+  btnBoxDetalle := gtk_hbox_new(True, 5); // ✅ CAMBIAR a True para distribución uniforme
   gtk_box_pack_start(GTK_BOX(vboxDer), btnBoxDetalle, False, False, 0);
 
   // ✅ BOTÓN DE DESCARGA CON COMPRESIÓN LZW
-  btnDescargar := gtk_button_new_with_label('📥 Descargar (LZW)');
+  btnDescargar := gtk_button_new_with_label('📥 Descargar');
   g_signal_connect(btnDescargar, 'clicked', G_CALLBACK(@OnDescargarCorreo), nil);
   gtk_widget_set_sensitive(btnDescargar, False); // Inicialmente deshabilitado
   gtk_box_pack_start(GTK_BOX(btnBoxDetalle), btnDescargar, True, True, 0);
 
+  // ✅ NUEVO: BOTÓN A PRIVADOS
+  btnPrivados := gtk_button_new_with_label('🔒 A Privados');
+  g_signal_connect(btnPrivados, 'clicked', G_CALLBACK(@OnAgregarAPrivados), nil);
+  gtk_widget_set_sensitive(btnPrivados, False); // Inicialmente deshabilitado
+  gtk_box_pack_start(GTK_BOX(btnBoxDetalle), btnPrivados, True, True, 0);
+
   // Establecer mensaje inicial en TextView
   gtk_text_buffer_set_text(gtk_text_view_get_buffer(PGtkTextView(TextViewDetalle)), 
     'Selecciona un correo de la lista para ver sus detalles completos aquí.' + #13#10 + #13#10 +
-    '💡 Al seleccionar un correo, podrás descargarlo como archivo .txt' + #13#10 +
-    'comprimido usando el algoritmo LZW (Lempel-Ziv-Welch).', -1);
+    '💡 Al seleccionar un correo, podrás:' + #13#10 +
+    '📥 Descargarlo como archivo .txt comprimido (LZW)' + #13#10 +
+    '🔒 Agregarlo a correos privados (Merkle Tree)', -1);
 
   // Cargar correos iniciales
   WriteLn('DEBUG - Iniciando carga de correos para: ', emailUsuario, ' (normalizado: ', GEmailUsuario, ')');
@@ -1151,6 +1220,7 @@ begin
   gtk_widget_show_all(BandejaWindow);
   
   WriteLn('📥 Funcionalidad de descarga con compresión LZW habilitada');
+  WriteLn('🔒 Funcionalidad de correos privados con Merkle Tree habilitada');
 end;
 
 end.

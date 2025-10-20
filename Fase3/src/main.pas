@@ -2,7 +2,7 @@ program Main;
 
 uses
   gtk2, glib2,
-  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login,
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login, merkle_tree,
   json_loader, login;
 
 var
@@ -12,6 +12,7 @@ var
   favoritos: PNodoB;
   blockchainMail: TBlockchain;
   papelera: TPila;
+  merklePrivados: TArbolMerkle; // ✅ AGREGAR árbol de Merkle
 
 begin
   // ✅ INICIALIZAR GENERADOR DE NÚMEROS ALEATORIOS
@@ -24,8 +25,9 @@ begin
   arbol_b.Inicializar(favoritos);
   InicializarBlockchain(blockchainMail);
   InicializarPila(papelera);
+  InicializarArbolMerkle(merklePrivados); // ✅ INICIALIZAR Merkle Tree
 
-  WriteLn('🔧 DEBUG: Aplicación iniciada, generador aleatorio inicializado');
+  WriteLn('🔧 DEBUG: Aplicación iniciada, todas las estructuras inicializadas');
 
   // Inicializar GTK y mostrar login
   gtk_init(@argc, @argv);
@@ -35,4 +37,5 @@ begin
   // Limpiar memoria al final
   LiberarBlockchain(blockchainMail);
   LiberarControlLogin();
+  LiberarArbolMerkle(merklePrivados); // ✅ LIBERAR Merkle Tree
 end.

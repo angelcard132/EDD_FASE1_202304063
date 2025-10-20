@@ -6,10 +6,10 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login,
-  redactar2, borradores, favoritos, bandeja_entrada, programados, eliminar, registro_usuario, reports, comunidad, nuevo_contacto, perfil; // ✅ AGREGAR perfil
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login, merkle_tree,
+  redactar2, borradores, favoritos, bandeja_entrada, programados, eliminar, registro_usuario, reports, comunidad, nuevo_contacto, perfil, correos_privados; // ✅ AGREGAR merkle_tree y correos_privados
 
-procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila);
+procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
 
 implementation
 
@@ -24,6 +24,7 @@ var
   GFavoritos: ^PNodoB = nil;
   GBlockchain: ^TBlockchain = nil;
   GPapelera: ^TPila = nil;
+  GMerklePrivados: ^TArbolMerkle = nil; // ✅ NUEVA: referencia al árbol de Merkle
 
   MenuWindow: PGtkWidget = nil;
 
@@ -56,8 +57,8 @@ end;
 
 procedure OnBandeja(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GPapelera <> nil) and (GBlockchain <> nil) then
-    MostrarBandejaEntrada(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera^, GBlockchain^);
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GBlockchain <> nil) and (GPapelera <> nil) and (GMerklePrivados <> nil) then
+    MostrarBandejaEntrada(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera^, GBlockchain^, GMerklePrivados^); // ✅ AGREGAR GMerklePrivados^
 end;
 
 procedure OnBorradores(widget: PGtkWidget; data: gpointer); cdecl;
@@ -108,11 +109,17 @@ begin
     MostrarPerfil(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
-procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila);
+procedure OnCorreosPrivados(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GMerklePrivados <> nil) then
+    MostrarCorreosPrivados(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GMerklePrivados^);
+end;
+
+procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
 var
   vbox, gridBox: PGtkWidget;
   lblTitulo, lblUsuario: PGtkWidget;
-  btnRedactar, btnBandeja, btnBorradores, btnFavoritos, btnProgramados, btnPapelera, btnReportes, btnComunidades, btnContactos, btnPerfil, btnCerrar: PGtkWidget; // ✅ AGREGAR btnPerfil
+  btnRedactar, btnBandeja, btnBorradores, btnFavoritos, btnProgramados, btnPapelera, btnReportes, btnComunidades, btnContactos, btnPerfil, btnPrivados, btnCerrar: PGtkWidget; // ✅ AGREGAR btnPrivados
 begin
   WriteLn('🔧 DEBUG: Iniciando MostrarMenuUsuario para: ', emailUsuario);
   
@@ -124,13 +131,14 @@ begin
   GFavoritos := @favoritos;
   GBlockchain := @blockchainMail;
   GPapelera := @papelera;
+  GMerklePrivados := @merklePrivados; // ✅ NUEVA: guardar referencia al Merkle Tree
 
   if Assigned(MenuWindow) then
     gtk_widget_destroy(MenuWindow);
 
   MenuWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(MenuWindow), PChar('EDDMail - ' + emailUsuario));
-  gtk_window_set_default_size(GTK_WINDOW(MenuWindow), 400, 550); // ✅ AUMENTAR ALTURA para nuevo botón
+  gtk_window_set_default_size(GTK_WINDOW(MenuWindow), 400, 600); // ✅ AUMENTAR ALTURA para nuevo botón
   gtk_window_set_position(GTK_WINDOW(MenuWindow), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width(GTK_CONTAINER(MenuWindow), 20);
 
@@ -167,6 +175,11 @@ begin
   g_signal_connect(btnFavoritos, 'clicked', G_CALLBACK(@OnFavoritos), nil);
   gtk_box_pack_start(GTK_BOX(gridBox), btnFavoritos, True, True, 0);
 
+  // ✅ NUEVO: BOTÓN CORREOS PRIVADOS
+  btnPrivados := gtk_button_new_with_label('🔒 Correos Privados');
+  g_signal_connect(btnPrivados, 'clicked', G_CALLBACK(@OnCorreosPrivados), nil);
+  gtk_box_pack_start(GTK_BOX(gridBox), btnPrivados, True, True, 0);
+
   btnProgramados := gtk_button_new_with_label('📅 Programados');
   g_signal_connect(btnProgramados, 'clicked', G_CALLBACK(@OnProgramados), nil);
   gtk_box_pack_start(GTK_BOX(gridBox), btnProgramados, True, True, 0);
@@ -187,7 +200,6 @@ begin
   g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnRegistrarUsuario), nil);
   gtk_box_pack_start(GTK_BOX(gridBox), btnContactos, True, True, 0);
 
-  // ✅ NUEVO: BOTÓN MI PERFIL
   btnPerfil := gtk_button_new_with_label('👤 Mi Perfil');
   g_signal_connect(btnPerfil, 'clicked', G_CALLBACK(@OnMiPerfil), nil);
   gtk_box_pack_start(GTK_BOX(gridBox), btnPerfil, True, True, 0);
