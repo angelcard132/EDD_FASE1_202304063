@@ -6,11 +6,24 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, json_loader;
+  listasimple2, cola2, arbol_avl, arbol_b, json_loader; // ✅ SIN referencia circular
 
 procedure MostrarGestionContactos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 
 implementation
+
+type
+  // ✅ USAR TIPO LOCAL COMPATIBLE CON json_loader
+  PContactoUI = ^TContactoUI;
+  TContactoUI = record
+    id: Integer;
+    nombre: String;
+    usuario: String;
+    email: String;
+    telefono: String;
+    fechaAgregado: String;
+    siguiente: PContactoUI;
+  end;
 
 var
   GEmailUsuario: String;
@@ -24,11 +37,6 @@ var
   VistaWindow: PGtkWidget = nil;
 
 { === FUNCIONES AUXILIARES === }
-
-function GenerarNuevoIDContacto(): Integer;
-begin
-  Result := Trunc(Now * 86400) mod 100000;
-end;
 
 function VerificarEmailExiste(const email: String; lista: TListaSimple): Boolean;
 var
@@ -88,24 +96,34 @@ begin
     Exit;
   end;
 
-  // Verificar si el email ya existe usando nuestra función local
+  // Verificar si el email ya existe
   if VerificarEmailExiste(email, GUsuarios^) then
   begin
-    MostrarMensaje('Error', 'Ya existe un contacto con ese email.', GTK_MESSAGE_ERROR);
+    MostrarMensaje('Error', 'Ya existe un usuario del sistema con ese email.', GTK_MESSAGE_ERROR);
     Exit;
   end;
 
-  // Agregar contacto a la lista simple
+  // ✅ AGREGAR TANTO A LA LISTA PRINCIPAL COMO A LA LISTA MANUAL
   nuevoID := GenerarNuevoIDContacto();
+  
+  // Agregar a lista principal (para que funcione el envío de correos)
   AgregarUsuario(GUsuarios^, nuevoID, nombre, usuario, email, telefono);
   
-  WriteLn('✅ Contacto agregado: ', nombre, ' (', email, ')');
+  // ✅ AGREGAR A LISTA MANUAL usando función de json_loader
+  AgregarContactoManual(nuevoID, nombre, usuario, email, telefono, GEmailUsuario);
+  
+  // ✅ REGISTRAR CREDENCIALES para que pueda hacer login
+  RegistrarCredencialesUsuario(email, 'contacto123', nombre); // Password por defecto
+  
+  WriteLn('✅ Contacto agregado: ', nombre, ' (', email, ') por usuario: ', GEmailUsuario);
   
   MostrarMensaje('Contacto Agregado', 
-    'El contacto ha sido agregado exitosamente.' + LineEnding + 
+    'El contacto ha sido agregado exitosamente.' + LineEnding + LineEnding +
     'Nombre: ' + nombre + LineEnding +
     'Email: ' + email + LineEnding +
-    'Teléfono: ' + telefono, 
+    'Teléfono: ' + telefono + LineEnding + LineEnding +
+    '📧 Ahora puedes enviarle correos.' + LineEnding +
+    '🔑 Puede acceder con password: contacto123', 
     GTK_MESSAGE_INFO);
   
   // Limpiar campos
@@ -206,7 +224,7 @@ begin
   gtk_widget_show_all(FormularioWindow);
 end;
 
-{ === VISTA DE CONTACTOS === }
+{ === VISTA DE CONTACTOS MANUALES === }
 
 function OnDeleteEventVista(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
 begin
@@ -226,27 +244,29 @@ var
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
   btnCerrar: PGtkWidget;
-  actual: PUsuario;
+  actual: PContactoManual;
   idStr: String;
+  contador: Integer;
 begin
   if Assigned(VistaWindow) then
     gtk_widget_destroy(VistaWindow);
 
   VistaWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(VistaWindow), PChar('👥 Lista de Contactos - EDDMail'));
-  gtk_window_set_default_size(GTK_WINDOW(VistaWindow), 700, 450);
+  gtk_window_set_title(GTK_WINDOW(VistaWindow), PChar('👥 Mis Contactos Agregados - ' + GEmailUsuario));
+  gtk_window_set_default_size(GTK_WINDOW(VistaWindow), 800, 500);
   gtk_window_set_position(GTK_WINDOW(VistaWindow), GTK_WIN_POS_CENTER);
 
   g_signal_connect(VistaWindow, 'delete-event', G_CALLBACK(@OnDeleteEventVista), nil);
 
-  vbox := gtk_vbox_new(False, 10);
-  gtk_container_set_border_width(GTK_CONTAINER(vbox), 15);
+  vbox := gtk_vbox_new(False, 15);
+  gtk_container_set_border_width(GTK_CONTAINER(vbox), 20);
   gtk_container_add(GTK_CONTAINER(VistaWindow), vbox);
 
-  lblTitulo := gtk_label_new('👥 Lista de Contactos (Lista Simple)');
+  lblTitulo := gtk_label_new('👥 Mis Contactos Agregados Manualmente');
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
-  lblInfo := gtk_label_new('Todos los contactos registrados en el sistema');
+  contador := ContarContactosManualesDelUsuario(GEmailUsuario);
+  lblInfo := gtk_label_new(PChar('Solo contactos que TÚ agregaste manualmente • Total: ' + IntToStr(contador)));
   gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
 
   // Lista de contactos
@@ -256,7 +276,7 @@ begin
   gtk_box_pack_start(GTK_BOX(vbox), scrolledWindow, True, True, 0);
 
   // Crear modelo y vista
-  store := gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+  store := gtk_list_store_new(6, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
   treeView := gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
   gtk_container_add(GTK_CONTAINER(scrolledWindow), treeView);
 
@@ -264,7 +284,7 @@ begin
   renderer := gtk_cell_renderer_text_new();
   
   column := gtk_tree_view_column_new_with_attributes('ID', renderer, 'text', 0, nil);
-  gtk_tree_view_column_set_min_width(column, 50);
+  gtk_tree_view_column_set_min_width(column, 70);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   column := gtk_tree_view_column_new_with_attributes('Nombre', renderer, 'text', 1, nil);
@@ -280,25 +300,48 @@ begin
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
   column := gtk_tree_view_column_new_with_attributes('Teléfono', renderer, 'text', 4, nil);
-  gtk_tree_view_column_set_min_width(column, 100);
+  gtk_tree_view_column_set_min_width(column, 120);
   gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
 
-  // Cargar datos de la lista simple
-  actual := GUsuarios^.cabeza;
+  column := gtk_tree_view_column_new_with_attributes('Fecha Agregado', renderer, 'text', 5, nil);
+  gtk_tree_view_column_set_min_width(column, 130);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(treeView), column);
+
+  // ✅ CARGAR SOLO CONTACTOS AGREGADOS MANUALMENTE POR ESTE USUARIO
+  contador := 0;
+  actual := ContactosManuales;
   while actual <> nil do
   begin
-    idStr := IntToStr(actual^.id);
-    
+    if actual^.agregadoPor = GEmailUsuario then
+    begin
+      Inc(contador);
+      idStr := IntToStr(actual^.id);
+      
+      gtk_list_store_append(store, @iter);
+      gtk_list_store_set(store, @iter,
+                         0, PChar(idStr),
+                         1, PChar(actual^.nombre),
+                         2, PChar(actual^.usuario),
+                         3, PChar(actual^.email),
+                         4, PChar(actual^.telefono),
+                         5, PChar(actual^.fechaAgregado),
+                         -1);
+    end;
+    actual := actual^.siguiente;
+  end;
+
+  // Si no hay contactos manuales, mostrar mensaje
+  if contador = 0 then
+  begin
     gtk_list_store_append(store, @iter);
     gtk_list_store_set(store, @iter,
-                       0, PChar(idStr),
-                       1, PChar(String(actual^.nombre)),
-                       2, PChar(String(actual^.usuario)),
-                       3, PChar(String(actual^.email)),
-                       4, PChar(String(actual^.telefono)),
+                       0, PChar('--'),
+                       1, PChar('Sin contactos agregados'),
+                       2, PChar('--'),
+                       3, PChar('Usa "➕ Agregar Contacto" para añadir contactos'),
+                       4, PChar('--'),
+                       5, PChar('--'),
                        -1);
-    
-    actual := actual^.siguiente;
   end;
 
   // Botón cerrar
@@ -310,6 +353,8 @@ begin
   gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, False, False, 0);
 
   gtk_widget_show_all(VistaWindow);
+  
+  WriteLn('👥 Vista contactos manuales cargada - Usuario: ', GEmailUsuario, ' - Total: ', contador);
 end;
 
 { === INTERFAZ PRINCIPAL === }
@@ -341,8 +386,9 @@ end;
 procedure MostrarGestionContactos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB);
 var
   vbox, btnBox: PGtkWidget;
-  lblTitulo, lblInfo: PGtkWidget;
+  lblTitulo, lblInfo, lblDescripcion: PGtkWidget;
   btnAgregar, btnVer, btnCerrar: PGtkWidget;
+  totalContactos: Integer;
 begin
   // Guardar referencias globales
   GEmailUsuario := emailUsuario;
@@ -355,8 +401,8 @@ begin
     gtk_widget_destroy(ContactosWindow);
 
   ContactosWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title(GTK_WINDOW(ContactosWindow), PChar('👥 Gestión de Contactos'));
-  gtk_window_set_default_size(GTK_WINDOW(ContactosWindow), 400, 300);
+  gtk_window_set_title(GTK_WINDOW(ContactosWindow), PChar('👥 Gestión de Contactos - ' + emailUsuario));
+  gtk_window_set_default_size(GTK_WINDOW(ContactosWindow), 450, 350);
   gtk_window_set_position(GTK_WINDOW(ContactosWindow), GTK_WIN_POS_CENTER);
 
   g_signal_connect(ContactosWindow, 'delete-event', G_CALLBACK(@OnDeleteEventContactos), nil);
@@ -365,32 +411,45 @@ begin
   gtk_container_set_border_width(GTK_CONTAINER(vbox), 30);
   gtk_container_add(GTK_CONTAINER(ContactosWindow), vbox);
 
-  lblTitulo := gtk_label_new(PChar('👥 Gestión de Contactos'));
+  lblTitulo := gtk_label_new(PChar('👥 Gestión de Contactos Personales'));
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
   lblInfo := gtk_label_new(PChar('Usuario: ' + emailUsuario));
   gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
+
+  // ✅ CONTAR CONTACTOS USANDO FUNCIÓN DE json_loader
+  totalContactos := ContarContactosManualesDelUsuario(emailUsuario);
+  
+  lblDescripcion := gtk_label_new(PChar('Agrega contactos personales para poder enviarles correos.' + LineEnding + 
+                                       'Contactos disponibles: ' + IntToStr(totalContactos) + LineEnding +
+                                       '(Incluye carga masiva + contactos agregados manualmente)'));
+  gtk_box_pack_start(GTK_BOX(vbox), lblDescripcion, False, False, 0);
 
   // Botones principales
   btnBox := gtk_vbox_new(False, 15);
   gtk_box_pack_start(GTK_BOX(vbox), btnBox, True, True, 0);
 
   btnAgregar := gtk_button_new_with_label('➕ Agregar Contacto');
-  gtk_widget_set_size_request(btnAgregar, 250, 50);
+  gtk_widget_set_size_request(btnAgregar, 300, 50);
   g_signal_connect(btnAgregar, 'clicked', G_CALLBACK(@OnFormularioContacto), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnAgregar, True, False, 0);
 
-  btnVer := gtk_button_new_with_label('👥 Ver Contactos');
-  gtk_widget_set_size_request(btnVer, 250, 50);
+  btnVer := gtk_button_new_with_label(PChar('👥 Ver Mis Contactos (' + IntToStr(totalContactos) + ')'));
+  gtk_widget_set_size_request(btnVer, 300, 50);
   g_signal_connect(btnVer, 'clicked', G_CALLBACK(@OnVerContactos), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnVer, True, False, 0);
 
   btnCerrar := gtk_button_new_with_label('🔙 Regresar');
-  gtk_widget_set_size_request(btnCerrar, 250, 50);
+  gtk_widget_set_size_request(btnCerrar, 300, 50);
   g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarContactos), nil);
   gtk_box_pack_start(GTK_BOX(btnBox), btnCerrar, True, False, 0);
 
   gtk_widget_show_all(ContactosWindow);
 end;
+
+// ✅ INICIALIZACIÓN Y LIMPIEZA
+initialization
+
+finalization
 
 end.

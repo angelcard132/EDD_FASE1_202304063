@@ -9,17 +9,47 @@ uses
   fpjson, jsonparser,
   listasimple2, cola2, arbol_avl, arbol_b;
 
+{ ✅ ESTRUCTURA Y FUNCIONES DE CONTACTOS MANUALES MOVIDAS AQUÍ }
+type
+  PContactoManual = ^TContactoManual;
+  TContactoManual = record
+    id: Integer;
+    nombre: String;
+    usuario: String;
+    email: String;
+    telefono: String;
+    agregadoPor: String;
+    fechaAgregado: String;
+    siguiente: PContactoManual;
+  end;
+
+var
+  ContactosManuales: PContactoManual = nil;
+
+{ Funciones de contactos manuales }
+procedure InicializarContactosManuales();
+procedure AgregarContactoManual(id: Integer; const nombre, usuario, email, telefono, agregadoPor: String);
+procedure CargarContactoDesdeCargaMasiva(id: Integer; const nombre, usuario, email, telefono, agregadoPor: String);
+function GenerarNuevoIDContacto(): Integer;
+function ContarContactosManualesDelUsuario(const emailUsuario: String): Integer;
+
 { Cargar usuarios desde JSON estándar }
 procedure CargarUsuariosDesdeJSON(const archivo: String; var lista: TListaSimple);
 
 { Nueva función simplificada para cargar SOLO correos a la cola }
 procedure CargarCorreosSimplificado(const archivo: String; var programados: TCola);
 
-{ Carga masiva unificada - SIMPLIFICADA }
+{ ✅ FUNCIÓN DE CARGA MASIVA SIN CONTACTOS (2 parámetros) }
 procedure CargaMasivaDesdeJSON(
   const usuariosFile, correosFile: String;
   var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
-);
+); overload;
+
+{ ✅ FUNCIÓN DE CARGA MASIVA CON CONTACTOS (3 parámetros) }
+procedure CargaMasivaDesdeJSON(
+  const usuariosFile, correosFile, contactosFile: String;
+  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
+); overload;
 
 { Autenticación: usa datos cargados desde usuarios.json }
 function ValidarLogin(const email, password: String): Boolean;
@@ -46,6 +76,325 @@ var
   GPassByEmail: TStringList;   // email -> password
   GNameByEmail: TStringList;   // email -> nombre
   GEstadosCorreos: TStringList; // correoID -> estado
+
+{ ✅ IMPLEMENTACIÓN DE FUNCIONES DE CONTACTOS MANUALES }
+
+procedure InicializarContactosManuales();
+begin
+  ContactosManuales := nil;
+end;
+
+procedure AgregarContactoManual(id: Integer; const nombre, usuario, email, telefono, agregadoPor: String);
+var
+  nuevo: PContactoManual;
+begin
+  New(nuevo);
+  nuevo^.id := id;
+  nuevo^.nombre := nombre;
+  nuevo^.usuario := usuario;
+  nuevo^.email := email;
+  nuevo^.telefono := telefono;
+  nuevo^.agregadoPor := agregadoPor;
+  nuevo^.fechaAgregado := FormatDateTime('dd/mm/yyyy hh:nn', Now);
+  nuevo^.siguiente := ContactosManuales;
+  ContactosManuales := nuevo;
+  
+  WriteLn('✅ Contacto manual agregado: ', email, ' para ', agregadoPor);
+end;
+
+procedure CargarContactoDesdeCargaMasiva(id: Integer; const nombre, usuario, email, telefono, agregadoPor: String);
+var
+  nuevo: PContactoManual;
+begin
+  New(nuevo);
+  nuevo^.id := id;
+  nuevo^.nombre := nombre;
+  nuevo^.usuario := usuario;
+  nuevo^.email := email;
+  nuevo^.telefono := telefono;
+  nuevo^.agregadoPor := agregadoPor;
+  nuevo^.fechaAgregado := 'Carga masiva - ' + FormatDateTime('dd/mm/yyyy', Now);
+  nuevo^.siguiente := ContactosManuales;
+  ContactosManuales := nuevo;
+  
+  WriteLn('📇 Contacto cargado masivamente: ', email, ' para ', agregadoPor);
+end;
+
+function GenerarNuevoIDContacto(): Integer;
+begin
+  Result := Abs(Trunc(Now * 86400)) mod 100000 + 60000; // Rango específico para contactos manuales
+end;
+
+function ContarContactosManualesDelUsuario(const emailUsuario: String): Integer;
+var
+  actual: PContactoManual;
+  contador: Integer;
+begin
+  contador := 0;
+  actual := ContactosManuales;
+  while actual <> nil do
+  begin
+    if actual^.agregadoPor = emailUsuario then
+      Inc(contador);
+    actual := actual^.siguiente;
+  end;
+  Result := contador;
+end;
+
+{ ✅ IMPLEMENTACIÓN ACTUALIZADA para usar función local }
+procedure CargarContactosSimplificado(const archivo: String; var usuarios: TListaSimple);
+var
+  data: TStringList;
+  json: TJSONData;
+  usuariosArray: TJSONArray;
+  usuarioObj: TJSONObject;
+  contactosArray: TJSONArray;
+  i, j: Integer;
+  nombreUsuario, nombreContacto: String;
+  usuarioActual, contactoActual: PUsuario;
+  emailUsuario, emailContacto: String;
+  contadorRelaciones: Integer;
+  nuevoID: Integer;
+begin
+  if not FileExists(archivo) then
+  begin
+    WriteLn('❌ No existe el archivo de contactos: ', archivo);
+    Exit;
+  end;
+
+  data := TStringList.Create;
+  try
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
+    try
+      usuariosArray := TJSONArray(json.FindPath('Usuarios'));
+      if usuariosArray <> nil then
+      begin
+        WriteLn('📇 Cargando relaciones de contactos con integración completa...');
+        contadorRelaciones := 0;
+        
+        for i := 0 to usuariosArray.Count - 1 do
+        begin
+          usuarioObj := usuariosArray.Objects[i];
+          nombreUsuario := usuarioObj.Get('Usuario', '');
+          
+          // Buscar usuario por nombre de usuario en la lista
+          usuarioActual := usuarios.cabeza;
+          emailUsuario := '';
+          while usuarioActual <> nil do
+          begin
+            if usuarioActual^.usuario = nombreUsuario then
+            begin
+              emailUsuario := usuarioActual^.email;
+              Break;
+            end;
+            usuarioActual := usuarioActual^.siguiente;
+          end;
+          
+          if emailUsuario = '' then
+          begin
+            WriteLn('⚠️ Usuario no encontrado: ', nombreUsuario);
+            Continue;
+          end;
+          
+          contactosArray := TJSONArray(usuarioObj.FindPath('Contactos'));
+          if contactosArray <> nil then
+          begin
+            WriteLn('👤 Procesando contactos para: ', nombreUsuario, ' (', emailUsuario, ')');
+            
+            for j := 0 to contactosArray.Count - 1 do
+            begin
+              nombreContacto := contactosArray.Strings[j];
+              
+              // Buscar contacto por nombre de usuario
+              contactoActual := usuarios.cabeza;
+              emailContacto := '';
+              while contactoActual <> nil do
+              begin
+                if contactoActual^.usuario = nombreContacto then
+                begin
+                  emailContacto := contactoActual^.email;
+                  Break;
+                end;
+                contactoActual := contactoActual^.siguiente;
+              end;
+              
+              if emailContacto <> '' then
+              begin
+                // ✅ USAR FUNCIÓN LOCAL en lugar de externa
+                nuevoID := Abs(Trunc(Now * 86400)) mod 100000 + 60000 + contadorRelaciones;
+                
+                CargarContactoDesdeCargaMasiva(nuevoID, contactoActual^.nombre, contactoActual^.usuario, 
+                                             emailContacto, contactoActual^.telefono, emailUsuario);
+                
+                Inc(contadorRelaciones);
+                WriteLn('  ✅ Contacto cargado: ', nombreUsuario, ' tiene contacto ', nombreContacto, ' (', emailContacto, ')');
+              end
+              else
+                WriteLn('  ⚠️ Contacto no encontrado: ', nombreContacto);
+            end;
+          end;
+        end;
+        
+        WriteLn('📊 Total relaciones de contactos procesadas: ', contadorRelaciones);
+        WriteLn('✅ Contactos integrados correctamente');
+      end;
+    finally
+      json.Free;
+    end;
+  finally
+    data.Free;
+  end;
+end;
+
+{ ✅ IMPLEMENTACIÓN COMPLETA de CargarCorreosSimplificado }
+procedure CargarCorreosSimplificado(const archivo: String; var programados: TCola);
+var
+  data: TStringList;
+  json: TJSONData;
+  arr: TJSONArray;
+  obj: TJSONObject;
+  i: Integer;
+  correoID: Integer;
+  estado: String;
+  remitente, destinatario, asunto, mensaje: String;
+begin
+  if not FileExists(archivo) then
+  begin
+    WriteLn('❌ No existe el archivo: ', archivo);
+    Exit;
+  end;
+
+  data := TStringList.Create;
+  try
+    data.LoadFromFile(archivo);
+    json := GetJSON(data.Text);
+    try
+      arr := TJSONArray(json.FindPath('correos'));
+      if arr <> nil then
+      begin
+        WriteLn('📂 Cargando correos SIMPLIFICADO (solo NL/L)...');
+        for i := 0 to arr.Count - 1 do
+        begin
+          try
+            obj := arr.Objects[i];
+            correoID := obj.Get('id', 0);
+            
+            // Obtener datos básicos
+            remitente := obj.Get('remitente', '');
+            destinatario := obj.Get('destinatario', '');
+            asunto := obj.Get('asunto', '');
+            mensaje := obj.Get('mensaje', '');
+            estado := obj.Get('estado', 'NL');
+            
+            // ✅ SOLO PERMITIR ESTADOS NL (No Leído) y L (Leído)
+            if (estado <> 'NL') and (estado <> 'L') then
+            begin
+              WriteLn('⚠️ Estado "', estado, '" no válido para ID ', correoID, ' -> cambiando a NL');
+              estado := 'NL';
+            end;
+            
+            // Validar datos básicos
+            if (correoID <= 0) or (Length(remitente) = 0) or (Length(destinatario) = 0) then
+            begin
+              WriteLn('⚠️ Correo ID ', correoID, ' inválido, omitiendo...');
+              Continue;
+            end;
+            
+            // ✅ SOLO ENCOLAR EN PROGRAMADOS
+            Encolar(programados, correoID, remitente, destinatario, asunto, mensaje);
+            
+            // Establecer estado (solo NL o L)
+            EstablecerEstadoCorreo(correoID, estado);
+            
+            WriteLn('📧 Correo cargado: ID ', correoID, ' Estado: ', estado);
+            
+          except
+            on E: Exception do
+              WriteLn('❌ Error procesando correo ', i + 1, ': ', E.Message);
+          end;
+        end;
+        WriteLn('📊 Total correos cargados en cola: ', arr.Count);
+      end;
+    finally
+      json.Free;
+    end;
+  finally
+    data.Free;
+  end;
+end;
+
+{ ✅ CARGA MASIVA SIN CONTACTOS (2 parámetros) }
+procedure CargaMasivaDesdeJSON(
+  const usuariosFile, correosFile: String;
+  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
+);
+begin
+  WriteLn('🔄 Iniciando carga masiva estándar (sin contactos)...');
+  WriteLn('📁 Usuarios: ', usuariosFile);
+  WriteLn('📁 Correos: ', correosFile);
+  
+  // Limpiar estructuras antes de cargar
+  WriteLn('🧹 Limpiando estructuras existentes...');
+  LimpiarLista(lista);
+  LimpiarCola(programados);
+  arbol_avl.LiberarArbol(borradores);
+  arbol_b.LiberarArbol(favoritos);
+  
+  // Reinicializar completamente
+  InicializarLista(lista);
+  InicializarCola(programados);
+  arbol_avl.Inicializar(borradores);
+  arbol_b.Inicializar(favoritos);
+  
+  // ✅ CARGAR USUARIOS
+  WriteLn('👥 Cargando usuarios...');
+  if FileExists(usuariosFile) then
+    CargarUsuariosDesdeJSON(usuariosFile, lista)
+  else
+    WriteLn('❌ Error: Archivo de usuarios no encontrado: ', usuariosFile);
+  
+  // ✅ CARGAR CORREOS
+  WriteLn('📧 Cargando correos SOLO a cola...');
+  if FileExists(correosFile) then
+    CargarCorreosSimplificado(correosFile, programados)
+  else
+    WriteLn('❌ Error: Archivo de correos no encontrado: ', correosFile);
+  
+  // Borradores y favoritos siguen vacíos
+  WriteLn('📝 Borradores: Inicializados vacíos (se crean dinámicamente)');
+  WriteLn('⭐ Favoritos: Inicializados vacíos (se agregan desde bandeja)');
+  
+  // Mostrar resumen de carga
+  WriteLn('');
+  WriteLn('📊 RESUMEN DE CARGA MASIVA ESTÁNDAR:');
+  WriteLn('====================================');
+  WriteLn('👥 Usuarios cargados: ', ContarElementosLista(lista));
+  WriteLn('📧 Correos en cola: ', ContarCorreosEnCola(programados));
+  WriteLn('📝 Borradores: 0 (vacío inicial)');
+  WriteLn('⭐ Favoritos: 0 (vacío inicial)');
+  WriteLn('====================================');
+  WriteLn('✅ Carga masiva estándar exitosa');
+end;
+
+{ ✅ CARGA MASIVA CON CONTACTOS (3 parámetros) }
+procedure CargaMasivaDesdeJSON(
+  const usuariosFile, correosFile, contactosFile: String;
+  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
+);
+begin
+  // Primero hacer la carga estándar
+  CargaMasivaDesdeJSON(usuariosFile, correosFile, lista, programados, borradores, favoritos);
+  
+  // Luego agregar contactos
+  WriteLn('📇 Cargando relaciones de contactos...');
+  if FileExists(contactosFile) then
+    CargarContactosSimplificado(contactosFile, lista)
+  else
+    WriteLn('❌ Error: Archivo de contactos no encontrado: ', contactosFile);
+  
+  WriteLn('✅ Carga masiva completa con contactos exitosa');
+end;
 
 function ValidarLogin(const email, password: String): Boolean;
 var
@@ -170,134 +519,6 @@ begin
   end;
 end;
 
-{ ✅ IMPLEMENTACIÓN COMPLETA de CargarCorreosSimplificado }
-procedure CargarCorreosSimplificado(const archivo: String; var programados: TCola);
-var
-  data: TStringList;
-  json: TJSONData;
-  arr: TJSONArray;
-  obj: TJSONObject;
-  i: Integer;
-  correoID: Integer;
-  estado: String;
-  remitente, destinatario, asunto, mensaje: String;
-begin
-  if not FileExists(archivo) then
-  begin
-    WriteLn('❌ No existe el archivo: ', archivo);
-    Exit;
-  end;
-
-  data := TStringList.Create;
-  try
-    data.LoadFromFile(archivo);
-    json := GetJSON(data.Text);
-    try
-      arr := TJSONArray(json.FindPath('correos'));
-      if arr <> nil then
-      begin
-        WriteLn('📂 Cargando correos SIMPLIFICADO (solo NL/L)...');
-        for i := 0 to arr.Count - 1 do
-        begin
-          try
-            obj := arr.Objects[i];
-            correoID := obj.Get('id', 0);
-            
-            // Obtener datos básicos
-            remitente := obj.Get('remitente', '');
-            destinatario := obj.Get('destinatario', '');
-            asunto := obj.Get('asunto', '');
-            mensaje := obj.Get('mensaje', '');
-            estado := obj.Get('estado', 'NL');
-            
-            // ✅ SOLO PERMITIR ESTADOS NL (No Leído) y L (Leído)
-            if (estado <> 'NL') and (estado <> 'L') then
-            begin
-              WriteLn('⚠️ Estado "', estado, '" no válido para ID ', correoID, ' -> cambiando a NL');
-              estado := 'NL';
-            end;
-            
-            // Validar datos básicos
-            if (correoID <= 0) or (Length(remitente) = 0) or (Length(destinatario) = 0) then
-            begin
-              WriteLn('⚠️ Correo ID ', correoID, ' inválido, omitiendo...');
-              Continue;
-            end;
-            
-            // ✅ SOLO ENCOLAR EN PROGRAMADOS
-            Encolar(programados, correoID, remitente, destinatario, asunto, mensaje);
-            
-            // Establecer estado (solo NL o L)
-            EstablecerEstadoCorreo(correoID, estado);
-            
-            WriteLn('📧 Correo cargado: ID ', correoID, ' Estado: ', estado);
-            
-          except
-            on E: Exception do
-              WriteLn('❌ Error procesando correo ', i + 1, ': ', E.Message);
-          end;
-        end;
-        WriteLn('📊 Total correos cargados en cola: ', arr.Count);
-      end;
-    finally
-      json.Free;
-    end;
-  finally
-    data.Free;
-  end;
-end;
-
-procedure CargaMasivaDesdeJSON(
-  const usuariosFile, correosFile: String;
-  var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
-);
-begin
-  WriteLn('🔄 Iniciando carga masiva simplificada...');
-  WriteLn('📁 Usuarios: ', usuariosFile);
-  WriteLn('📁 Correos: ', correosFile);
-  
-  // Limpiar estructuras antes de cargar
-  WriteLn('🧹 Limpiando estructuras existentes...');
-  LimpiarLista(lista);
-  LimpiarCola(programados);
-  arbol_avl.LiberarArbol(borradores);
-  arbol_b.LiberarArbol(favoritos);
-  
-  // Reinicializar completamente
-  InicializarLista(lista);
-  InicializarCola(programados);
-  arbol_avl.Inicializar(borradores);
-  arbol_b.Inicializar(favoritos);
-  
-  // ✅ SOLO CARGAR USUARIOS Y CORREOS A LA COLA
-  WriteLn('👥 Cargando usuarios...');
-  if FileExists(usuariosFile) then
-    CargarUsuariosDesdeJSON(usuariosFile, lista)
-  else
-    WriteLn('❌ Error: Archivo de usuarios no encontrado: ', usuariosFile);
-  
-  WriteLn('📧 Cargando correos SOLO a cola...');
-  if FileExists(correosFile) then
-    CargarCorreosSimplificado(correosFile, programados)
-  else
-    WriteLn('❌ Error: Archivo de correos no encontrado: ', correosFile);
-  
-  // ✅ NO cargar borradores ni favoritos desde JSON
-  WriteLn('📝 Borradores: Inicializados vacíos (se crean dinámicamente)');
-  WriteLn('⭐ Favoritos: Inicializados vacíos (se agregan desde bandeja)');
-  
-  // Mostrar resumen de carga
-  WriteLn('');
-  WriteLn('📊 RESUMEN DE CARGA MASIVA SIMPLIFICADA:');
-  WriteLn('=========================================');
-  WriteLn('👥 Usuarios cargados: ', ContarElementosLista(lista));
-  WriteLn('📧 Correos en cola: ', ContarCorreosEnCola(programados));
-  WriteLn('📝 Borradores: 0 (vacío inicial)');
-  WriteLn('⭐ Favoritos: 0 (vacío inicial)');
-  WriteLn('=========================================');
-  WriteLn('✅ Carga masiva completada exitosamente');
-end;
-
 // Función auxiliar para contar correos en la cola
 function ContarCorreosEnCola(var cola: TCola): Integer;
 var
@@ -394,6 +615,9 @@ initialization
   GEstadosCorreos.CaseSensitive := False;
   GEstadosCorreos.Sorted := False;
   GEstadosCorreos.NameValueSeparator := '=';
+
+  // ✅ INICIALIZAR CONTACTOS MANUALES
+  InicializarContactosManuales();
 
 finalization
   FreeAndNil(GPassByEmail);

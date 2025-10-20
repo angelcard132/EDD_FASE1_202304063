@@ -6,8 +6,8 @@ interface
 
 uses
   glib2, gtk2, gdk2, SysUtils,
-  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login, // ✅ AGREGAR control_login
-  redactar2, borradores, favoritos, bandeja_entrada, programados, eliminar, registro_usuario, reports, comunidad;
+  listasimple2, cola2, arbol_avl, arbol_b, blockchain, pila2, control_login,
+  redactar2, borradores, favoritos, bandeja_entrada, programados, eliminar, registro_usuario, reports, comunidad, nuevo_contacto, perfil; // ✅ AGREGAR perfil
 
 procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila);
 
@@ -99,14 +99,20 @@ end;
 procedure OnRegistrarUsuario(widget: PGtkWidget; data: gpointer); cdecl;
 begin
   if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) then
-    MostrarRegistroUsuario(GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+    MostrarGestionContactos(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^); // ✅ CAMBIAR A GESTIÓN DE CONTACTOS
+end;
+
+procedure OnMiPerfil(widget: PGtkWidget; data: gpointer); cdecl;
+begin
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) then
+    MostrarPerfil(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
 procedure MostrarMenuUsuario(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var blockchainMail: TBlockchain; var papelera: TPila);
 var
   vbox, gridBox: PGtkWidget;
   lblTitulo, lblUsuario: PGtkWidget;
-  btnRedactar, btnBandeja, btnBorradores, btnFavoritos, btnProgramados, btnPapelera, btnReportes, btnComunidades, btnRegistro, btnCerrar: PGtkWidget;
+  btnRedactar, btnBandeja, btnBorradores, btnFavoritos, btnProgramados, btnPapelera, btnReportes, btnComunidades, btnContactos, btnPerfil, btnCerrar: PGtkWidget; // ✅ AGREGAR btnPerfil
 begin
   WriteLn('🔧 DEBUG: Iniciando MostrarMenuUsuario para: ', emailUsuario);
   
@@ -124,7 +130,7 @@ begin
 
   MenuWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(MenuWindow), PChar('EDDMail - ' + emailUsuario));
-  gtk_window_set_default_size(GTK_WINDOW(MenuWindow), 400, 500);
+  gtk_window_set_default_size(GTK_WINDOW(MenuWindow), 400, 550); // ✅ AUMENTAR ALTURA para nuevo botón
   gtk_window_set_position(GTK_WINDOW(MenuWindow), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width(GTK_CONTAINER(MenuWindow), 20);
 
@@ -177,9 +183,14 @@ begin
   g_signal_connect(btnComunidades, 'clicked', G_CALLBACK(@OnComunidades), nil);
   gtk_box_pack_start(GTK_BOX(gridBox), btnComunidades, True, True, 0);
 
-  btnRegistro := gtk_button_new_with_label('👥 Agregar Contacto');
-  g_signal_connect(btnRegistro, 'clicked', G_CALLBACK(@OnRegistrarUsuario), nil);
-  gtk_box_pack_start(GTK_BOX(gridBox), btnRegistro, True, True, 0);
+  btnContactos := gtk_button_new_with_label('👥 Mis Contactos');
+  g_signal_connect(btnContactos, 'clicked', G_CALLBACK(@OnRegistrarUsuario), nil);
+  gtk_box_pack_start(GTK_BOX(gridBox), btnContactos, True, True, 0);
+
+  // ✅ NUEVO: BOTÓN MI PERFIL
+  btnPerfil := gtk_button_new_with_label('👤 Mi Perfil');
+  g_signal_connect(btnPerfil, 'clicked', G_CALLBACK(@OnMiPerfil), nil);
+  gtk_box_pack_start(GTK_BOX(gridBox), btnPerfil, True, True, 0);
 
   btnCerrar := gtk_button_new_with_label('🚪 Cerrar Sesión');
   g_signal_connect(btnCerrar, 'clicked', G_CALLBACK(@OnCerrarSesion), nil);

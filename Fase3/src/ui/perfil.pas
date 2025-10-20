@@ -84,31 +84,61 @@ begin
     Exit;
   end;
 
-  // Actualizar datos en la lista simple
+  // ✅ ACTUALIZAR DATOS EN LA LISTA SIMPLE (MEMORIA)
+  WriteLn('🔧 DEBUG: Actualizando datos del usuario...');
+  WriteLn('🔧 Antes - Nombre: "', GUsuarioActual^.nombre, '" Usuario: "', GUsuarioActual^.usuario, '" Tel: "', GUsuarioActual^.telefono, '"');
+  
   GUsuarioActual^.nombre := nuevoNombre;
   GUsuarioActual^.usuario := nuevoUsuario;
   GUsuarioActual^.telefono := nuevoTelefono;
+  
+  WriteLn('🔧 Después - Nombre: "', GUsuarioActual^.nombre, '" Usuario: "', GUsuarioActual^.usuario, '" Tel: "', GUsuarioActual^.telefono, '"');
 
-  // Actualizar password si se proporcionó uno nuevo
+  // ✅ ACTUALIZAR PASSWORD SI SE PROPORCIONÓ UNO NUEVO
   if nuevoPassword <> '' then
   begin
+    if Length(nuevoPassword) < 6 then
+    begin
+      MostrarMensaje('Error de Validación', 'La nueva contraseña debe tener al menos 6 caracteres.', GTK_MESSAGE_ERROR);
+      Exit;
+    end;
+    
     RegistrarCredencialesUsuario(String(GUsuarioActual^.email), nuevoPassword, nuevoNombre);
     WriteLn('✅ Password actualizado para: ', String(GUsuarioActual^.email));
+    
+    MostrarMensaje('Perfil Actualizado', 
+      'Los datos han sido actualizados exitosamente.' + LineEnding + LineEnding +
+      'Nombre: ' + nuevoNombre + LineEnding +
+      'Usuario: ' + nuevoUsuario + LineEnding +
+      'Teléfono: ' + nuevoTelefono + LineEnding +
+      'Email: ' + String(GUsuarioActual^.email) + LineEnding + LineEnding +
+      '🔑 La contraseña también ha sido actualizada.', 
+      GTK_MESSAGE_INFO);
+  end
+  else
+  begin
+    MostrarMensaje('Perfil Actualizado', 
+      'Los datos han sido actualizados exitosamente.' + LineEnding + LineEnding +
+      'Nombre: ' + nuevoNombre + LineEnding +
+      'Usuario: ' + nuevoUsuario + LineEnding +
+      'Teléfono: ' + nuevoTelefono + LineEnding +
+      'Email: ' + String(GUsuarioActual^.email) + LineEnding + LineEnding +
+      '💡 La contraseña no fue modificada.', 
+      GTK_MESSAGE_INFO);
   end;
 
-  WriteLn('✅ Perfil actualizado: ', nuevoNombre, ' (', String(GUsuarioActual^.email), ')');
-
-  MostrarMensaje('Perfil Actualizado', 
-    'Los datos han sido actualizados exitosamente.' + LineEnding + 
-    'Nombre: ' + nuevoNombre + LineEnding +
-    'Usuario: ' + nuevoUsuario + LineEnding +
-    'Teléfono: ' + nuevoTelefono + LineEnding +
-    'Email: ' + String(GUsuarioActual^.email), 
-    GTK_MESSAGE_INFO);
+  WriteLn('✅ Perfil actualizado exitosamente para: ', nuevoNombre, ' (', String(GUsuarioActual^.email), ')');
 
   // Cerrar ventana de edición
   if Assigned(EditarWindow) then
     gtk_widget_destroy(EditarWindow);
+    
+  // ✅ ACTUALIZAR LA VISTA DEL PERFIL AUTOMÁTICAMENTE
+  if Assigned(PerfilWindow) then
+    gtk_widget_destroy(PerfilWindow);
+    
+  // Volver a mostrar el perfil con los datos actualizados
+  MostrarPerfil(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 end;
 
 procedure OnCancelarEdicion(widget: PGtkWidget; data: gpointer); cdecl;
@@ -128,7 +158,7 @@ end;
 procedure MostrarFormularioEditar();
 var
   vbox, form, hbox, btnBox: PGtkWidget;
-  lblTitulo, lblNombre, lblUsuario, lblTelefono, lblPassword, lblEmail: PGtkWidget;
+  lblTitulo, lblNombre, lblUsuario, lblTelefono, lblPassword, lblEmail, lblInfo: PGtkWidget;
   btnGuardar, btnCancelar: PGtkWidget;
   entryEmail: PGtkWidget;
 begin
@@ -143,7 +173,7 @@ begin
 
   EditarWindow := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(EditarWindow), PChar('✏️ Editar Perfil - EDDMail'));
-  gtk_window_set_default_size(GTK_WINDOW(EditarWindow), 450, 400);
+  gtk_window_set_default_size(GTK_WINDOW(EditarWindow), 450, 450); // ✅ AUMENTAR ALTURA
   gtk_window_set_position(GTK_WINDOW(EditarWindow), GTK_WIN_POS_CENTER);
 
   g_signal_connect(EditarWindow, 'delete-event', G_CALLBACK(@OnDeleteEventEditar), nil);
@@ -155,6 +185,12 @@ begin
   lblTitulo := gtk_label_new(PChar('✏️ Editar Datos del Perfil'));
   gtk_box_pack_start(GTK_BOX(vbox), lblTitulo, False, False, 0);
 
+  // ✅ AGREGAR INFORMACIÓN EXPLICATIVA
+  lblInfo := gtk_label_new(PChar('Modifica los campos que desees actualizar.' + LineEnding + 
+                                 'Los cambios se guardarán inmediatamente.' + LineEnding +
+                                 'La contraseña es opcional (mín. 6 caracteres).'));
+  gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
+
   form := gtk_vbox_new(False, 12);
   gtk_box_pack_start(GTK_BOX(vbox), form, True, True, 0);
 
@@ -162,7 +198,7 @@ begin
   hbox := gtk_hbox_new(False, 10);
   gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
   lblNombre := gtk_label_new('Nombre:');
-  gtk_widget_set_size_request(lblNombre, 80, -1);
+  gtk_widget_set_size_request(lblNombre, 90, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblNombre, False, False, 0);
   EntryNombre := gtk_entry_new();
   gtk_entry_set_text(PGtkEntry(EntryNombre), PChar(String(GUsuarioActual^.nombre)));
@@ -172,7 +208,7 @@ begin
   hbox := gtk_hbox_new(False, 10);
   gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
   lblUsuario := gtk_label_new('Usuario:');
-  gtk_widget_set_size_request(lblUsuario, 80, -1);
+  gtk_widget_set_size_request(lblUsuario, 90, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblUsuario, False, False, 0);
   EntryUsuario := gtk_entry_new();
   gtk_entry_set_text(PGtkEntry(EntryUsuario), PChar(String(GUsuarioActual^.usuario)));
@@ -182,7 +218,7 @@ begin
   hbox := gtk_hbox_new(False, 10);
   gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
   lblEmail := gtk_label_new('Email:');
-  gtk_widget_set_size_request(lblEmail, 80, -1);
+  gtk_widget_set_size_request(lblEmail, 90, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblEmail, False, False, 0);
   entryEmail := gtk_entry_new();
   gtk_entry_set_text(PGtkEntry(entryEmail), PChar(String(GUsuarioActual^.email)));
@@ -193,7 +229,7 @@ begin
   hbox := gtk_hbox_new(False, 10);
   gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
   lblTelefono := gtk_label_new('Teléfono:');
-  gtk_widget_set_size_request(lblTelefono, 80, -1);
+  gtk_widget_set_size_request(lblTelefono, 90, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblTelefono, False, False, 0);
   EntryTelefono := gtk_entry_new();
   gtk_entry_set_text(PGtkEntry(EntryTelefono), PChar(String(GUsuarioActual^.telefono)));
@@ -203,10 +239,11 @@ begin
   hbox := gtk_hbox_new(False, 10);
   gtk_box_pack_start(GTK_BOX(form), hbox, False, False, 0);
   lblPassword := gtk_label_new('Nueva Pass:');
-  gtk_widget_set_size_request(lblPassword, 80, -1);
+  gtk_widget_set_size_request(lblPassword, 90, -1);
   gtk_box_pack_start(GTK_BOX(hbox), lblPassword, False, False, 0);
   EntryPassword := gtk_entry_new();
   gtk_entry_set_visibility(PGtkEntry(EntryPassword), False);
+  gtk_entry_set_invisible_char(PGtkEntry(EntryPassword), Ord('*'));
   gtk_entry_set_text(PGtkEntry(EntryPassword), '');
   gtk_box_pack_start(GTK_BOX(hbox), EntryPassword, True, True, 0);
 

@@ -102,7 +102,7 @@ end;
 
 procedure OnCargaMasiva(widget: PGtkWidget; data: gpointer); cdecl;
 var
-  rutaUsuarios, rutaCorreos: String;
+  rutaUsuarios, rutaCorreos, rutaContactos: String; // ✅ AGREGAR rutaContactos
   dialog: PGtkWidget;
 begin
   if (GUsuarios = nil) or (GProgramados = nil) or (GBorradores = nil) or (GFavoritos = nil) then
@@ -111,13 +111,15 @@ begin
     Exit;
   end;
 
-  // ✅ USAR RUTAS CORRECTAS DE FASE3
+  // ✅ USAR RUTAS CORRECTAS DE FASE3 INCLUYENDO CONTACTOS
   rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/usuarios.json';
   rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/correos.json';
+  rutaContactos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/contactos.json'; // ✅ NUEVA ruta
 
-  WriteLn('🔄 Iniciando carga masiva desde root menu...');
+  WriteLn('🔄 Iniciando carga masiva completa desde root menu...');
   WriteLn('📁 Archivo usuarios: ', rutaUsuarios);
   WriteLn('📁 Archivo correos: ', rutaCorreos);
+  WriteLn('📁 Archivo contactos: ', rutaContactos); // ✅ NUEVA línea
 
   // Verificar que los archivos existen
   if not FileExists(rutaUsuarios) then
@@ -148,21 +150,39 @@ begin
     Exit;
   end;
 
-  // ✅ CARGA MASIVA SIMPLIFICADA
-  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+  // ✅ VERIFICAR ARCHIVO DE CONTACTOS
+  if not FileExists(rutaContactos) then
+  begin
+    WriteLn('❌ Error: No se encuentra el archivo de contactos');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_ERROR,
+      GTK_BUTTONS_OK,
+      PChar('Error: No se encuentra el archivo de contactos en:' + #10 + rutaContactos + #10 + #10 +
+            'Por favor verifica que el archivo existe en la carpeta Fase3/assets/'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
 
-  g_print('>> ✅ Carga masiva completada.' + LineEnding);
+  // ✅ CARGA MASIVA COMPLETA CON CONTACTOS
+  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, rutaContactos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+
+  g_print('>> ✅ Carga masiva completa.' + LineEnding);
 
   dialog := gtk_message_dialog_new(nil,
     GTK_DIALOG_MODAL,
     GTK_MESSAGE_INFO,
     GTK_BUTTONS_OK,
     PChar('✅ Carga masiva completada correctamente.' + #10 + #10 +
-          'Usuarios cargados: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
-          'Correos cargados: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 + #10 +
+          'Datos cargados:' + #10 +
+          '👥 Usuarios: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
+          '📧 Correos: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 +
+          '📇 Contactos: Cargados por usuario' + #10 + #10 + // ✅ NUEVA línea
           '📝 Borradores y favoritos inician vacíos' + #10 +
           '📧 Solo se cargan correos con estado NL (No Leído) o L (Leído)' + #10 + #10 +
-          'Ahora puedes usar "Salir" para acceder con los nuevos usuarios.'));
+          'Ahora cada usuario tiene sus contactos preconfigurados.' + #10 + // ✅ NUEVA línea
+          'Usa "Salir" para acceder con los nuevos usuarios.'));
   gtk_dialog_run(GTK_DIALOG(dialog));
   gtk_widget_destroy(dialog);
 end;
