@@ -29,11 +29,10 @@ var
 
 { --- Callbacks --- }
 
-// ✅ DECLARACIÓN FORWARD CORRECTA
+// ✅ DECLARACIONES FORWARD CORRECTAS
 procedure MostrarControlLoginWindow(); forward;
-
-// Declaración forward de la función
 procedure MostrarTodosMensajesComunidades(); forward;
+procedure OnGenerarReporteLogin(widget: PGtkWidget; data: gpointer); cdecl; forward; // ✅ AGREGAR declaración forward
 
 function OnDeleteEventMensajes(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
 begin
@@ -102,7 +101,7 @@ end;
 
 procedure OnCargaMasiva(widget: PGtkWidget; data: gpointer); cdecl;
 var
-  rutaUsuarios, rutaCorreos, rutaContactos: String; // ✅ AGREGAR rutaContactos
+  rutaUsuarios, rutaCorreos, rutaContactos: String;
   dialog: PGtkWidget;
 begin
   if (GUsuarios = nil) or (GProgramados = nil) or (GBorradores = nil) or (GFavoritos = nil) then
@@ -114,12 +113,12 @@ begin
   // ✅ USAR RUTAS CORRECTAS DE FASE3 INCLUYENDO CONTACTOS
   rutaUsuarios := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/usuarios.json';
   rutaCorreos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/correos.json';
-  rutaContactos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/contactos.json'; // ✅ NUEVA ruta
+  rutaContactos := '/home/angel/Desktop/EDD_FASE1_202304063/Fase3/assets/contactos.json';
 
   WriteLn('🔄 Iniciando carga masiva completa desde root menu...');
   WriteLn('📁 Archivo usuarios: ', rutaUsuarios);
   WriteLn('📁 Archivo correos: ', rutaCorreos);
-  WriteLn('📁 Archivo contactos: ', rutaContactos); // ✅ NUEVA línea
+  WriteLn('📁 Archivo contactos: ', rutaContactos);
 
   // Verificar que los archivos existen
   if not FileExists(rutaUsuarios) then
@@ -165,8 +164,9 @@ begin
     Exit;
   end;
 
-  // ✅ CARGA MASIVA COMPLETA CON CONTACTOS
-  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, rutaContactos, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
+  // ✅ LLAMADA CORREGIDA: usar la versión sobrecargada con 3 archivos y 4 estructuras
+  CargaMasivaDesdeJSON(rutaUsuarios, rutaCorreos, rutaContactos, 
+                       GUsuarios^, GProgramados^, GBorradores^, GFavoritos^);
 
   g_print('>> ✅ Carga masiva completa.' + LineEnding);
 
@@ -178,10 +178,10 @@ begin
           'Datos cargados:' + #10 +
           '👥 Usuarios: ' + IntToStr(ContarElementosLista(GUsuarios^)) + #10 +
           '📧 Correos: ' + IntToStr(ContarCorreosEnCola(GProgramados^)) + #10 +
-          '📇 Contactos: Cargados por usuario' + #10 + #10 + // ✅ NUEVA línea
+          '📇 Contactos: Cargados por usuario' + #10 + #10 +
           '📝 Borradores y favoritos inician vacíos' + #10 +
           '📧 Solo se cargan correos con estado NL (No Leído) o L (Leído)' + #10 + #10 +
-          'Ahora cada usuario tiene sus contactos preconfigurados.' + #10 + // ✅ NUEVA línea
+          'Ahora cada usuario tiene sus contactos preconfigurados.' + #10 +
           'Usa "Salir" para acceder con los nuevos usuarios.'));
   gtk_dialog_run(GTK_DIALOG(dialog));
   gtk_widget_destroy(dialog);
@@ -545,7 +545,7 @@ var
   renderer: PGtkCellRenderer;
   iter: TGtkTreeIter;
   btnCerrar: PGtkWidget;
-  totalMensajes, totalComunidades: Integer;
+  totalComunidades: Integer; // ✅ ELIMINAR totalMensajes no usado
 begin
   if Assigned(MensajesWindow) then
     gtk_widget_destroy(MensajesWindow);
@@ -566,7 +566,6 @@ begin
 
   // Contar totales
   totalComunidades := ContarComunidades(ArbolComunidades);
-  totalMensajes := 0; // Se contará durante el llenado
 
   lblInfo := gtk_label_new(PChar('Total: ' + IntToStr(totalComunidades) + ' comunidades en el BST'));
   gtk_box_pack_start(GTK_BOX(vbox), lblInfo, False, False, 0);
@@ -645,7 +644,7 @@ procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; va
 var
   window: PGtkWidget;
   vbox, hboxCombo: PGtkWidget;
-  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnSalir: PGtkWidget;
+  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnReporteLogin, btnSalir: PGtkWidget;
   lblComunidades: PGtkWidget;
   store: PGtkListStore;
   renderer: PGtkCellRenderer;
@@ -719,6 +718,11 @@ begin
   g_signal_connect(btnControlLogin, 'clicked', G_CALLBACK(@OnControlLogin), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnControlLogin, False, False, 0);
 
+  // ✅ NUEVO: Botón para generar reporte visual de logueo
+  btnReporteLogin := gtk_button_new_with_label('6. 📊 Reporte Visual Logueo');
+  g_signal_connect(btnReporteLogin, 'clicked', G_CALLBACK(@OnGenerarReporteLogin), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnReporteLogin, False, False, 0);
+
   btnSalir := gtk_button_new_with_label('🚪 Cerrar Sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnSalir), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnSalir, False, False, 0);
@@ -731,6 +735,111 @@ begin
   WriteLn('🔧 DEBUG: Mostrando ventana root...');
   gtk_widget_show_all(window);
   WriteLn('✅ Menú root mostrado exitosamente');
+end;
+
+// ✅ IMPLEMENTACIÓN DE LA FUNCIÓN (mover al final del archivo)
+procedure OnGenerarReporteLogin(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaDir, rutaDot, rutaPng: String;
+  dialog: PGtkWidget;
+  totalRegistros: Integer;
+  actual: PRegistroLogin;
+begin
+  // Contar registros primero
+  totalRegistros := 0;
+  actual := ObtenerRegistrosLogin();
+  while actual <> nil do
+  begin
+    Inc(totalRegistros);
+    actual := actual^.siguiente;
+  end;
+  
+  if totalRegistros = 0 then
+  begin
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('🔐 Sin registros de logueo' + #10 + #10 +
+            'No hay registros de accesos al sistema para generar reporte.' + #10 +
+            'Los registros se crean cuando los usuarios inician sesión.'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+  
+  // Generar reporte visual en carpeta root
+  rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/root';
+  if not DirectoryExists(rutaDir) then
+    CreateDir(rutaDir);
+  
+  rutaDot := rutaDir + '/control-logueo.dot';
+  rutaPng := rutaDir + '/control-logueo.png';
+  
+  WriteLn('🔐 Generando reporte visual de control de logueo...');
+  
+  // Generar DOT del control de logueo
+  GenerarReporteControlLogin(rutaDot);
+  
+  // Intentar generar PNG
+  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
+  begin
+    WriteLn('🖼️ Generando imagen PNG del reporte...');
+    if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + rutaDot + '" -o "' + rutaPng + '"'], []) = 0 then
+    begin
+      WriteLn('🖼️ Imagen PNG generada: ', rutaPng);
+      
+      // Mostrar diálogo informativo detallado
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO,
+        GTK_BUTTONS_OK,
+        PChar('🔐 Reporte de Control de Logueo generado exitosamente!' + #10 + #10 +
+              '📊 Estadísticas:' + #10 +
+              '• Total de registros: ' + IntToStr(totalRegistros) + #10 + #10 +
+              '📁 Archivos generados:' + #10 +
+              '📄 DOT: control-logueo.dot' + #10 +
+              '🖼️ PNG: control-logueo.png' + #10 + #10 +
+              '📍 Ubicación: /graficos/root/' + #10 + #10 +
+              '🔍 El reporte muestra:' + #10 +
+              '• Cronología de accesos' + #10 +
+              '• Sesiones activas vs finalizadas' + #10 +
+              '• Duración de cada sesión' + #10 +
+              '• Diferenciación entre root y usuarios' + #10 +
+              '• Detección de sesiones anómalas'));
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end
+    else
+    begin
+      WriteLn('⚠️ Error generando PNG del reporte de logueo');
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_OK,
+        PChar('📄 Archivo DOT del control de logueo generado exitosamente.' + #10 + #10 +
+              'No se pudo generar la imagen PNG.' + #10 +
+              'Puedes visualizar el archivo .dot con Graphviz manualmente.' + #10 + #10 +
+              'Ubicación: /graficos/root/control-logueo.dot'));
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end;
+  end
+  else
+  begin
+    WriteLn('ℹ️ Graphviz no detectado para reporte de logueo');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('📄 Archivo DOT del control de logueo generado: control-logueo.dot' + #10 + #10 +
+            '💡 Para generar la imagen visual:' + #10 +
+            '1. Instala Graphviz: sudo apt install graphviz' + #10 +
+            '2. Ejecuta: dot -Tpng control-logueo.dot -o control-logueo.png' + #10 + #10 +
+            '📍 Ubicación: /graficos/root/'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+  end;
 end;
 
 end.

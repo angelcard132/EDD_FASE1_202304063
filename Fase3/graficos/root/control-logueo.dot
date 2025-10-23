@@ -1,0 +1,42 @@
+digraph ControlLogin {
+  rankdir=TB;
+  node [style=filled, fontname="Arial", fontsize=9];
+  edge [fontname="Arial", fontsize=8];
+  label="🔐 CONTROL DE LOGUEO DEL SISTEMA\\nRegistro cronológico de accesos de usuarios"; labelloc=t; fontsize=14; fontcolor=navy;
+
+  subgraph cluster_leyenda {
+    label="🔐 Leyenda del Control de Acceso";
+    style=filled;
+    fillcolor="#F0F8FF";
+    fontcolor=navy;
+    leyenda_activo [label="🟢 SESIÓN ACTIVA\\n(Usuario conectado)", fillcolor="#90EE90", shape="box"];
+    leyenda_finalizada [label="🔴 SESIÓN FINALIZADA\\n(Usuario desconectado)", fillcolor="#FFB6C1", shape="box"];
+    leyenda_root [label="👑 ADMINISTRADOR ROOT\\n(Acceso privilegiado)", fillcolor="#FFD700", shape="diamond"];
+    leyenda_usuario [label="👤 USUARIO REGULAR\\n(Acceso estándar)", fillcolor="#E6F3FF", shape="ellipse"];
+    leyenda_tiempo [label="⏱️ Tiempo de Sesión\\n(duración calculada)", fillcolor="#F0F0F0", shape="note"];
+  }
+
+  subgraph cluster_cronologia {
+    label="📅 Cronología de Accesos (Más reciente primero)";
+    style=filled;
+    fillcolor="#FFFACD";
+    fontcolor=brown;
+
+    sesion_1 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 15:40:55\\n🚪 Salida: CONECTADO\\n⏱️ Duración: En sesión\\n\\n🟢 ACTIVO", fillcolor="#FFD700", shape="diamond"];
+    sesion_2 [label="👤 aux-luis@edd.com\\n\\n📅 Entrada: 23-10-2025 15:40:49\\n🚪 Salida: 23-10-2025 15:40:51\\n⏱️ Duración: 0 min\\n\\n🔴 FINALIZADA", fillcolor="#FFB6C1", shape="ellipse"];
+    sesion_1 -> sesion_2 [label="anterior", color="gray"];
+    sesion_3 [label="👤 aux-sofia@edd.com\\n\\n📅 Entrada: 23-10-2025 15:40:40\\n🚪 Salida: 23-10-2025 15:40:41\\n⏱️ Duración: 0 min\\n\\n🔴 FINALIZADA", fillcolor="#FFB6C1", shape="ellipse"];
+    sesion_2 -> sesion_3 [label="anterior", color="gray"];
+    sesion_4 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 15:39:55\\n🚪 Salida: 23-10-2025 15:40:32\\n⏱️ Duración: 1 min\\n\\n🔴 FINALIZADA", fillcolor="#FFD700", shape="diamond"];
+    sesion_3 -> sesion_4 [label="anterior", color="gray"];
+  }
+
+  subgraph cluster_estadisticas {
+    label="📊 Estadísticas del Sistema";
+    style=filled;
+    fillcolor="#E0E0E0";
+    fontcolor=black;
+    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: 4\\n🟢 Sesiones activas: 1\\n🔴 Sesiones finalizadas: 3\\n\\n📅 Generado: 23-10-2025 15:40", shape="note", fillcolor="#FFFFFF"];
+    seguridad [label="🛡️ INFORMACIÓN DE SEGURIDAD\\n\\n• Monitoreo en tiempo real\\n• Control de accesos activos\\n• Auditoría de usuarios\\n• Detección de sesiones anómalas\\n\\n⚠️ Revisar sesiones sin salida", shape="note", fillcolor="#FFF8DC"];
+  }
+}

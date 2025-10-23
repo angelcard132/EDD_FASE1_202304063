@@ -5,7 +5,7 @@ unit control_login;
 interface
 
 uses
-  SysUtils, Classes, fpjson, jsonparser;
+  SysUtils, Classes;
 
 type
   PRegistroLogin = ^TRegistroLogin;
@@ -20,7 +20,8 @@ type
 var
   RegistrosLogin: PRegistroLogin = nil;
 
-// Funciones principales
+{ Funciones principales }
+procedure InicializarControlLogin();
 procedure RegistrarEntrada(const usuario: String);
 procedure RegistrarSalida(const usuario: String);
 function ObtenerRegistrosLogin(): PRegistroLogin;
@@ -28,6 +29,15 @@ procedure ExportarLoginJSON(const rutaArchivo: String);
 procedure LiberarControlLogin();
 
 implementation
+
+uses
+  fpjson, jsonparser;
+
+procedure InicializarControlLogin();
+begin
+  RegistrosLogin := nil;
+  WriteLn('🔐 Control de login inicializado');
+end;
 
 procedure RegistrarEntrada(const usuario: String);
 var
@@ -41,7 +51,7 @@ begin
   nuevo^.siguiente := RegistrosLogin;
   RegistrosLogin := nuevo;
   
-  WriteLn('🔐 Entrada registrada: ', usuario, ' a las ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
+  WriteLn('🔐 LOGIN registrado: ', usuario, ' en ', FormatDateTime('dd/mm/yyyy hh:nn:ss', Now));
 end;
 
 procedure RegistrarSalida(const usuario: String);
@@ -55,13 +65,13 @@ begin
     begin
       actual^.fechaSalida := Now;
       actual^.activo := False;
-      WriteLn('🔐 Salida registrada: ', usuario, ' a las ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
+      WriteLn('🔐 LOGOUT registrado: ', usuario, ' en ', FormatDateTime('dd/mm/yyyy hh:nn:ss', Now));
       Exit;
     end;
     actual := actual^.siguiente;
   end;
   
-  WriteLn('⚠️ No se encontró entrada activa para: ', usuario);
+  WriteLn('⚠️ No se encontró sesión activa para: ', usuario);
 end;
 
 function ObtenerRegistrosLogin(): PRegistroLogin;
@@ -71,40 +81,45 @@ end;
 
 procedure ExportarLoginJSON(const rutaArchivo: String);
 var
+  jsonObj, registroObj: TJSONObject;
   jsonArray: TJSONArray;
-  jsonObj: TJSONObject;
   actual: PRegistroLogin;
-  archivo: TStringList;
+  archivo: TextFile;
 begin
+  jsonObj := TJSONObject.Create;
   jsonArray := TJSONArray.Create;
-  archivo := TStringList.Create;
   
   try
     actual := RegistrosLogin;
     while actual <> nil do
     begin
-      jsonObj := TJSONObject.Create;
-      jsonObj.Add('usuario', actual^.usuario);
-      jsonObj.Add('fechaEntrada', FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaEntrada));
+      registroObj := TJSONObject.Create;
+      registroObj.Add('usuario', actual^.usuario);
+      registroObj.Add('fechaEntrada', FormatDateTime('dd/mm/yyyy hh:nn:ss', actual^.fechaEntrada));
       
       if actual^.fechaSalida > 0 then
-        jsonObj.Add('fechaSalida', FormatDateTime('yyyy-mm-dd hh:nn:ss', actual^.fechaSalida))
+        registroObj.Add('fechaSalida', FormatDateTime('dd/mm/yyyy hh:nn:ss', actual^.fechaSalida))
       else
-        jsonObj.Add('fechaSalida', 'null');
+        registroObj.Add('fechaSalida', 'ACTIVO');
         
-      jsonObj.Add('activo', actual^.activo);
-      
-      jsonArray.Add(jsonObj);
+      registroObj.Add('activo', actual^.activo);
+      jsonArray.Add(registroObj);
       actual := actual^.siguiente;
     end;
     
-    archivo.Text := jsonArray.FormatJSON;
-    archivo.SaveToFile(rutaArchivo);
+    jsonObj.Add('registros', jsonArray);
+    jsonObj.Add('totalRegistros', jsonArray.Count);
+    jsonObj.Add('fechaExportacion', FormatDateTime('dd/mm/yyyy hh:nn:ss', Now));
+    
+    AssignFile(archivo, rutaArchivo);
+    Rewrite(archivo);
+    WriteLn(archivo, jsonObj.AsJSON);
+    CloseFile(archivo);
+    
     WriteLn('📄 Control de login exportado a: ', rutaArchivo);
     
   finally
-    jsonArray.Free;
-    archivo.Free;
+    jsonObj.Free;
   end;
 end;
 
@@ -121,5 +136,11 @@ begin
   end;
   RegistrosLogin := nil;
 end;
+
+initialization
+  InicializarControlLogin();
+
+finalization
+  LiberarControlLogin();
 
 end.

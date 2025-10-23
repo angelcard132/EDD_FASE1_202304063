@@ -5,7 +5,7 @@ unit reports;
 interface
 
 uses
-  SysUtils, cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst, blockchain, merkle_tree;
+  SysUtils, cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst, blockchain, merkle_tree, control_login; // ✅ AGREGAR control_login
 
 // Función original
 procedure GenerarGraficoBandeja(const emailDestino: String; var programados: TCola; const rutaDot: String);
@@ -29,6 +29,12 @@ procedure GenerarReporteBSTComunidades(const rutaDot: String);
 procedure GenerarNodosBST(var f: Text; nodo: PNodoComunidadBST);
 procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
 procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
+
+// ✅ NUEVA FUNCIÓN: Reporte de control de logueo
+procedure GenerarReporteControlLogin(const rutaDot: String);
+
+// ✅ NUEVA: Función para generar reporte de blockchain
+procedure GenerarReporteBlockchain(const emailUsuario: String; var blockchainMail: TBlockchain; const rutaDot: String);
 
 implementation
 
@@ -439,7 +445,153 @@ begin
   WriteLn('⛓️ Reporte blockchain generado: ', rutaDot);
 end;
 
-// ✅ AGREGAR procedimiento para reporte de Merkle Tree
+// ✅ NUEVA: Función para generar reporte visual del control de logueo
+procedure GenerarReporteControlLogin(const rutaDot: String);
+var
+  f: Text;
+  actual: PRegistroLogin;
+  contador, sesionesActivas, sesionesFinalizadas: Integer;
+  fechaEntrada, fechaSalida, duracion, estado: String;
+  tiempoSesion: Double;
+  colorNodo: String;
+begin
+  AssignFile(f, rutaDot);
+  Rewrite(f);
+  try
+    WriteLn(f, 'digraph ControlLogin {');
+    WriteLn(f, '  rankdir=TB;');
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=9];');
+    WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
+    WriteLn(f, '  label="🔐 CONTROL DE LOGUEO DEL SISTEMA\\nRegistro cronológico de accesos de usuarios"; labelloc=t; fontsize=14; fontcolor=navy;');
+    WriteLn(f, '');
+    
+    // Leyenda del reporte
+    WriteLn(f, '  subgraph cluster_leyenda {');
+    WriteLn(f, '    label="🔐 Leyenda del Control de Acceso";');
+    WriteLn(f, '    style=filled;');
+    WriteLn(f, '    fillcolor="#F0F8FF";');
+    WriteLn(f, '    fontcolor=navy;');
+    WriteLn(f, '    leyenda_activo [label="🟢 SESIÓN ACTIVA\\n(Usuario conectado)", fillcolor="#90EE90", shape="box"];');
+    WriteLn(f, '    leyenda_finalizada [label="🔴 SESIÓN FINALIZADA\\n(Usuario desconectado)", fillcolor="#FFB6C1", shape="box"];');
+    WriteLn(f, '    leyenda_root [label="👑 ADMINISTRADOR ROOT\\n(Acceso privilegiado)", fillcolor="#FFD700", shape="diamond"];');
+    WriteLn(f, '    leyenda_usuario [label="👤 USUARIO REGULAR\\n(Acceso estándar)", fillcolor="#E6F3FF", shape="ellipse"];');
+    WriteLn(f, '    leyenda_tiempo [label="⏱️ Tiempo de Sesión\\n(duración calculada)", fillcolor="#F0F0F0", shape="note"];');
+    WriteLn(f, '  }');
+    WriteLn(f, '');
+    
+    contador := 0;
+    sesionesActivas := 0;
+    sesionesFinalizadas := 0;
+    actual := ObtenerRegistrosLogin();
+    
+    if actual = nil then
+    begin
+      WriteLn(f, '  vacio [label="🔐 Sin registros de acceso\\n\\nNo hay usuarios que hayan\\niniciado sesión en el sistema", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+    end
+    else
+    begin
+      WriteLn(f, '  subgraph cluster_cronologia {');
+      WriteLn(f, '    label="📅 Cronología de Accesos (Más reciente primero)";');
+      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    fillcolor="#FFFACD";');
+      WriteLn(f, '    fontcolor=brown;');
+      WriteLn(f, '');
+      
+      // Recorrer registros (ya vienen en orden cronológico inverso)
+      while actual <> nil do
+      begin
+        Inc(contador);
+        
+        fechaEntrada := FormatDateTime('dd/mm/yyyy hh:nn:ss', actual^.fechaEntrada);
+        
+        if actual^.activo then
+        begin
+          // Sesión activa
+          fechaSalida := 'CONECTADO';
+          duracion := 'En sesión';
+          estado := '🟢 ACTIVO';
+          colorNodo := '#90EE90';
+          Inc(sesionesActivas);
+        end
+        else if actual^.fechaSalida > 0 then
+        begin
+          // Sesión finalizada correctamente
+          fechaSalida := FormatDateTime('dd/mm/yyyy hh:nn:ss', actual^.fechaSalida);
+          tiempoSesion := (actual^.fechaSalida - actual^.fechaEntrada) * 24 * 60; // en minutos
+          if tiempoSesion < 60 then
+            duracion := Format('%.0f min', [tiempoSesion])
+          else
+            duracion := Format('%.1f hrs', [tiempoSesion / 60]);
+          estado := '🔴 FINALIZADA';
+          colorNodo := '#FFB6C1';
+          Inc(sesionesFinalizadas);
+        end
+        else
+        begin
+          // Sesión con error (sin salida registrada)
+          fechaSalida := 'SIN SALIDA';
+          duracion := 'Error';
+          estado := '⚠️ ERROR';
+          colorNodo := '#FFA500';
+          Inc(sesionesFinalizadas);
+        end;
+        
+        // Determinar si es root o usuario regular
+        if Pos('root', LowerCase(actual^.usuario)) > 0 then
+        begin
+          // Es administrador root - ✅ CORREGIR formato sin colorNodo
+          WriteLn(f, Format('    sesion_%d [label="👑 ADMINISTRADOR ROOT\\n%s\\n\\n📅 Entrada: %s\\n🚪 Salida: %s\\n⏱️ Duración: %s\\n\\n%s", fillcolor="#FFD700", shape="diamond"];',
+                           [contador, actual^.usuario, fechaEntrada, fechaSalida, duracion, estado]));
+        end
+        else
+        begin
+          // Es usuario regular - ✅ CORREGIR número de parámetros
+          WriteLn(f, Format('    sesion_%d [label="👤 %s\\n\\n📅 Entrada: %s\\n🚪 Salida: %s\\n⏱️ Duración: %s\\n\\n%s", fillcolor="%s", shape="ellipse"];',
+                           [contador, actual^.usuario, fechaEntrada, fechaSalida, duracion, estado, colorNodo]));
+        end;
+        
+        // Conectar sesiones cronológicamente
+        if contador > 1 then
+        begin
+          if actual^.activo then
+            WriteLn(f, Format('    sesion_%d -> sesion_%d [label="anterior", color="green", style="bold"];', [contador-1, contador]))
+          else
+            WriteLn(f, Format('    sesion_%d -> sesion_%d [label="anterior", color="gray"];', [contador-1, contador]));
+        end;
+        
+        actual := actual^.siguiente;
+      end;
+      
+      WriteLn(f, '  }');
+    end;
+    
+    // Agregar información estadística
+    WriteLn(f, '');
+    WriteLn(f, '  subgraph cluster_estadisticas {');
+    WriteLn(f, '    label="📊 Estadísticas del Sistema";');
+    WriteLn(f, '    style=filled;');
+    WriteLn(f, '    fillcolor="#E0E0E0";');
+    WriteLn(f, '    fontcolor=black;');
+    WriteLn(f, '    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: ' + IntToStr(contador) + '\\n🟢 Sesiones activas: ' + IntToStr(sesionesActivas) + '\\n🔴 Sesiones finalizadas: ' + IntToStr(sesionesFinalizadas) + '\\n\\n📅 Generado: ' + FormatDateTime('dd/mm/yyyy hh:nn', Now) + '", shape="note", fillcolor="#FFFFFF"];');
+    
+    if contador > 0 then
+    begin
+      WriteLn(f, '    seguridad [label="🛡️ INFORMACIÓN DE SEGURIDAD\\n\\n• Monitoreo en tiempo real\\n• Control de accesos activos\\n• Auditoría de usuarios\\n• Detección de sesiones anómalas\\n\\n⚠️ Revisar sesiones sin salida", shape="note", fillcolor="#FFF8DC"];');
+    end;
+    
+    WriteLn(f, '  }');
+    
+    WriteLn(f, '}');
+  finally
+    CloseFile(f);
+  end;
+  
+  WriteLn('🔐 Reporte de control de logueo generado: ', rutaDot);
+  WriteLn('📊 Total de registros procesados: ', contador);
+  WriteLn('🟢 Sesiones activas: ', sesionesActivas);
+  WriteLn('🔴 Sesiones finalizadas: ', sesionesFinalizadas);
+end;
+
 procedure GenerarReporteMerklePrivados(const emailUsuario: String; var merklePrivados: TArbolMerkle; const rutaDot: String);
 var
   totalCorreosUsuario: Integer;
