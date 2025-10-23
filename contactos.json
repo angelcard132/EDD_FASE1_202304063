@@ -1,0 +1,56 @@
+{
+  "Usuarios": [
+    {
+      "Usuario": "auxluis",
+      "Contactos": [
+        "auxmarcos",
+        "auxana",
+        "auxcarlos",
+        "auxsofia"
+      ]
+    },
+    {
+      "Usuario": "auxmarcos",
+      "Contactos": [
+        "auxluis",
+        "auxana",
+        "auxjorge"
+      ]
+    },
+    {
+      "Usuario": "auxana",
+      "Contactos": [
+        "auxluis",
+        "auxmarcos",
+        "auxcarlos",
+        "auxsofia",
+        "auxjorge"
+      ]
+    },
+    {
+      "Usuario": "auxcarlos",
+      "Contactos": [
+        "auxana",
+        "auxluis",
+        "auxmarcos"
+      ]
+    },
+    {
+      "Usuario": "auxsofia",
+      "Contactos": [
+        "auxana",
+        "auxluis",
+        "auxjorge",
+        "auxcarlos"
+      ]
+    },
+    {
+      "Usuario": "auxjorge",
+      "Contactos": [
+        "auxsofia",
+        "auxmarcos",
+        "auxana"
+      ]
+    }
+  ]
+}

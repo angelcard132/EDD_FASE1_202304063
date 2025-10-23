@@ -1,0 +1,52 @@
+{
+  "usuarios": [
+    {
+      "id": 1,
+      "nombre": "Luis Garcia",
+      "usuario": "auxluis",
+      "password": "auxluis123",
+      "email": "aux-luis@edd.com",
+      "telefono": "12345678"
+    },
+    {
+      "id": 2,
+      "nombre": "Marcos Itzep",
+      "usuario": "auxmarcos",
+      "password": "auxmarcos123",
+      "email": "aux-marcosg@edd.com",
+      "telefono": "87654321"
+    },
+    {
+      "id": 3,
+      "nombre": "Ana López",
+      "usuario": "auxana",
+      "password": "auxana123",
+      "email": "aux-ana@edd.com",
+      "telefono": "11223344"
+    },
+    {
+      "id": 4,
+      "nombre": "Carlos Pérez",
+      "usuario": "auxcarlos",
+      "password": "auxcarlos123",
+      "email": "aux-carlos@edd.com",
+      "telefono": "44332211"
+    },
+    {
+      "id": 5,
+      "nombre": "Sofía Martínez",
+      "usuario": "auxsofia",
+      "password": "auxsofia123",
+      "email": "aux-sofia@edd.com",
+      "telefono": "99887766"
+    },
+    {
+      "id": 6,
+      "nombre": "Jorge Ramírez",
+      "usuario": "auxjorge",
+      "password": "auxjorge123",
+      "email": "aux-jorge@edd.com",
+      "telefono": "66778899"
+    }
+  ]
+}

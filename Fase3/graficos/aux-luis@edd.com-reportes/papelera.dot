@@ -1,8 +1,0 @@
-digraph Papelera {
-  rankdir=TB;
-  node [shape=box, style=filled, fontname="Arial", fontsize=9, fillcolor="#FFD6D6"];
-  edge [color=red, style=bold];
-  label="🗑️ PAPELERA (PILA) - aux-luis@edd.com"; labelloc=t; fontsize=14; fontcolor=red;
-
-  vacia [label="🗑️ Papelera vacía", fillcolor="#F0F0F0", fontcolor="gray"];
-}

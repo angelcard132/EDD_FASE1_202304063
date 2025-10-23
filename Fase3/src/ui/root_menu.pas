@@ -32,7 +32,8 @@ var
 // ✅ DECLARACIONES FORWARD CORRECTAS
 procedure MostrarControlLoginWindow(); forward;
 procedure MostrarTodosMensajesComunidades(); forward;
-procedure OnGenerarReporteLogin(widget: PGtkWidget; data: gpointer); cdecl; forward; // ✅ AGREGAR declaración forward
+procedure OnGenerarReporteLogin(widget: PGtkWidget; data: gpointer); cdecl; forward;
+procedure OnGenerarReporteContactos(widget: PGtkWidget; data: gpointer); cdecl; forward; // ✅ NUEVA declaración forward
 
 function OnDeleteEventMensajes(widget: PGtkWidget; event: PGdkEvent; data: gpointer): gboolean; cdecl;
 begin
@@ -644,7 +645,7 @@ procedure MostrarMenuRoot(var usuarios: TListaSimple; var programados: TCola; va
 var
   window: PGtkWidget;
   vbox, hboxCombo: PGtkWidget;
-  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnReporteLogin, btnSalir: PGtkWidget;
+  btnCarga, btnComunidad, btnReporte, btnMensajes, btnControlLogin, btnReporteLogin, btnReporteContactos, btnSalir: PGtkWidget; // ✅ AGREGAR btnReporteContactos
   lblComunidades: PGtkWidget;
   store: PGtkListStore;
   renderer: PGtkCellRenderer;
@@ -722,6 +723,11 @@ begin
   btnReporteLogin := gtk_button_new_with_label('6. 📊 Reporte Visual Logueo');
   g_signal_connect(btnReporteLogin, 'clicked', G_CALLBACK(@OnGenerarReporteLogin), nil);
   gtk_box_pack_start(GTK_BOX(vbox), btnReporteLogin, False, False, 0);
+
+  // ✅ NUEVO: Botón para generar reporte de relaciones de contactos
+  btnReporteContactos := gtk_button_new_with_label('7. 👥 Reporte Relaciones Contactos');
+  g_signal_connect(btnReporteContactos, 'clicked', G_CALLBACK(@OnGenerarReporteContactos), nil);
+  gtk_box_pack_start(GTK_BOX(vbox), btnReporteContactos, False, False, 0);
 
   btnSalir := gtk_button_new_with_label('🚪 Cerrar Sesión');
   g_signal_connect(btnSalir, 'clicked', G_CALLBACK(@OnSalir), nil);
@@ -836,6 +842,113 @@ begin
             '💡 Para generar la imagen visual:' + #10 +
             '1. Instala Graphviz: sudo apt install graphviz' + #10 +
             '2. Ejecuta: dot -Tpng control-logueo.dot -o control-logueo.png' + #10 + #10 +
+            '📍 Ubicación: /graficos/root/'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+  end;
+end;
+
+// ✅ NUEVA FUNCIÓN: Reporte visual de relaciones de contactos
+procedure OnGenerarReporteContactos(widget: PGtkWidget; data: gpointer); cdecl;
+var
+  rutaDir, rutaDot, rutaPng: String;
+  dialog: PGtkWidget;
+  totalRelaciones: Integer;
+  actual: PContactoManual;
+begin
+  // Contar relaciones primero
+  totalRelaciones := 0;
+  actual := ContactosManuales;
+  while actual <> nil do
+  begin
+    Inc(totalRelaciones);
+    actual := actual^.siguiente;
+  end;
+  
+  if totalRelaciones = 0 then
+  begin
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('👥 Sin relaciones de contactos' + #10 + #10 +
+            'No hay contactos registrados para generar reporte de relaciones.' + #10 + #10 +
+            'Las relaciones se crean cuando:' + #10 +
+            '• Se hace carga masiva con archivo contactos.json' + #10 +
+            '• Los usuarios agregan contactos manualmente'));
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    Exit;
+  end;
+  
+  // Generar reporte visual en carpeta root
+  rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/root';
+  if not DirectoryExists(rutaDir) then
+    CreateDir(rutaDir);
+  
+  rutaDot := rutaDir + '/relaciones-contactos.dot';
+  rutaPng := rutaDir + '/relaciones-contactos.png';
+  
+  WriteLn('👥 Generando reporte visual de relaciones de contactos...');
+  
+  // Generar DOT del reporte de relaciones
+  GenerarReporteRelacionesContactos(rutaDot);
+  
+  // Intentar generar PNG
+  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
+  begin
+    WriteLn('🖼️ Generando imagen PNG del reporte...');
+    if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + rutaDot + '" -o "' + rutaPng + '"'], []) = 0 then
+    begin
+      WriteLn('🖼️ Imagen PNG generada: ', rutaPng);
+      
+      // Mostrar diálogo informativo detallado
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_INFO,
+        GTK_BUTTONS_OK,
+        PChar('👥 Reporte de Relaciones de Contactos generado exitosamente!' + #10 + #10 +
+              '📊 Estadísticas:' + #10 +
+              '• Total de relaciones: ' + IntToStr(totalRelaciones) + #10 + #10 +
+              '📁 Archivos generados:' + #10 +
+              '📄 DOT: relaciones-contactos.dot' + #10 +
+              '🖼️ PNG: relaciones-contactos.png' + #10 + #10 +
+              '📍 Ubicación: /graficos/root/' + #10 + #10 +
+              '🔍 El reporte muestra:' + #10 +
+              '• Usuarios y sus contactos' + #10 +
+              '• Relaciones entre usuarios y contactos' + #10 +
+              '• Contactos en común entre usuarios' + #10 +
+              '• Mapa visual de conexiones sociales' + #10 +
+              '• Estadísticas de la red de contactos'));
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end
+    else
+    begin
+      WriteLn('⚠️ Error generando PNG del reporte de contactos');
+      dialog := gtk_message_dialog_new(nil,
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_OK,
+        PChar('📄 Archivo DOT de relaciones de contactos generado exitosamente.' + #10 + #10 +
+              'No se pudo generar la imagen PNG.' + #10 +
+              'Puedes visualizar el archivo .dot con Graphviz manualmente.' + #10 + #10 +
+              'Ubicación: /graficos/root/relaciones-contactos.dot'));
+      gtk_dialog_run(GTK_DIALOG(dialog));
+      gtk_widget_destroy(dialog);
+    end;
+  end
+  else
+  begin
+    WriteLn('ℹ️ Graphviz no detectado para reporte de contactos');
+    dialog := gtk_message_dialog_new(nil,
+      GTK_DIALOG_MODAL,
+      GTK_MESSAGE_INFO,
+      GTK_BUTTONS_OK,
+      PChar('📄 Archivo DOT de relaciones de contactos generado: relaciones-contactos.dot' + #10 + #10 +
+            '💡 Para generar la imagen visual:' + #10 +
+            '1. Instala Graphviz: sudo apt install graphviz' + #10 +
+            '2. Ejecuta: dot -Tpng relaciones-contactos.dot -o relaciones-contactos.png' + #10 + #10 +
             '📍 Ubicación: /graficos/root/'));
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);

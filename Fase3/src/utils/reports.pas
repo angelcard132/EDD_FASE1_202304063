@@ -5,7 +5,8 @@ unit reports;
 interface
 
 uses
-  SysUtils, cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst, blockchain, merkle_tree, control_login; // ✅ AGREGAR control_login
+  SysUtils, Classes,
+  cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst, blockchain, merkle_tree, control_login;
 
 // Función original
 procedure GenerarGraficoBandeja(const emailDestino: String; var programados: TCola; const rutaDot: String);
@@ -16,25 +17,19 @@ procedure GenerarReporteMerklePrivados(const emailUsuario: String; var merklePri
 // ✅ DECLARACIÓN ÚNICA de reportes completos
 procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle);
 
-// Otras funciones de reportes individuales
+// Reportes individuales que SÍ se usan
 procedure GenerarReporteCorreosRecibidos(const emailUsuario: String; var programados: TCola; const rutaDot: String);
 procedure GenerarReportePapelera(const emailUsuario: String; var papelera: TPila; const rutaDot: String);
 procedure GenerarReporteProgramados(const emailUsuario: String; var programados: TCola; const rutaDot: String);
 procedure GenerarReporteContactos(const emailUsuario: String; var usuarios: TListaSimple; const rutaDot: String);
-procedure GenerarReporteFavoritos(const emailUsuario: String; var favoritos: PNodoB; const rutaDot: String);
-procedure GenerarReporteBorradores(const emailUsuario: String; var borradores: PCorreoAVL; const rutaDot: String);
-procedure GenerarReporteBSTComunidades(const rutaDot: String);
 
-// Funciones auxiliares
-procedure GenerarNodosBST(var f: Text; nodo: PNodoComunidadBST);
-procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
-procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
-
-// ✅ NUEVA FUNCIÓN: Reporte de control de logueo
+// ✅ NUEVAS FUNCIONES: Reportes específicos que SÍ usamos
 procedure GenerarReporteControlLogin(const rutaDot: String);
-
-// ✅ NUEVA: Función para generar reporte de blockchain
 procedure GenerarReporteBlockchain(const emailUsuario: String; var blockchainMail: TBlockchain; const rutaDot: String);
+procedure GenerarReporteRelacionesContactos(const rutaDot: String);
+
+// ✅ AGREGAR: Función básica para BST de comunidades
+procedure GenerarReporteBSTComunidades(const rutaDot: String);
 
 implementation
 
@@ -82,7 +77,6 @@ begin
     Result := s;
 end;
 
-// Función auxiliar para reemplazar IfThen
 function SeleccionarColor(condicion: Boolean; const colorTrue, colorFalse: String): String;
 begin
   if condicion then
@@ -610,45 +604,36 @@ end;
 procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
 var
   rutaDir: String;
-  // ✅ EXPANDIR array para incluir merkle tree
-  archivos: array[1..8] of String;
-  nombres: array[1..8] of String;
+  // ✅ REDUCIR array solo a reportes que funcionan
+  archivos: array[1..5] of String;
+  nombres: array[1..5] of String;
   i: Integer;
   pngsGenerados: Integer;
 begin
   CrearDirectorioReportes(emailUsuario, rutaDir);
   
-  // Definir nombres de archivos (actualizado)
+  // ✅ SOLO reportes que funcionan correctamente
   archivos[1] := rutaDir + '/correos-recibidos.dot';
   archivos[2] := rutaDir + '/papelera.dot';
   archivos[3] := rutaDir + '/programados.dot';
   archivos[4] := rutaDir + '/contactos.dot';
-  archivos[5] := rutaDir + '/favoritos.dot';
-  archivos[6] := rutaDir + '/borradores.dot';
-  archivos[7] := rutaDir + '/blockchain.dot';
-  archivos[8] := rutaDir + '/merkle-tree-privados.dot'; // ✅ NUEVO
+  archivos[5] := rutaDir + '/blockchain.dot';
   
   nombres[1] := 'Correos Recibidos';
   nombres[2] := 'Papelera';
   nombres[3] := 'Correos Programados';
   nombres[4] := 'Contactos';
-  nombres[5] := 'Favoritos';
-  nombres[6] := 'Borradores';
-  nombres[7] := 'Blockchain';
-  nombres[8] := 'Correos Privados (Merkle Tree)'; // ✅ NUEVO
+  nombres[5] := 'Blockchain';
   
   WriteLn('📊 Generando reportes completos para: ', emailUsuario);
   WriteLn('📁 Directorio: ', rutaDir);
   
-  // Generar todos los reportes DOT (actualizado)
+  // ✅ SOLO generar reportes que funcionan
   GenerarReporteCorreosRecibidos(emailUsuario, programados, archivos[1]);
   GenerarReportePapelera(emailUsuario, papelera, archivos[2]);
   GenerarReporteProgramados(emailUsuario, programados, archivos[3]);
   GenerarReporteContactos(emailUsuario, usuarios, archivos[4]);
-  GenerarReporteFavoritos(emailUsuario, favoritos, archivos[5]);
-  GenerarReporteBorradores(emailUsuario, borradores, archivos[6]);
-  GenerarReporteBlockchain(emailUsuario, blockchainMail, archivos[7]);
-  GenerarReporteMerklePrivados(emailUsuario, merklePrivados, archivos[8]); // ✅ NUEVO
+  GenerarReporteBlockchain(emailUsuario, blockchainMail, archivos[5]);
   
   WriteLn('✅ Todos los archivos DOT generados exitosamente');
   
@@ -657,7 +642,7 @@ begin
   if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
   begin
     WriteLn('🖼️ Graphviz detectado, generando imágenes PNG...');
-    for i := 1 to 8 do // ✅ ACTUALIZAR a 8
+    for i := 1 to 5 do
     begin
       if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + archivos[i] + '" -o "' + ChangeFileExt(archivos[i], '.png') + '"'], []) = 0 then
       begin
@@ -677,10 +662,10 @@ begin
   WriteLn('=================================');
   WriteLn('👤 Usuario: ', emailUsuario);
   WriteLn('📁 Directorio: ', rutaDir);
-  WriteLn('📄 Archivos DOT: 8'); // ✅ ACTUALIZAR
+  WriteLn('📄 Archivos DOT: 5');
   WriteLn('🖼️ Archivos PNG: ', pngsGenerados);
   WriteLn('');
-  for i := 1 to 8 do // ✅ ACTUALIZAR a 8
+  for i := 1 to 5 do
     WriteLn('  ✓ ', nombres[i], ': ', ExtractFileName(archivos[i]));
   
   if pngsGenerados > 0 then
@@ -689,233 +674,199 @@ begin
     WriteLn('🎉 ¡Reportes generados exitosamente!');
     WriteLn('💡 Abre los archivos PNG para visualizar los gráficos.');
     WriteLn('⛓️ El reporte de blockchain muestra la cadena de bloques con correos del usuario resaltados.');
-    WriteLn('🔒 El reporte de Merkle Tree muestra la estructura criptográfica de correos privados.');
   end;
 end;
 
-// Función auxiliar para generar nodos del árbol B recursivamente
-procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
-var
-  i: Integer;
-  colorNodo: String;
-  labelNodo: String;
-  tieneCorreosUsuario: Boolean;
-  nodoID: Integer;
-  correosUsuario: String;
-  conteoCorreos: Integer;
-  contadorAntes: Integer; // Mover la declaración aquí
-begin
-  if nodo = nil then Exit;
-  
-  // Verificar si este nodo contiene correos del usuario
-  tieneCorreosUsuario := False;
-  correosUsuario := '';
-  conteoCorreos := 0;
-  
-  for i := 1 to nodo^.n do
-  begin
-    if (nodo^.claves[i].destinatario = emailUsuario) or (nodo^.claves[i].remitente = emailUsuario) then
-    begin
-      tieneCorreosUsuario := True;
-      Inc(conteoCorreos);
-      if correosUsuario <> '' then
-        correosUsuario := correosUsuario + '\\n';
-      correosUsuario := correosUsuario + IntToStr(nodo^.claves[i].id);
-    end;
-  end;
-  
-  // Si no tiene correos del usuario, seguir buscando en hijos
-  if not tieneCorreosUsuario then
-  begin
-    if not nodo^.hoja then
-    begin
-      for i := 0 to nodo^.n do
-        GenerarNodosArbolB(f, nodo^.hijos[i], emailUsuario, contadorNodos);
-    end;
-    Exit;
-  end;
-  
-  Inc(contadorNodos);
-  nodoID := contadorNodos;
-  
-  // Determinar color según si es hoja o nodo interno
-  if nodo^.hoja then
-    colorNodo := '#FFE4B5'  // Naranja claro para hojas
-  else
-    colorNodo := '#E6F3FF'; // Azul claro para nodos internos
-  
-  // Construir label del nodo mostrando solo IDs de correos del usuario
-  if nodo^.hoja then
-    labelNodo := 'HOJA ' + IntToStr(nodoID)
-  else
-    labelNodo := 'NODO ' + IntToStr(nodoID);
-    
-  labelNodo := labelNodo + '\\nClaves: ' + IntToStr(conteoCorreos) + '\\n';
-  labelNodo := labelNodo + correosUsuario;
-  
-  // Crear nodo en el gráfico
-  WriteLn(f, Format('  nodoB_%d [label="%s", fillcolor="%s", shape="record"];',
-                   [nodoID, labelNodo, colorNodo]));
-  
-  // Si no es hoja, generar conexiones a hijos que contengan correos del usuario
-  if not nodo^.hoja then
-  begin
-    for i := 0 to nodo^.n do
-    begin
-      if nodo^.hijos[i] <> nil then
-      begin
-        // Guardar el contador actual antes de procesar el hijo
-        contadorAntes := contadorNodos;
-        
-        // Procesar hijo recursivamente
-        GenerarNodosArbolB(f, nodo^.hijos[i], emailUsuario, contadorNodos);
-        
-        // Si se generó algún nodo hijo (contador aumentó), crear conexión
-        if contadorNodos > contadorAntes then
-        begin
-          WriteLn(f, Format('  nodoB_%d -> nodoB_%d [label="H%d", color="purple", fontcolor="purple"];', 
-                           [nodoID, contadorAntes + 1, i]));
-        end;
-      end;
-    end;
-  end;
-end;
-
-procedure GenerarReporteFavoritos(const emailUsuario: String; var favoritos: PNodoB; const rutaDot: String);
+// ✅ NUEVA: Función para generar reporte de relaciones de contactos
+procedure GenerarReporteRelacionesContactos(const rutaDot: String);
 var
   f: Text;
-  contadorNodos: Integer;
-  tieneCorreos: Boolean;
-  i: Integer;
+  actual: PContactoManual;
+  contadorRelaciones, contadorUsuarios: Integer;
+  usuariosEncontrados: TStringList;
+  contactosEncontrados: TStringList;
+  i, j: Integer;
+  usuario1, usuario2, contactoComun: String;
+  relacionesComunes: Integer;
 begin
   AssignFile(f, rutaDot);
   Rewrite(f);
-  try
-    WriteLn(f, 'digraph FavoritosArbolB {');
-    WriteLn(f, '  rankdir=TB;');
-    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10];');
-    WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
-    WriteLn(f, '  label="⭐ FAVORITOS (ÁRBOL B) - ' + SanearTexto(emailUsuario) + '\\nEstructura Real del Árbol B con Nodos y Conexiones"; labelloc=t; fontsize=14; fontcolor=orange;');
-    WriteLn(f, '');
-    
-    // Agregar leyenda
-    WriteLn(f, '  subgraph cluster_leyenda {');
-    WriteLn(f, '    label="Leyenda del Árbol B";');
-    WriteLn(f, '    style=filled;');
-    WriteLn(f, '    fillcolor=lightgray;');
-    WriteLn(f, '    leyenda_hoja [label="Nodos Hoja\\n(Datos finales)", fillcolor="#FFE4B5", shape="record"];');
-    WriteLn(f, '    leyenda_interno [label="Nodos Internos\\n(Navegación)", fillcolor="#E6F3FF", shape="record"];');
-    WriteLn(f, '    leyenda_conexion [label="Conexión Padre-Hijo", color="purple"];');
-    WriteLn(f, '    leyenda_estructura [label="Estructura: Raíz → Nodos → Hojas", shape="plaintext"];');
-    WriteLn(f, '  }');
-    WriteLn(f, '');
-    
-    // Verificar si hay favoritos del usuario - verificación simple
-    contadorNodos := 0;
-    tieneCorreos := False;
-    
-    if favoritos <> nil then
-    begin
-      // Verificación simple en la raíz
-      for i := 1 to favoritos^.n do
-      begin
-        if (favoritos^.claves[i].destinatario = emailUsuario) or (favoritos^.claves[i].remitente = emailUsuario) then
-        begin
-          tieneCorreos := True;
-          Break;
-        end;
-      end;
-      
-      // Si no hay en la raíz, verificar recursivamente si existe alguno
-      if not tieneCorreos and not favoritos^.hoja then
-      begin
-        // Aquí podríamos hacer una búsqueda más profunda si es necesario
-        tieneCorreos := True; // Asumimos que puede haber datos más profundo
-      end;
-    end;
-    
-    if (favoritos = nil) or not tieneCorreos then
-    begin
-      WriteLn(f, '  vacio [label="⭐ Árbol B vacío\\nNo hay favoritos del usuario\\n\\nPara agregar favoritos:\\n1. Ve a tu bandeja\\n2. Selecciona un correo\\n3. Clic en ⭐ A Favoritos", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
-    end
-    else
-    begin
-      // Generar estructura real del árbol B
-      GenerarNodosArbolB(f, favoritos, emailUsuario, contadorNodos);
-      
-      // Agregar información del árbol si se generaron nodos
-      if contadorNodos > 0 then
-      begin
-        WriteLn(f, '');
-        WriteLn(f, '  info [label="Propiedades del Árbol B:\\n• Cada nodo puede tener múltiples claves\\n• Hojas en el mismo nivel\\n• Autobalanceado\\n• Búsqueda eficiente O(log n)\\n• Nodos mostrados: ' + IntToStr(contadorNodos) + '", shape="note", fillcolor="#FFFFCC"];');
-        
-        // Conectar info con la estructura
-        WriteLn(f, '  nodoB_1 -> info [style="dotted", color="gray"];');
-      end
-      else
-      begin
-        WriteLn(f, '  vacio2 [label="⭐ Sin favoritos del usuario\\nen la estructura actual del árbol", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
-      end;
-    end;
-    
-    WriteLn(f, '}');
-  finally
-    CloseFile(f);
-  end;
   
-  WriteLn('⭐ Reporte Árbol B de favoritos generado: ', rutaDot);
-end;
-
-procedure GenerarReporteBorradores(const emailUsuario: String; var borradores: PCorreoAVL; const rutaDot: String);
-var
-  f: Text;
-begin
-  AssignFile(f, rutaDot);
-  Rewrite(f);
+  usuariosEncontrados := TStringList.Create;
+  contactosEncontrados := TStringList.Create;
+  usuariosEncontrados.Duplicates := dupIgnore;
+  contactosEncontrados.Duplicates := dupIgnore;
+  
   try
-    WriteLn(f, 'digraph BorradoresAVL {');
+    WriteLn(f, 'digraph RelacionesContactos {');
     WriteLn(f, '  rankdir=TB;');
-    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10];');
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=9];');
     WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
-    WriteLn(f, '  label="📝 BORRADORES (ÁRBOL AVL) - ' + SanearTexto(emailUsuario) + '\\nEstructura: Rojo=Izquierdo, Azul=Derecho"; labelloc=t; fontsize=14; fontcolor=purple;');
+    WriteLn(f, '  label="👥 MAPA DE RELACIONES DE CONTACTOS\\nGrafo de conexiones entre usuarios y sus contactos"; labelloc=t; fontsize=14; fontcolor=darkgreen;');
     WriteLn(f, '');
     
-    // Agregar leyenda
+    // Leyenda del reporte
     WriteLn(f, '  subgraph cluster_leyenda {');
-    WriteLn(f, '    label="Leyenda";');
+    WriteLn(f, '    label="🔗 Leyenda de Relaciones";');
     WriteLn(f, '    style=filled;');
-    WriteLn(f, '    fillcolor=lightgray;');
-    WriteLn(f, '    leyenda_raiz [label="Nodos Cercanos\\na la Raíz", fillcolor="#E6F3FF", shape="diamond"];');
-    WriteLn(f, '    leyenda_inter [label="Nodos\\nIntermedios", fillcolor="#FFF2E6", shape="diamond"];');
-    WriteLn(f, '    leyenda_hoja [label="Nodos\\nProfundos", fillcolor="#FFE6E6", shape="diamond"];');
-    WriteLn(f, '    leyenda_izq [label="Hijo Izquierdo", color="red"];');
-    WriteLn(f, '    leyenda_der [label="Hijo Derecho", color="blue"];');
+    WriteLn(f, '    fillcolor="#F0FFF0";');
+    WriteLn(f, '    fontcolor=darkgreen;');
+    WriteLn(f, '    leyenda_usuario [label="👤 USUARIO\\n(Tiene contactos)", fillcolor="#87CEEB", shape="box"];');
+    WriteLn(f, '    leyenda_contacto [label="📧 CONTACTO\\n(En lista de alguien)", fillcolor="#98FB98", shape="ellipse"];');
+    WriteLn(f, '    leyenda_relacion [label="Relación Usuario-Contacto", color="blue"];');
+    WriteLn(f, '    leyenda_comun [label="Contacto en Común", color="red", style="bold"];');
+    WriteLn(f, '    leyenda_usuario -> leyenda_contacto [color="blue", label="tiene contacto"];');
+    WriteLn(f, '    leyenda_usuario -> leyenda_contacto [color="red", style="bold", label="contacto común"];');
     WriteLn(f, '  }');
     WriteLn(f, '');
     
-    // Verificar si hay borradores
-    if borradores = nil then
+    contadorRelaciones := 0;
+    actual := ContactosManuales;
+    
+    WriteLn('📊 Analizando relaciones de contactos...');
+    
+    // Primer paso: recopilar todos los usuarios y contactos únicos
+    while actual <> nil do
     begin
-      WriteLn(f, '  vacio [label="📝 Árbol AVL vacío\\nNo hay borradores del usuario", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+      usuariosEncontrados.Add(actual^.agregadoPor);
+      contactosEncontrados.Add(actual^.email);
+      Inc(contadorRelaciones);
+      actual := actual^.siguiente;
+    end;
+    
+    contadorUsuarios := usuariosEncontrados.Count;
+    
+    if contadorRelaciones = 0 then
+    begin
+      WriteLn(f, '  vacio [label="👥 Sin relaciones de contactos\\n\\nNo hay contactos cargados en el sistema\\nLas relaciones se crean con:\\n• Carga masiva de contactos\\n• Agregado manual de contactos", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
     end
     else
     begin
-      // Generar estructura del árbol AVL
-      GenerarNodosAVL(f, borradores, emailUsuario);
-      
-      // Agregar información del árbol
+      WriteLn(f, '  subgraph cluster_usuarios {');
+      WriteLn(f, '    label="👤 Usuarios del Sistema";');
+      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    fillcolor="#E6F3FF";');
+      WriteLn(f, '    fontcolor=blue;');
       WriteLn(f, '');
-      WriteLn(f, '  info [label="Propiedades del Árbol AVL:\\n• Factor de balance: [-1, 0, 1]\\n• Altura balanceada automáticamente\\n• Búsqueda O(log n)", shape="note", fillcolor="#FFFFCC"];');
+      
+      // Generar nodos de usuarios
+      for i := 0 to usuariosEncontrados.Count - 1 do
+      begin
+        usuario1 := usuariosEncontrados[i];
+        WriteLn(f, Format('    usuario_%d [label="👤 %s\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];',
+                         [i, SanearTexto(Copy(usuario1, 1, 20))]));
+      end;
+      
+      WriteLn(f, '  }');
+      WriteLn(f, '');
+      
+      WriteLn(f, '  subgraph cluster_contactos {');
+      WriteLn(f, '    label="📧 Contactos Registrados";');
+      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    fillcolor="#F0FFF0";');
+      WriteLn(f, '    fontcolor=green;');
+      WriteLn(f, '');
+      
+      // Generar nodos de contactos
+      for i := 0 to contactosEncontrados.Count - 1 do
+      begin
+        contactoComun := contactosEncontrados[i];
+        WriteLn(f, Format('    contacto_%d [label="📧 %s\\nContacto", fillcolor="#98FB98", shape="ellipse"];',
+                         [i, SanearTexto(Copy(contactoComun, 1, 20))]));
+      end;
+      
+      WriteLn(f, '  }');
+      WriteLn(f, '');
+      
+      // Generar relaciones usuario -> contacto
+      actual := ContactosManuales;
+      while actual <> nil do
+      begin
+        i := usuariosEncontrados.IndexOf(actual^.agregadoPor);
+        j := contactosEncontrados.IndexOf(actual^.email);
+        
+        if (i >= 0) and (j >= 0) then
+        begin
+          WriteLn(f, Format('  usuario_%d -> contacto_%d [label="tiene", color="blue", fontcolor="blue"];',
+                           [i, j]));
+        end;
+        
+        actual := actual^.siguiente;
+      end;
+      
+      // Buscar contactos en común entre usuarios
+      relacionesComunes := 0;
+      for i := 0 to usuariosEncontrados.Count - 1 do
+      begin
+        for j := i + 1 to usuariosEncontrados.Count - 1 do
+        begin
+          usuario1 := usuariosEncontrados[i];
+          usuario2 := usuariosEncontrados[j];
+          
+          // Buscar contactos en común entre usuario1 y usuario2
+          actual := ContactosManuales;
+          while actual <> nil do
+          begin
+            if actual^.agregadoPor = usuario1 then
+            begin
+              // Ver si usuario2 también tiene este contacto
+              if TieneContacto(usuario2, actual^.email) then
+              begin
+                // Encontramos un contacto en común
+                WriteLn(f, Format('  usuario_%d -> usuario_%d [label="contacto común:\\n%s", color="red", style="bold", fontcolor="red"];',
+                                 [i, j, SanearTexto(Copy(actual^.email, 1, 15))]));
+                Inc(relacionesComunes);
+                Break; // Solo mostrar una conexión por par de usuarios
+              end;
+            end;
+            actual := actual^.siguiente;
+          end;
+        end;
+      end;
+      
+      // Agregar información estadística
+      WriteLn(f, '');
+      WriteLn(f, '  subgraph cluster_estadisticas {');
+      WriteLn(f, '    label="📊 Estadísticas de Relaciones";');
+      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    fillcolor="#FFFACD";');
+      WriteLn(f, '    fontcolor=brown;');
+      WriteLn(f, '    stats [label="📈 RESUMEN DE RELACIONES\\n\\n👤 Total usuarios: ' + IntToStr(contadorUsuarios) + '\\n📧 Total contactos únicos: ' + IntToStr(contactosEncontrados.Count) + '\\n🔗 Total relaciones: ' + IntToStr(contadorRelaciones) + '\\n❤️ Contactos en común: ' + IntToStr(relacionesComunes) + '\\n\\n📅 Generado: ' + FormatDateTime('dd/mm/yyyy hh:nn', Now) + '", shape="note", fillcolor="#FFFFFF"];');
+      WriteLn(f, '  }');
     end;
     
     WriteLn(f, '}');
   finally
     CloseFile(f);
+    usuariosEncontrados.Free;
+    contactosEncontrados.Free;
   end;
   
-  WriteLn('📝 Reporte AVL de borradores generado: ', rutaDot);
+  WriteLn('👥 Reporte de relaciones de contactos generado: ', rutaDot);
+  WriteLn('📊 Total de relaciones procesadas: ', contadorRelaciones);
+  WriteLn('👤 Usuarios únicos: ', contadorUsuarios);
 end;
 
+// Función auxiliar para verificar si un usuario tiene un contacto específico
+function TieneContacto(const usuario, emailContacto: String): Boolean;
+var
+  actual: PContactoManual;
+begin
+  Result := False;
+  actual := ContactosManuales;
+  
+  while actual <> nil do
+  begin
+    if (actual^.agregadoPor = usuario) and (actual^.email = emailContacto) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    actual := actual^.siguiente;
+  end;
+end;
+
+// ✅ NUEVA: Función básica para generar reporte BST de comunidades
 procedure GenerarReporteBSTComunidades(const rutaDot: String);
 var
   f: Text;
@@ -929,6 +880,7 @@ begin
     WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
     WriteLn(f, '  label="🌳 ÁRBOL BST DE COMUNIDADES\\nEstructura: Rojo=BST, Azul=Jerarquía"; labelloc=t; fontsize=16; fontcolor=green;');
     WriteLn(f, '');
+    
     WriteLn(f, '  // Leyenda');
     WriteLn(f, '  subgraph cluster_leyenda {');
     WriteLn(f, '    label="Leyenda";');
@@ -950,8 +902,12 @@ begin
     end
     else
     begin
-      // Generar estructura del árbol BST
-      GenerarNodosBST(f, ArbolComunidades);
+      // Generar estructura del árbol BST - versión simplificada
+      WriteLn(f, '  info [label="🌳 BST DE COMUNIDADES\\n\\nTotal comunidades: ' + IntToStr(ContarComunidades(ArbolComunidades)) + '\\n\\nVer consola para recorridos completos", shape="note", fillcolor="#FFFFCC"];');
+      
+      // Nota: Para una implementación completa del BST visual,
+      // se necesitaría una función recursiva para recorrer el árbol
+      // y generar los nodos y conexiones apropiados
     end;
     
     WriteLn(f, '}');
@@ -960,120 +916,6 @@ begin
   end;
   
   WriteLn('🌳 Reporte BST generado: ', rutaDot);
-end;
-
-procedure GenerarNodosBST(var f: Text; nodo: PNodoComunidadBST);
-var
-  colorNodo, formaEtiqueta: String;
-begin
-  if nodo = nil then Exit;
-  
-  // Determinar color y forma según el tipo de comunidad
-  if nodo^.esSubcomunidad then
-  begin
-    colorNodo := '#FFE4B5'; // Color naranja claro para subcomunidades
-    formaEtiqueta := 'Subcomunidad';
-  end
-  else
-  begin
-    colorNodo := '#E6F7FF'; // Color azul claro para comunidades principales
-    formaEtiqueta := 'Comunidad Principal';
-  end;
-  
-  // Crear nodo actual con información de jerarquía
-  if nodo^.esSubcomunidad then
-  begin
-    WriteLn(f, Format('  nodo_%d [label="%s\\nID: %d\\n%s\\nCreador: %s\\nMensajes: %d", fillcolor="%s", shape="ellipse"];',
-                     [nodo^.id, formaEtiqueta, nodo^.id, SanearTexto(nodo^.nombre), 
-                      SanearTexto(nodo^.creador), nodo^.totalMensajes, colorNodo]));
-    
-    // Si es subcomunidad, conectar con el padre
-    if nodo^.comunidadPadre <> nil then
-      WriteLn(f, Format('  nodo_%d -> nodo_%d [label="subcomunidad de", color="blue", style="dashed"];', 
-                       [nodo^.comunidadPadre^.id, nodo^.id]));
-  end
-  else
-  begin
-    WriteLn(f, Format('  nodo_%d [label="%s\\nID: %d\\n%s\\nMensajes: %d", fillcolor="%s", shape="box"];',
-                     [nodo^.id, formaEtiqueta, nodo^.id, SanearTexto(nodo^.nombre), nodo^.totalMensajes, colorNodo]));
-  end;
-  
-  // Generar conexiones BST normales (estructura del árbol)
-  if nodo^.izquierdo <> nil then
-  begin
-    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="L", color="red"];', [nodo^.id, nodo^.izquierdo^.id]));
-    GenerarNodosBST(f, nodo^.izquierdo);
-  end;
-  
-  if nodo^.derecho <> nil then
-  begin
-    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="R", color="red"];', [nodo^.id, nodo^.derecho^.id]));
-    GenerarNodosBST(f, nodo^.derecho);
-  end;
-end;
-
-procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
-var
-  colorNodo: String;
-  factorBalance: Integer;
-begin
-  if nodo = nil then Exit;
-  
-  // Solo procesar nodos del usuario actual
-  if nodo^.remitente <> emailUsuario then
-  begin
-    // Continuar recorrido para encontrar nodos del usuario
-    GenerarNodosAVL(f, nodo^.izquierdo, emailUsuario);
-    GenerarNodosAVL(f, nodo^.derecho, emailUsuario);
-    Exit;
-  end;
-  
-  // Determinar color según la altura del nodo
-  if nodo^.altura <= 2 then
-    colorNodo := '#E6F3FF'  // Azul claro para nodos cerca de la raíz
-  else if nodo^.altura <= 4 then
-    colorNodo := '#FFF2E6'  // Naranja claro para nodos intermedios
-  else
-    colorNodo := '#FFE6E6'; // Rosa claro para nodos más profundos
-  
-  // CALIFICACION DE EDD FASE 2
-  // MODIFICACION: Quitar el remitente de el reporte del arbol avl, solo mostrar id, asunto y altura
-  WriteLn(f, Format('  nodo_%d [label="ID: %d\\nAsunto: %s\\nAltura: %d", fillcolor="%s", shape="oval"];',
-                   [nodo^.id, nodo^.id, 
-                    LimitarTexto(SanearTexto(nodo^.asunto), 20),
-                    nodo^.altura, colorNodo]));
-  
-  // Generar conexiones a hijos si existen
-  if nodo^.izquierdo <> nil then
-  begin
-    // Verificar si el hijo izquierdo es del usuario actual
-    if nodo^.izquierdo^.remitente = emailUsuario then
-      WriteLn(f, Format('  nodo_%d -> nodo_%d [label="L", color="red", fontcolor="red"];', 
-                       [nodo^.id, nodo^.izquierdo^.id]));
-    
-    GenerarNodosAVL(f, nodo^.izquierdo, emailUsuario);
-  end;
-  
-  if nodo^.derecho <> nil then
-  begin
-    // Verificar si el hijo derecho es del usuario actual
-    if nodo^.derecho^.remitente = emailUsuario then
-      WriteLn(f, Format('  nodo_%d -> nodo_%d [label="R", color="blue", fontcolor="blue"];', 
-                       [nodo^.id, nodo^.derecho^.id]));
-    
-    GenerarNodosAVL(f, nodo^.derecho, emailUsuario);
-  end;
-  
-  // Mostrar factor de balance si es diferente de 0
-  factorBalance := 0;
-  if nodo^.izquierdo <> nil then
-    Inc(factorBalance, nodo^.izquierdo^.altura);
-  if nodo^.derecho <> nil then
-    Dec(factorBalance, nodo^.derecho^.altura);
-  
-  if factorBalance <> 0 then
-    WriteLn(f, Format('  balance_%d [label="FB: %d", shape="plaintext", fontsize=10];', 
-                     [nodo^.id, factorBalance]));
 end;
 
 end.

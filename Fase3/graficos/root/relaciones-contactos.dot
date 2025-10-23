@@ -1,0 +1,104 @@
+digraph RelacionesContactos {
+  rankdir=TB;
+  node [style=filled, fontname="Arial", fontsize=9];
+  edge [fontname="Arial", fontsize=8];
+  label="👥 MAPA DE RELACIONES DE CONTACTOS\\nGrafo de conexiones entre usuarios y sus contactos"; labelloc=t; fontsize=14; fontcolor=darkgreen;
+
+  subgraph cluster_leyenda {
+    label="🔗 Leyenda de Relaciones";
+    style=filled;
+    fillcolor="#F0FFF0";
+    fontcolor=darkgreen;
+    leyenda_usuario [label="👤 USUARIO\\n(Tiene contactos)", fillcolor="#87CEEB", shape="box"];
+    leyenda_contacto [label="📧 CONTACTO\\n(En lista de alguien)", fillcolor="#98FB98", shape="ellipse"];
+    leyenda_relacion [label="Relación Usuario-Contacto", color="blue"];
+    leyenda_comun [label="Contacto en Común", color="red", style="bold"];
+    leyenda_usuario -> leyenda_contacto [color="blue", label="tiene contacto"];
+    leyenda_usuario -> leyenda_contacto [color="red", style="bold", label="contacto común"];
+  }
+
+  subgraph cluster_usuarios {
+    label="👤 Usuarios del Sistema";
+    style=filled;
+    fillcolor="#E6F3FF";
+    fontcolor=blue;
+
+    usuario_0 [label="👤 mitzep@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_1 [label="👤 mitzep@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_2 [label="👤 mbaker@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_3 [label="👤 mbaker@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_4 [label="👤 mbaker@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_5 [label="👤 bfox@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_6 [label="👤 bfox@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_7 [label="👤 smejia@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_8 [label="👤 smejia@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_9 [label="👤 lgarcia@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+    usuario_10 [label="👤 lgarcia@edd.com\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];
+  }
+
+  subgraph cluster_contactos {
+    label="📧 Contactos Registrados";
+    style=filled;
+    fillcolor="#F0FFF0";
+    fontcolor=green;
+
+    contacto_0 [label="📧 jcorbet@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_1 [label="📧 gkroah-hartman@edd.c\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_2 [label="📧 mitzep@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_3 [label="📧 imurdock@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_4 [label="📧 lgarcia@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_5 [label="📧 jcorbet@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_6 [label="📧 smejia@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_7 [label="📧 mitzep@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_8 [label="📧 lgarcia@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_9 [label="📧 mshuttleworth@edd.co\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+    contacto_10 [label="📧 mitzep@edd.com\\nContacto", fillcolor="#98FB98", shape="ellipse"];
+  }
+
+  usuario_0 -> contacto_0 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_0 -> contacto_1 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_2 -> contacto_2 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_2 -> contacto_3 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_2 -> contacto_4 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_5 -> contacto_0 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_5 -> contacto_6 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_7 -> contacto_2 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_7 -> contacto_4 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_9 -> contacto_9 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_9 -> contacto_2 [label="tiene", color="blue", fontcolor="blue"];
+  usuario_0 -> usuario_1 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_0 -> usuario_5 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_0 -> usuario_6 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_1 -> usuario_5 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_1 -> usuario_6 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_3 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_4 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_7 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_8 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_9 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_2 -> usuario_10 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_3 -> usuario_4 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_3 -> usuario_7 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_3 -> usuario_8 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_3 -> usuario_9 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_3 -> usuario_10 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_4 -> usuario_7 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_4 -> usuario_8 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_4 -> usuario_9 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_4 -> usuario_10 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_5 -> usuario_6 [label="contacto común:\\njcorbet@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_7 -> usuario_8 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_7 -> usuario_9 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_7 -> usuario_10 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_8 -> usuario_9 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_8 -> usuario_10 [label="contacto común:\\nmitzep@edd.com", color="red", style="bold", fontcolor="red"];
+  usuario_9 -> usuario_10 [label="contacto común:\\nmshuttleworth@e", color="red", style="bold", fontcolor="red"];
+
+  subgraph cluster_estadisticas {
+    label="📊 Estadísticas de Relaciones";
+    style=filled;
+    fillcolor="#FFFACD";
+    fontcolor=brown;
+    stats [label="📈 RESUMEN DE RELACIONES\\n\\n👤 Total usuarios: 11\\n📧 Total contactos únicos: 11\\n🔗 Total relaciones: 11\\n❤️ Contactos en común: 27\\n\\n📅 Generado: 23-10-2025 16:06", shape="note", fillcolor="#FFFFFF"];
+  }
+}

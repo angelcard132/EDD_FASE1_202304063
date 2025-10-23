@@ -32,6 +32,7 @@ procedure AgregarContactoManual(id: Integer; const nombre, usuario, email, telef
 procedure CargarContactoDesdeCargaMasiva(id: Integer; const nombre, usuario, email, telefono, agregadoPor: String);
 function GenerarNuevoIDContacto(): Integer;
 function ContarContactosManualesDelUsuario(const emailUsuario: String): Integer;
+function TieneContacto(const usuario, emailContacto: String): Boolean; // ✅ NUEVA función auxiliar
 
 { Cargar usuarios desde JSON estándar }
 procedure CargarUsuariosDesdeJSON(const archivo: String; var lista: TListaSimple);
@@ -597,6 +598,25 @@ begin
     GPassByEmail.Values[email] := password;
     GNameByEmail.Values[email] := nombre;
     WriteLn('DEBUG - Credenciales registradas para: ', email);
+  end;
+end;
+
+// ✅ NUEVA función auxiliar para el reporte de relaciones
+function TieneContacto(const usuario, emailContacto: String): Boolean;
+var
+  actual: PContactoManual;
+begin
+  Result := False;
+  actual := ContactosManuales;
+  
+  while actual <> nil do
+  begin
+    if (actual^.agregadoPor = usuario) and (actual^.email = emailContacto) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    actual := actual^.siguiente;
   end;
 end;
 

@@ -22,13 +22,7 @@ digraph ControlLogin {
     fillcolor="#FFFACD";
     fontcolor=brown;
 
-    sesion_1 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 15:40:55\\n🚪 Salida: CONECTADO\\n⏱️ Duración: En sesión\\n\\n🟢 ACTIVO", fillcolor="#FFD700", shape="diamond"];
-    sesion_2 [label="👤 aux-luis@edd.com\\n\\n📅 Entrada: 23-10-2025 15:40:49\\n🚪 Salida: 23-10-2025 15:40:51\\n⏱️ Duración: 0 min\\n\\n🔴 FINALIZADA", fillcolor="#FFB6C1", shape="ellipse"];
-    sesion_1 -> sesion_2 [label="anterior", color="gray"];
-    sesion_3 [label="👤 aux-sofia@edd.com\\n\\n📅 Entrada: 23-10-2025 15:40:40\\n🚪 Salida: 23-10-2025 15:40:41\\n⏱️ Duración: 0 min\\n\\n🔴 FINALIZADA", fillcolor="#FFB6C1", shape="ellipse"];
-    sesion_2 -> sesion_3 [label="anterior", color="gray"];
-    sesion_4 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 15:39:55\\n🚪 Salida: 23-10-2025 15:40:32\\n⏱️ Duración: 1 min\\n\\n🔴 FINALIZADA", fillcolor="#FFD700", shape="diamond"];
-    sesion_3 -> sesion_4 [label="anterior", color="gray"];
+    sesion_1 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 16:06:55\\n🚪 Salida: CONECTADO\\n⏱️ Duración: En sesión\\n\\n🟢 ACTIVO", fillcolor="#FFD700", shape="diamond"];
   }
 
   subgraph cluster_estadisticas {
@@ -36,7 +30,7 @@ digraph ControlLogin {
     style=filled;
     fillcolor="#E0E0E0";
     fontcolor=black;
-    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: 4\\n🟢 Sesiones activas: 1\\n🔴 Sesiones finalizadas: 3\\n\\n📅 Generado: 23-10-2025 15:40", shape="note", fillcolor="#FFFFFF"];
+    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: 1\\n🟢 Sesiones activas: 1\\n🔴 Sesiones finalizadas: 0\\n\\n📅 Generado: 23-10-2025 16:07", shape="note", fillcolor="#FFFFFF"];
     seguridad [label="🛡️ INFORMACIÓN DE SEGURIDAD\\n\\n• Monitoreo en tiempo real\\n• Control de accesos activos\\n• Auditoría de usuarios\\n• Detección de sesiones anómalas\\n\\n⚠️ Revisar sesiones sin salida", shape="note", fillcolor="#FFF8DC"];
   }
 }
