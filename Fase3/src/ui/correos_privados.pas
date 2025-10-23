@@ -279,8 +279,9 @@ procedure OnGenerarReporteMerkle(widget: PGtkWidget; data: gpointer); cdecl;
 var
   rutaDir, rutaDot, rutaPng: String;
   dialog: PGtkWidget;
+  totalCorreosUsuario: Integer;
 begin
-  // Crear directorio de reportes
+  // Crear directorio de reportes del usuario
   rutaDir := ExtractFileDir(ExtractFileDir(ParamStr(0))) + '/graficos/' + GEmailUsuario + '-reportes';
   if not DirectoryExists(rutaDir) then
     CreateDir(rutaDir);
@@ -288,49 +289,67 @@ begin
   rutaDot := rutaDir + '/merkle-tree-privados.dot';
   rutaPng := rutaDir + '/merkle-tree-privados.png';
   
-  // Generar reporte del Merkle Tree
-  GenerarReporteMerkle(GMerklePrivados^, rutaDot);
-  WriteLn('🔒 Reporte DOT generado: ', rutaDot);
+  // Contar correos del usuario en el Merkle Tree
+  totalCorreosUsuario := ContarCorreosPrivadosDelUsuario(GMerklePrivados^, GEmailUsuario);
   
-  // Intentar generar PNG
+  WriteLn('🔒 Generando reporte visual del Merkle Tree...');
+  WriteLn('📊 Total correos privados del usuario: ', totalCorreosUsuario);
+  
+  // Generar reporte DOT del Merkle Tree
+  GenerarReporteMerkle(GMerklePrivados^, rutaDot);
+  WriteLn('🔒 Archivo DOT generado: ', rutaDot);
+  
+  // Intentar generar imagen PNG
   if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
   begin
+    WriteLn('🖼️ Generando imagen PNG...');
     if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + rutaDot + '" -o "' + rutaPng + '"'], []) = 0 then
     begin
-      WriteLn('🖼️ Gráfico Merkle Tree generado: ', rutaPng);
+      WriteLn('🖼️ Imagen PNG generada: ', rutaPng);
       
       dialog := gtk_message_dialog_new(nil,
         GTK_DIALOG_MODAL,
         GTK_MESSAGE_INFO,
         GTK_BUTTONS_OK,
         PChar('🔒 Reporte Merkle Tree generado exitosamente!' + #10 + #10 +
-              'El árbol de Merkle garantiza la integridad de tus correos privados.' + #10 + #10 +
-              'Archivos generados:' + #10 +
+              '🌳 El árbol de Merkle muestra la estructura completa de tus correos privados.' + #10 + #10 +
+              '📊 Estadísticas:' + #10 +
+              '• Correos privados: ' + IntToStr(totalCorreosUsuario) + #10 +
+              '• Total nodos en árbol: ' + IntToStr(GMerklePrivados^.totalCorreos) + #10 + #10 +
+              '📁 Archivos generados:' + #10 +
               '📄 DOT: merkle-tree-privados.dot' + #10 +
               '🖼️ PNG: merkle-tree-privados.png' + #10 + #10 +
-              'Ubicación: /graficos/' + GEmailUsuario + '-reportes/'));
+              '📍 Ubicación: /graficos/' + GEmailUsuario + '-reportes/' + #10 + #10 +
+              '🔐 Cada nodo muestra su hash MD5 para verificación de integridad.'));
       gtk_dialog_run(GTK_DIALOG(dialog));
       gtk_widget_destroy(dialog);
     end
     else
     begin
+      WriteLn('⚠️ Error generando imagen PNG');
       dialog := gtk_message_dialog_new(nil,
         GTK_DIALOG_MODAL,
         GTK_MESSAGE_WARNING,
         GTK_BUTTONS_OK,
-        'Archivo DOT generado, pero no se pudo crear el PNG.');
+        PChar('📄 Archivo DOT generado exitosamente.' + #10 + #10 +
+              'No se pudo generar la imagen PNG.' + #10 +
+              'Puedes visualizar el archivo .dot con Graphviz manualmente.'));
       gtk_dialog_run(GTK_DIALOG(dialog));
       gtk_widget_destroy(dialog);
     end;
   end
   else
   begin
+    WriteLn('ℹ️ Graphviz no detectado');
     dialog := gtk_message_dialog_new(nil,
       GTK_DIALOG_MODAL,
       GTK_MESSAGE_INFO,
       GTK_BUTTONS_OK,
-      PChar('Archivo DOT generado: merkle-tree-privados.dot' + #10 +
-            'Instala Graphviz para generar imágenes PNG.'));
+      PChar('📄 Archivo DOT del Merkle Tree generado: merkle-tree-privados.dot' + #10 + #10 +
+            '💡 Para generar la imagen visual:' + #10 +
+            '1. Instala Graphviz: sudo apt install graphviz' + #10 +
+            '2. Ejecuta: dot -Tpng archivo.dot -o imagen.png' + #10 + #10 +
+            '📍 Ubicación: /graficos/' + GEmailUsuario + '-reportes/'));
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
   end;

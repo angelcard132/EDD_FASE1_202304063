@@ -312,38 +312,52 @@ procedure GenerarNodosMerkleRecursivo(var f: Text; nodo: PNodoMerkle; var contad
 var
   nodoID: Integer;
   hashCorto: String;
+  labelTexto: String;
 begin
   if nodo = nil then Exit;
   
   Inc(contador);
   nodoID := contador;
-  hashCorto := Copy(nodo^.hash, 1, 8);
+  hashCorto := Copy(nodo^.hash, 1, 12); // Mostrar más caracteres del hash
   
   if nodo^.esHoja and (nodo^.correo <> nil) then
   begin
-    WriteLn(f, Format('  nodo_%d [label="🔒 CORREO PRIVADO\\nID: %d\\nDe: %s\\nPara: %s\\nAsunto: %s\\nHash: %s", fillcolor="#FFE4E1", shape="box"];',
-                     [nodoID, nodo^.correo^.id, 
-                      Copy(nodo^.correo^.remitente, 1, 20),
-                      Copy(nodo^.correo^.destinatario, 1, 20),
-                      Copy(nodo^.correo^.asunto, 1, 25),
-                      hashCorto]));
+    // Nodo hoja con correo privado
+    labelTexto := Format('🔒 CORREO PRIVADO\\nID: %d\\nDe: %s\\nPara: %s\\nAsunto: %s\\nFecha: %s\\nHash: %s',
+                         [nodo^.correo^.id, 
+                          Copy(nodo^.correo^.remitente, 1, 20),
+                          Copy(nodo^.correo^.destinatario, 1, 20),
+                          Copy(nodo^.correo^.asunto, 1, 30),
+                          Copy(nodo^.correo^.fechaCreacion, 1, 16),
+                          hashCorto]);
+    
+    WriteLn(f, Format('  nodo_%d [label="%s", fillcolor="#FFE4E1", shape="box", style="filled,rounded"];',
+                     [nodoID, labelTexto]));
   end
   else
   begin
-    WriteLn(f, Format('  nodo_%d [label="🌳 NODO MERKLE\\nHash: %s", fillcolor="#E6F3FF", shape="diamond"];',
-                     [nodoID, hashCorto]));
+    // Nodo interno del Merkle Tree
+    labelTexto := Format('🌳 NODO MERKLE\\nNivel: Interno\\nHash: %s\\nHijos: %s',
+                         [hashCorto,
+                          'L+R']);
+    
+    WriteLn(f, Format('  nodo_%d [label="%s", fillcolor="#E6F3FF", shape="diamond", style="filled"];',
+                     [nodoID, labelTexto]));
   end;
   
+  // Generar hijos y conexiones
   if nodo^.izquierdo <> nil then
   begin
     GenerarNodosMerkleRecursivo(f, nodo^.izquierdo, contador);
-    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="L", color="green"];', [nodoID, contador]));
+    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="Izq", color="green", fontcolor="green", penwidth=2];', 
+                     [nodoID, contador]));
   end;
   
   if nodo^.derecho <> nil then
   begin
     GenerarNodosMerkleRecursivo(f, nodo^.derecho, contador);
-    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="R", color="blue"];', [nodoID, contador]));
+    WriteLn(f, Format('  nodo_%d -> nodo_%d [label="Der", color="blue", fontcolor="blue", penwidth=2];', 
+                     [nodoID, contador]));
   end;
 end;
 
@@ -357,33 +371,48 @@ begin
   try
     WriteLn(f, 'digraph ArbolMerkle {');
     WriteLn(f, '  rankdir=TB;');
-    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10];');
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=9];');
     WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
-    WriteLn(f, '  label="🔒 ÁRBOL DE MERKLE - CORREOS PRIVADOS\\nEstructura criptográfica para integridad de datos"; labelloc=t; fontsize=14; fontcolor=purple;');
+    WriteLn(f, '  label="🔒 ÁRBOL DE MERKLE - CORREOS PRIVADOS\\nEstructura Criptográfica para Integridad de Datos\\nTotal Correos: ' + IntToStr(arbol.totalCorreos) + '"; labelloc=t; fontsize=14; fontcolor=purple;');
     WriteLn(f, '');
     
-    // Leyenda
+    // Leyenda mejorada
     WriteLn(f, '  subgraph cluster_leyenda {');
-    WriteLn(f, '    label="Leyenda del Merkle Tree";');
+    WriteLn(f, '    label="🔐 Leyenda del Merkle Tree";');
     WriteLn(f, '    style=filled;');
-    WriteLn(f, '    fillcolor=lightgray;');
-    WriteLn(f, '    leyenda_hoja [label="Correo Privado\\n(Hoja con datos)", fillcolor="#FFE4E1", shape="box"];');
-    WriteLn(f, '    leyenda_nodo [label="Nodo Merkle\\n(Hash combinado)", fillcolor="#E6F3FF", shape="diamond"];');
-    WriteLn(f, '    leyenda_info [label="Hash = MD5(datos)\\nIntegridad garantizada", shape="note"];');
+    WriteLn(f, '    fillcolor="#F0F8FF";');
+    WriteLn(f, '    fontcolor=navy;');
+    WriteLn(f, '    leyenda_hoja [label="🔒 Correo Privado\\n(Hoja con datos)", fillcolor="#FFE4E1", shape="box", style="filled,rounded"];');
+    WriteLn(f, '    leyenda_nodo [label="🌳 Nodo Merkle\\n(Hash combinado)", fillcolor="#E6F3FF", shape="diamond"];');
+    WriteLn(f, '    leyenda_izq [label="Hijo Izquierdo", color="green", style="bold"];');
+    WriteLn(f, '    leyenda_der [label="Hijo Derecho", color="blue", style="bold"];');
+    WriteLn(f, '    leyenda_info [label="📋 Propiedades:\\n• Hash = MD5(datos)\\n• Integridad garantizada\\n• Detección de cambios\\n• Verificación rápida", shape="note", fillcolor="#FFFFCC"];');
     WriteLn(f, '  }');
     WriteLn(f, '');
     
     if arbol.raiz = nil then
     begin
-      WriteLn(f, '  vacio [label="🔒 Árbol Merkle vacío\\nNo hay correos privados", fillcolor="#F0F0F0", fontcolor="gray"];');
+      WriteLn(f, '  vacio [label="🔒 Árbol Merkle Vacío\\n\\nNo hay correos privados\\n\\nPara agregar correos:\\n1. Ve a tu bandeja de entrada\\n2. Selecciona un correo\\n3. Haz clic en \\\"🔒 A Privados\\\"", fillcolor="#F0F0F0", fontcolor="gray", shape="box", style="filled,rounded"];');
     end
     else
     begin
       contador := 0;
       GenerarNodosMerkleRecursivo(f, arbol.raiz, contador);
       
+      // Información adicional del árbol
       WriteLn(f, '');
-      WriteLn(f, '  info [label="Propiedades del Merkle Tree:\\n• Cada nodo = Hash de sus hijos\\n• Integridad verificable\\n• Detección de cambios\\n• Estructura binaria", shape="note", fillcolor="#FFFFCC"];');
+      WriteLn(f, '  subgraph cluster_info {');
+      WriteLn(f, '    label="ℹ️ Información del Árbol";');
+      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    fillcolor="#F5F5DC";');
+      WriteLn(f, '    info_total [label="📊 Total Correos: ' + IntToStr(arbol.totalCorreos) + '", shape="note"];');
+      WriteLn(f, '    info_hash [label="🔐 Hash Raíz:\\n' + Copy(arbol.raiz^.hash, 1, 16) + '...", shape="note"];');
+      WriteLn(f, '    info_estructura [label="🌳 Estructura:\\nCada nodo = Hash(hijo_izq + hijo_der)\\nHojas = Hash(datos_correo)", shape="note"];');
+      WriteLn(f, '  }');
+      
+      // Conectar información con la raíz si existe
+      if contador > 0 then
+        WriteLn(f, '  nodo_1 -> info_hash [style="dotted", color="gray", arrowhead="none"];');
     end;
     
     WriteLn(f, '}');
@@ -391,7 +420,9 @@ begin
     CloseFile(f);
   end;
   
-  WriteLn('🔒 Reporte Merkle Tree generado: ', rutaDot);
+  WriteLn('🔒 Reporte visual del Merkle Tree generado: ', rutaDot);
+  WriteLn('📊 Nodos generados en el gráfico: ', contador);
+  WriteLn('🌳 Hash raíz: ', arbol.raiz^.hash);
 end;
 
 procedure LiberarNodoMerkle(nodo: PNodoMerkle);

@@ -5,13 +5,18 @@ unit reports;
 interface
 
 uses
-  SysUtils, cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst;
+  SysUtils, cola2, listasimple2, arbol_avl, arbol_b, pila2, arbolbst, blockchain, merkle_tree;
 
 // Función original
 procedure GenerarGraficoBandeja(const emailDestino: String; var programados: TCola; const rutaDot: String);
 
-// Nuevas funciones para reportes completos
-procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
+// ✅ DECLARACIÓN ÚNICA de reporte Merkle Tree
+procedure GenerarReporteMerklePrivados(const emailUsuario: String; var merklePrivados: TArbolMerkle; const rutaDot: String);
+
+// ✅ DECLARACIÓN ÚNICA de reportes completos
+procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle);
+
+// Otras funciones de reportes individuales
 procedure GenerarReporteCorreosRecibidos(const emailUsuario: String; var programados: TCola; const rutaDot: String);
 procedure GenerarReportePapelera(const emailUsuario: String; var papelera: TPila; const rutaDot: String);
 procedure GenerarReporteProgramados(const emailUsuario: String; var programados: TCola; const rutaDot: String);
@@ -20,19 +25,15 @@ procedure GenerarReporteFavoritos(const emailUsuario: String; var favoritos: PNo
 procedure GenerarReporteBorradores(const emailUsuario: String; var borradores: PCorreoAVL; const rutaDot: String);
 procedure GenerarReporteBSTComunidades(const rutaDot: String);
 
-// Función auxiliar para generar nodos BST recursivamente
+// Funciones auxiliares
 procedure GenerarNodosBST(var f: Text; nodo: PNodoComunidadBST);
-
-// Función auxiliar para generar nodos AVL recursivamente
 procedure GenerarNodosAVL(var f: Text; nodo: PCorreoAVL; const emailUsuario: String);
-
-// Función auxiliar para generar nodos del árbol B recursivamente
 procedure GenerarNodosArbolB(var f: Text; nodo: PNodoB; const emailUsuario: String; var contadorNodos: Integer);
 
 implementation
 
 uses
-  json_loader, comunidad; // Agregar comunidad para acceder a ArbolComunidades
+  json_loader, comunidad;
 
 function NormalizarEmail(const s: String): String;
 var
@@ -350,6 +351,193 @@ begin
     WriteLn(f, '}');
   finally
     CloseFile(f);
+  end;
+end;
+
+// ✅ NUEVA: Función para generar reporte de blockchain
+procedure GenerarReporteBlockchain(const emailUsuario: String; var blockchainMail: TBlockchain; const rutaDot: String);
+var
+  f: Text;
+  actual: PBloque;
+  contador: Integer;
+  esDelUsuario: Boolean;
+begin
+  AssignFile(f, rutaDot);
+  Rewrite(f);
+  try
+    WriteLn(f, 'digraph BlockchainCorreos {');
+    WriteLn(f, '  rankdir=LR;');
+    WriteLn(f, '  node [shape=record, style=filled, fontname="Arial"];');
+    WriteLn(f, '  edge [color="#4F81BD", penwidth=2];');
+    WriteLn(f, '  label="⛓️ BLOCKCHAIN DE CORREOS\\nUsuario: ', SanearTexto(emailUsuario), '"; labelloc=t; fontsize=14; fontcolor=blue;');
+    WriteLn(f, '');
+    
+    contador := 0;
+    actual := blockchainMail.cabeza;
+    
+    // Verificar si hay bloques
+    if actual = nil then
+    begin
+      WriteLn(f, '  vacio [label="⛓️ Blockchain vacía\\nNo hay correos registrados", fillcolor="#F0F0F0", fontcolor="gray"];');
+    end
+    else
+    begin
+      // Recorrer blockchain del más reciente al más antiguo
+      while actual <> nil do
+      begin
+        Inc(contador);
+        
+        // Determinar si el bloque es relevante para el usuario
+        esDelUsuario := (actual^.data.remitente = emailUsuario) or (actual^.data.destinatario = emailUsuario);
+        
+        // Colorear según tipo de bloque
+        if actual^.index = 0 then
+        begin
+          // Bloque génesis
+          WriteLn(f, Format('  bloque_%d [label="🔗 GÉNESIS\\nIndex: %d\\nTimestamp: %s\\nHash: %s...\\nNonce: %d", fillcolor="#FFD700"];',
+                           [actual^.index, actual^.index, actual^.timestamp, 
+                            Copy(actual^.hash, 1, 16), actual^.nonce]));
+        end
+        else if esDelUsuario then
+        begin
+          // Bloque del usuario (enviado o recibido)
+          WriteLn(f, Format('  bloque_%d [label="📧 CORREO DEL USUARIO\\nIndex: %d\\nID Correo: %d\\nDe: %s\\nPara: %s\\nAsunto: %s\\nTimestamp: %s\\nHash: %s...\\nNonce: %d", fillcolor="#FFE6E6"];',
+                           [actual^.index, actual^.index, actual^.data.id,
+                            Copy(SanearTexto(actual^.data.remitente), 1, 15),
+                            Copy(SanearTexto(actual^.data.destinatario), 1, 15),
+                            Copy(SanearTexto(actual^.data.asunto), 1, 25),
+                            actual^.timestamp,
+                            Copy(actual^.hash, 1, 16), actual^.nonce]));
+        end
+        else
+        begin
+          // Bloque de otros usuarios
+          WriteLn(f, Format('  bloque_%d [label="📦 BLOQUE\\nIndex: %d\\nCorreo ID: %d\\nTimestamp: %s\\nHash: %s...\\nNonce: %d", fillcolor="#E6F3FF"];',
+                           [actual^.index, actual^.index, actual^.data.id,
+                            actual^.timestamp,
+                            Copy(actual^.hash, 1, 16), actual^.nonce]));
+        end;
+        
+        // Conexión al bloque anterior (siguiente en la lista enlazada)
+        if actual^.siguiente <> nil then
+          WriteLn(f, Format('  bloque_%d -> bloque_%d [label="Previous Hash", fontsize=8];', 
+                           [actual^.index, actual^.siguiente^.index]));
+        
+        actual := actual^.siguiente;
+      end;
+      
+      // Agregar información adicional
+      WriteLn(f, '');
+      WriteLn(f, '  info [label="ℹ️ INFORMACIÓN BLOCKCHAIN\\nTotal bloques: ', contador, '\\nDificultad: ', blockchainMail.difficulty, '\\nAlgoritmo: Proof of Work\\nInserción: Más reciente al inicio", shape=note, fillcolor="#FFFFCC"];');
+    end;
+    
+    WriteLn(f, '}');
+  finally
+    CloseFile(f);
+  end;
+  
+  WriteLn('⛓️ Reporte blockchain generado: ', rutaDot);
+end;
+
+// ✅ AGREGAR procedimiento para reporte de Merkle Tree
+procedure GenerarReporteMerklePrivados(const emailUsuario: String; var merklePrivados: TArbolMerkle; const rutaDot: String);
+var
+  totalCorreosUsuario: Integer;
+begin
+  totalCorreosUsuario := ContarCorreosPrivadosDelUsuario(merklePrivados, emailUsuario);
+  
+  WriteLn('🔒 Generando reporte Merkle Tree para usuario: ', emailUsuario);
+  WriteLn('📊 Correos privados del usuario: ', totalCorreosUsuario);
+  
+  // Generar el reporte usando la función del merkle_tree
+  GenerarReporteMerkle(merklePrivados, rutaDot);
+  
+  WriteLn('✅ Reporte Merkle Tree generado: ', rutaDot);
+end;
+
+procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila; var blockchainMail: TBlockchain; var merklePrivados: TArbolMerkle); // ✅ AGREGAR merklePrivados
+var
+  rutaDir: String;
+  // ✅ EXPANDIR array para incluir merkle tree
+  archivos: array[1..8] of String;
+  nombres: array[1..8] of String;
+  i: Integer;
+  pngsGenerados: Integer;
+begin
+  CrearDirectorioReportes(emailUsuario, rutaDir);
+  
+  // Definir nombres de archivos (actualizado)
+  archivos[1] := rutaDir + '/correos-recibidos.dot';
+  archivos[2] := rutaDir + '/papelera.dot';
+  archivos[3] := rutaDir + '/programados.dot';
+  archivos[4] := rutaDir + '/contactos.dot';
+  archivos[5] := rutaDir + '/favoritos.dot';
+  archivos[6] := rutaDir + '/borradores.dot';
+  archivos[7] := rutaDir + '/blockchain.dot';
+  archivos[8] := rutaDir + '/merkle-tree-privados.dot'; // ✅ NUEVO
+  
+  nombres[1] := 'Correos Recibidos';
+  nombres[2] := 'Papelera';
+  nombres[3] := 'Correos Programados';
+  nombres[4] := 'Contactos';
+  nombres[5] := 'Favoritos';
+  nombres[6] := 'Borradores';
+  nombres[7] := 'Blockchain';
+  nombres[8] := 'Correos Privados (Merkle Tree)'; // ✅ NUEVO
+  
+  WriteLn('📊 Generando reportes completos para: ', emailUsuario);
+  WriteLn('📁 Directorio: ', rutaDir);
+  
+  // Generar todos los reportes DOT (actualizado)
+  GenerarReporteCorreosRecibidos(emailUsuario, programados, archivos[1]);
+  GenerarReportePapelera(emailUsuario, papelera, archivos[2]);
+  GenerarReporteProgramados(emailUsuario, programados, archivos[3]);
+  GenerarReporteContactos(emailUsuario, usuarios, archivos[4]);
+  GenerarReporteFavoritos(emailUsuario, favoritos, archivos[5]);
+  GenerarReporteBorradores(emailUsuario, borradores, archivos[6]);
+  GenerarReporteBlockchain(emailUsuario, blockchainMail, archivos[7]);
+  GenerarReporteMerklePrivados(emailUsuario, merklePrivados, archivos[8]); // ✅ NUEVO
+  
+  WriteLn('✅ Todos los archivos DOT generados exitosamente');
+  
+  // Intentar generar PNGs con Graphviz si está disponible
+  pngsGenerados := 0;
+  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
+  begin
+    WriteLn('🖼️ Graphviz detectado, generando imágenes PNG...');
+    for i := 1 to 8 do // ✅ ACTUALIZAR a 8
+    begin
+      if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + archivos[i] + '" -o "' + ChangeFileExt(archivos[i], '.png') + '"'], []) = 0 then
+      begin
+        Inc(pngsGenerados);
+        WriteLn('✅ PNG generado: ', nombres[i]);
+      end
+      else
+        WriteLn('⚠️ Error generando PNG: ', nombres[i]);
+    end;
+  end
+  else
+    WriteLn('ℹ️ Graphviz no está instalado, solo se generaron archivos DOT');
+  
+  // Mostrar resumen
+  WriteLn('');
+  WriteLn('📊 RESUMEN DE REPORTES GENERADOS:');
+  WriteLn('=================================');
+  WriteLn('👤 Usuario: ', emailUsuario);
+  WriteLn('📁 Directorio: ', rutaDir);
+  WriteLn('📄 Archivos DOT: 8'); // ✅ ACTUALIZAR
+  WriteLn('🖼️ Archivos PNG: ', pngsGenerados);
+  WriteLn('');
+  for i := 1 to 8 do // ✅ ACTUALIZAR a 8
+    WriteLn('  ✓ ', nombres[i], ': ', ExtractFileName(archivos[i]));
+  
+  if pngsGenerados > 0 then
+  begin
+    WriteLn('');
+    WriteLn('🎉 ¡Reportes generados exitosamente!');
+    WriteLn('💡 Abre los archivos PNG para visualizar los gráficos.');
+    WriteLn('⛓️ El reporte de blockchain muestra la cadena de bloques con correos del usuario resaltados.');
+    WriteLn('🔒 El reporte de Merkle Tree muestra la estructura criptográfica de correos privados.');
   end;
 end;
 
@@ -734,104 +922,6 @@ begin
   if factorBalance <> 0 then
     WriteLn(f, Format('  balance_%d [label="FB: %d", shape="plaintext", fontsize=10];', 
                      [nodo^.id, factorBalance]));
-end;
-
-procedure GenerarReportesCompletos(const emailUsuario: String; var usuarios: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB; var papelera: TPila);
-var
-  rutaDir: String;
-  archivos: array[1..6] of String;
-  nombres: array[1..6] of String;
-  i: Integer;
-  pngsGenerados: Integer;
-begin
-  CrearDirectorioReportes(emailUsuario, rutaDir);
-  
-  // Definir nombres de archivos
-  archivos[1] := rutaDir + '/correos-recibidos.dot';
-  archivos[2] := rutaDir + '/papelera.dot';
-  archivos[3] := rutaDir + '/programados.dot';
-  archivos[4] := rutaDir + '/contactos.dot';
-  archivos[5] := rutaDir + '/favoritos.dot';
-  archivos[6] := rutaDir + '/borradores.dot';
-  
-  nombres[1] := 'Correos Recibidos';
-  nombres[2] := 'Papelera';
-  nombres[3] := 'Correos Programados';
-  nombres[4] := 'Contactos';
-  nombres[5] := 'Favoritos';
-  nombres[6] := 'Borradores';
-  
-  WriteLn('📊 Generando reportes completos para: ', emailUsuario);
-  WriteLn('📁 Directorio: ', rutaDir);
-  
-  // Generar todos los reportes DOT
-  GenerarReporteCorreosRecibidos(emailUsuario, programados, archivos[1]);
-  GenerarReportePapelera(emailUsuario, papelera, archivos[2]);
-  GenerarReporteProgramados(emailUsuario, programados, archivos[3]);
-  GenerarReporteContactos(emailUsuario, usuarios, archivos[4]);
-  GenerarReporteFavoritos(emailUsuario, favoritos, archivos[5]);
-  GenerarReporteBorradores(emailUsuario, borradores, archivos[6]);
-  
-  WriteLn('✅ Todos los archivos DOT generados exitosamente');
-  
-  // Intentar generar PNGs con Graphviz si está disponible
-  pngsGenerados := 0;
-  if ExecuteProcess('/bin/sh', ['-c', 'command -v dot >/dev/null 2>&1'], []) = 0 then
-  begin
-    WriteLn('🖼️ Graphviz detectado, generando imágenes PNG...');
-    for i := 1 to 6 do
-    begin
-      if ExecuteProcess('/bin/sh', ['-c', 'dot -Tpng "' + archivos[i] + '" -o "' + ChangeFileExt(archivos[i], '.png') + '"'], []) = 0 then
-      begin
-        Inc(pngsGenerados);
-        WriteLn('✅ PNG generado: ', nombres[i]);
-      end
-      else
-        WriteLn('⚠️ Error generando PNG: ', nombres[i]);
-    end;
-  end
-  else
-    WriteLn('ℹ️ Graphviz no está instalado, solo se generaron archivos DOT');
-  
-  // Mostrar resumen
-  WriteLn('');
-  WriteLn('📊 RESUMEN DE REPORTES GENERADOS:');
-  WriteLn('=================================');
-  WriteLn('👤 Usuario: ', emailUsuario);
-  WriteLn('📁 Directorio: ', rutaDir);
-  WriteLn('📄 Archivos DOT: 6');
-  WriteLn('🖼️ Archivos PNG: ', pngsGenerados);
-  WriteLn('');
-  for i := 1 to 6 do
-    WriteLn('  ✓ ', nombres[i], ': ', ExtractFileName(archivos[i]));
-  
-  if pngsGenerados > 0 then
-  begin
-    WriteLn('');
-    WriteLn('🎉 ¡Reportes generados exitosamente!');
-    WriteLn('💡 Abre los archivos PNG para visualizar los gráficos.');
-  end;
-end;
-
-end.
-end.
-end;
-
-end.
-  WriteLn('👤 Usuario: ', emailUsuario);
-  WriteLn('📁 Directorio: ', rutaDir);
-  WriteLn('📄 Archivos DOT: 6');
-  WriteLn('🖼️ Archivos PNG: ', pngsGenerados);
-  WriteLn('');
-  for i := 1 to 6 do
-    WriteLn('  ✓ ', nombres[i], ': ', ExtractFileName(archivos[i]));
-  
-  if pngsGenerados > 0 then
-  begin
-    WriteLn('');
-    WriteLn('🎉 ¡Reportes generados exitosamente!');
-    WriteLn('💡 Abre los archivos PNG para visualizar los gráficos.');
-  end;
 end;
 
 end.

@@ -1,0 +1,11 @@
+digraph CorreosRecibidos {
+  rankdir=TB;
+  node [shape=record, style=filled, fontname="Arial", fontsize=9];
+  label="📥 CORREOS RECIBIDOS - aux-sofia@edd.com"; labelloc=t; fontsize=14; fontcolor=blue;
+
+  correo_1 [label="ID: 5|De: aux-marcosg@edd.com|Asunto: Solicitud de capacitacion|Estado: LEÍDO", fillcolor="#E6F3FF"];
+  correo_2 [label="ID: 8|De: aux-ana@edd.com|Asunto: Revision de entregables|Estado: LEÍDO", fillcolor="#E6F3FF"];
+  correo_1 -> correo_2 [style=dotted];
+  correo_3 [label="ID: 16|De: aux-jorge@edd.com|Asunto: Confirmacion de reunion|Estado: LEÍDO", fillcolor="#E6F3FF"];
+  correo_2 -> correo_3 [style=dotted];
+}

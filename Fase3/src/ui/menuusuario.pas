@@ -87,8 +87,11 @@ end;
 
 procedure OnReportes(widget: PGtkWidget; data: gpointer); cdecl;
 begin
-  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GPapelera <> nil) then
-    GenerarReportesCompletos(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera^);
+  // ✅ ACTUALIZAR: Incluir merkle tree en reportes
+  if (GUsuarios <> nil) and (GProgramados <> nil) and (GBorradores <> nil) and (GFavoritos <> nil) and (GPapelera <> nil) and (GBlockchain <> nil) and (GMerklePrivados <> nil) then
+    GenerarReportesCompletos(GEmailUsuario, GUsuarios^, GProgramados^, GBorradores^, GFavoritos^, GPapelera^, GBlockchain^, GMerklePrivados^)
+  else
+    WriteLn('❌ Error: Alguna estructura no está inicializada para generar reportes');
 end;
 
 procedure OnComunidades(widget: PGtkWidget; data: gpointer); cdecl;
