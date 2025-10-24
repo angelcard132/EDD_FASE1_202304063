@@ -3,81 +3,81 @@
     {
       "id": 1,
       "nombre": "Luis Garcia",
-      "usuario": "lgarcia",
+      "usuario": "aux-luis",
       "password": "lgarcia123",
-      "email": "lgarcia@edd.com",
+      "email": "aux-luis@edd.com",
       "telefono": "12345678"
     },
     {
       "id": 2,
       "nombre": "Marcos Itzep",
-      "usuario": "mitzep",
+      "usuario": "aux-marcos",
       "password": "mitzep123",
-      "email": "mitzep@edd.com",
+      "email": "aux-marcos@edd.com",
       "telefono": "87654321"
     },
     {
       "id": 3,
       "nombre": "Greg Kroah-Hartman",
-      "usuario": "gkroah-hartman",
+      "usuario": "aux-greg",
       "password": "hartman123",
-      "email": "gkroah-hartman@edd.com",
+      "email": "aux-greg@edd.com",
       "telefono": "31628954"
     },
     {
       "id": 4,
       "nombre": "Mark Shuttleworth",
-      "usuario": "mshuttleworth",
+      "usuario": "aux-mark",
       "password": "shut123",
-      "email": "mshuttleworth@edd.com",
+      "email": "aux-mark@edd.com",
       "telefono": "76018423"
     },
     {
       "id": 5,
       "nombre": "Steven Mejia",
-      "usuario": "smejia",
+      "usuario": "aux-steven",
       "password": "smejia123",
-      "email": "smejia@edd.com",
+      "email": "aux-steven@edd.com",
       "telefono": "23419875"
     },
     {
       "id": 6,
       "nombre": "Brian Fox",
-      "usuario": "bfox",
+      "usuario": "aux-brian",
       "password": "bfox123",
-      "email": "bfox@edd.com",
+      "email": "aux-brian@edd.com",
       "telefono": "64578231"
     },
     {
       "id": 7,
       "nombre": "Jon Corbet",
-      "usuario": "jcorbet",
+      "usuario": "aux-jon",
       "password": "jcorbet123",
-      "email": "jcorbet@edd.com",
+      "email": "aux-jon@edd.com",
       "telefono": "75849231"
     },
     {
       "id": 8,
       "nombre": "Karen Sandler",
-      "usuario": "ksandler",
+      "usuario": "aux-karen",
       "password": "ksandler123",
-      "email": "ksandler@edd.com",
+      "email": "aux-karen@edd.com",
       "telefono": "89514362"
     },
     {
       "id": 9,
       "nombre": "Mitchell Baker",
-      "usuario": "mbaker",
+      "usuario": "aux-mitchell",
       "password": "mbaker123",
-      "email": "mbaker@edd.com",
+      "email": "aux-mitchell@edd.com",
       "telefono": "19384756"
     },
     {
       "id": 10,
       "nombre": "Ian Murdock",
-      "usuario": "imurdock",
+      "usuario": "aux-ian",
       "password": "imurdock123",
-      "email": "imurdock@edd.com",
+      "email": "aux-ian@edd.com",
       "telefono": "41235678"
     }
   ]

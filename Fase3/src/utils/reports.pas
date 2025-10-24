@@ -699,25 +699,13 @@ begin
   
   try
     WriteLn(f, 'digraph RelacionesContactos {');
-    WriteLn(f, '  rankdir=TB;');
-    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=9];');
-    WriteLn(f, '  edge [fontname="Arial", fontsize=8];');
-    WriteLn(f, '  label="👥 MAPA DE RELACIONES DE CONTACTOS\\nGrafo de conexiones entre usuarios y sus contactos"; labelloc=t; fontsize=14; fontcolor=darkgreen;');
-    WriteLn(f, '');
-    
-    // Leyenda del reporte
-    WriteLn(f, '  subgraph cluster_leyenda {');
-    WriteLn(f, '    label="🔗 Leyenda de Relaciones";');
-    WriteLn(f, '    style=filled;');
-    WriteLn(f, '    fillcolor="#F0FFF0";');
-    WriteLn(f, '    fontcolor=darkgreen;');
-    WriteLn(f, '    leyenda_usuario [label="👤 USUARIO\\n(Tiene contactos)", fillcolor="#87CEEB", shape="box"];');
-    WriteLn(f, '    leyenda_contacto [label="📧 CONTACTO\\n(En lista de alguien)", fillcolor="#98FB98", shape="ellipse"];');
-    WriteLn(f, '    leyenda_relacion [label="Relación Usuario-Contacto", color="blue"];');
-    WriteLn(f, '    leyenda_comun [label="Contacto en Común", color="red", style="bold"];');
-    WriteLn(f, '    leyenda_usuario -> leyenda_contacto [color="blue", label="tiene contacto"];');
-    WriteLn(f, '    leyenda_usuario -> leyenda_contacto [color="red", style="bold", label="contacto común"];');
-    WriteLn(f, '  }');
+    WriteLn(f, '  rankdir=LR;'); // ✅ CAMBIAR a Left-Right para mejor organización
+    WriteLn(f, '  splines=ortho;'); // ✅ AGREGAR líneas ortogonales para mayor claridad
+    WriteLn(f, '  overlap=false;'); // ✅ EVITAR solapamiento de nodos
+    WriteLn(f, '  concentrate=true;'); // ✅ CONCENTRAR aristas múltiples
+    WriteLn(f, '  node [style=filled, fontname="Arial", fontsize=10, margin="0.1,0.05"];');
+    WriteLn(f, '  edge [fontname="Arial", fontsize=8, penwidth=1.5];');
+    WriteLn(f, '  label="👥 MAPA DE RELACIONES DE CONTACTOS\\nGrafo de conexiones entre usuarios y sus contactos\\n"; labelloc=t; fontsize=16; fontcolor=darkgreen; fontweight=bold;');
     WriteLn(f, '');
     
     contadorRelaciones := 0;
@@ -738,47 +726,90 @@ begin
     
     if contadorRelaciones = 0 then
     begin
-      WriteLn(f, '  vacio [label="👥 Sin relaciones de contactos\\n\\nNo hay contactos cargados en el sistema\\nLas relaciones se crean con:\\n• Carga masiva de contactos\\n• Agregado manual de contactos", fillcolor="#F0F0F0", fontcolor="gray", shape="box"];');
+      WriteLn(f, '  vacio [label="👥 Sin relaciones de contactos\\n\\nNo hay contactos cargados en el sistema\\nLas relaciones se crean con:\\n• Carga masiva de contactos\\n• Agregado manual de contactos", fillcolor="#F0F0F0", fontcolor="gray", shape="box", style="rounded,filled"];');
     end
     else
     begin
-      WriteLn(f, '  subgraph cluster_usuarios {');
-      WriteLn(f, '    label="👤 Usuarios del Sistema";');
-      WriteLn(f, '    style=filled;');
-      WriteLn(f, '    fillcolor="#E6F3FF";');
-      WriteLn(f, '    fontcolor=blue;');
+      // ✅ SECCIÓN LEYENDA - MÁS COMPACTA Y ORGANIZADA
+      WriteLn(f, '  subgraph cluster_leyenda {');
+      WriteLn(f, '    rank=source;'); // ✅ FORZAR que aparezca al principio
+      WriteLn(f, '    label="🔗 LEYENDA";');
+      WriteLn(f, '    style="rounded,filled";');
+      WriteLn(f, '    fillcolor="#F8F8FF";');
+      WriteLn(f, '    fontcolor=navy;');
+      WriteLn(f, '    fontweight=bold;');
+      WriteLn(f, '    margin=10;');
+      WriteLn(f, '');
+      WriteLn(f, '    leyenda_usuario [label="👤 USUARIO\\n(Propietario)", fillcolor="#4169E1", fontcolor=white, shape="box", style="rounded,filled", width=1.2, height=0.8];');
+      WriteLn(f, '    leyenda_contacto [label="📧 CONTACTO\\n(En lista)", fillcolor="#32CD32", fontcolor=white, shape="ellipse", style="filled", width=1.2, height=0.8];');
+      WriteLn(f, '    leyenda_comun [label="❤️ CONTACTO\\nEN COMÚN", fillcolor="#FF6347", fontcolor=white, shape="diamond", style="filled", width=1.3, height=0.8];');
+      WriteLn(f, '');
+      WriteLn(f, '    leyenda_usuario -> leyenda_contacto [color="#0066CC", style="bold", label="tiene", fontcolor="#0066CC"];');
+      WriteLn(f, '    leyenda_usuario -> leyenda_comun [color="#CC0000", style="bold,dashed", label="común", fontcolor="#CC0000"];');
+      WriteLn(f, '  }');
       WriteLn(f, '');
       
-      // Generar nodos de usuarios
+      // ✅ CLUSTER DE USUARIOS - LADO IZQUIERDO
+      WriteLn(f, '  subgraph cluster_usuarios {');
+      WriteLn(f, '    rank=same;'); // ✅ MISMO RANGO para alineación horizontal
+      WriteLn(f, '    label="👤 USUARIOS DEL SISTEMA";');
+      WriteLn(f, '    style="rounded,filled";');
+      WriteLn(f, '    fillcolor="#E6F2FF";');
+      WriteLn(f, '    fontcolor="#003366";');
+      WriteLn(f, '    fontweight=bold;');
+      WriteLn(f, '    margin=15;');
+      WriteLn(f, '');
+      
+      // Generar nodos de usuarios con mejor formato
       for i := 0 to usuariosEncontrados.Count - 1 do
       begin
         usuario1 := usuariosEncontrados[i];
-        WriteLn(f, Format('    usuario_%d [label="👤 %s\\nUsuario del Sistema", fillcolor="#87CEEB", shape="box"];',
-                         [i, SanearTexto(Copy(usuario1, 1, 20))]));
+        WriteLn(f, Format('    usuario_%d [label="👤\\n%s\\n\\nUsuario #%d", fillcolor="#4169E1", fontcolor=white, shape="box", style="rounded,filled", width=1.5, height=1.2];',
+                         [i, SanearTexto(Copy(usuario1, 1, 15)), i + 1]));
       end;
       
       WriteLn(f, '  }');
       WriteLn(f, '');
       
+      // ✅ CLUSTER DE CONTACTOS - LADO DERECHO
       WriteLn(f, '  subgraph cluster_contactos {');
-      WriteLn(f, '    label="📧 Contactos Registrados";');
-      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    rank=same;'); // ✅ MISMO RANGO para alineación horizontal
+      WriteLn(f, '    label="📧 CONTACTOS DISPONIBLES";');
+      WriteLn(f, '    style="rounded,filled";');
       WriteLn(f, '    fillcolor="#F0FFF0";');
-      WriteLn(f, '    fontcolor=green;');
+      WriteLn(f, '    fontcolor="#006600";');
+      WriteLn(f, '    fontweight=bold;');
+      WriteLn(f, '    margin=15;');
       WriteLn(f, '');
       
-      // Generar nodos de contactos
+      // Generar nodos de contactos con mejor formato
       for i := 0 to contactosEncontrados.Count - 1 do
       begin
         contactoComun := contactosEncontrados[i];
-        WriteLn(f, Format('    contacto_%d [label="📧 %s\\nContacto", fillcolor="#98FB98", shape="ellipse"];',
-                         [i, SanearTexto(Copy(contactoComun, 1, 20))]));
+        WriteLn(f, Format('    contacto_%d [label="📧\\n%s\\n\\nContacto #%d", fillcolor="#32CD32", fontcolor=white, shape="ellipse", style="filled", width=1.8, height=1.2];',
+                         [i, SanearTexto(Copy(contactoComun, 1, 15)), i + 1]));
       end;
       
       WriteLn(f, '  }');
       WriteLn(f, '');
       
-      // Generar relaciones usuario -> contacto
+      // ✅ INVISIBLE EDGES para forzar layout ordenado
+      WriteLn(f, '  // Invisible edges para organizar layout');
+      if usuariosEncontrados.Count > 1 then
+      begin
+        for i := 0 to usuariosEncontrados.Count - 2 do
+          WriteLn(f, Format('  usuario_%d -> usuario_%d [style=invis];', [i, i + 1]));
+      end;
+      
+      if contactosEncontrados.Count > 1 then
+      begin
+        for i := 0 to contactosEncontrados.Count - 2 do
+          WriteLn(f, Format('  contacto_%d -> contacto_%d [style=invis];', [i, i + 1]));
+      end;
+      WriteLn(f, '');
+      
+      // ✅ RELACIONES USUARIO -> CONTACTO - MÁS ORGANIZADAS
+      WriteLn(f, '  // Relaciones Usuario -> Contacto');
       actual := ContactosManuales;
       while actual <> nil do
       begin
@@ -787,14 +818,16 @@ begin
         
         if (i >= 0) and (j >= 0) then
         begin
-          WriteLn(f, Format('  usuario_%d -> contacto_%d [label="tiene", color="blue", fontcolor="blue"];',
+          WriteLn(f, Format('  usuario_%d -> contacto_%d [color="#0066CC", style="bold", penwidth=2, arrowsize=0.8, fontcolor="#0066CC"];',
                            [i, j]));
         end;
         
         actual := actual^.siguiente;
       end;
+      WriteLn(f, '');
       
-      // Buscar contactos en común entre usuarios
+      // ✅ BUSCAR Y MOSTRAR CONTACTOS EN COMÚN - MEJORADO
+      WriteLn(f, '  // Contactos en común entre usuarios');
       relacionesComunes := 0;
       for i := 0 to usuariosEncontrados.Count - 1 do
       begin
@@ -812,9 +845,9 @@ begin
               // Ver si usuario2 también tiene este contacto
               if TieneContacto(usuario2, actual^.email) then
               begin
-                // Encontramos un contacto en común
-                WriteLn(f, Format('  usuario_%d -> usuario_%d [label="contacto común:\\n%s", color="red", style="bold", fontcolor="red"];',
-                                 [i, j, SanearTexto(Copy(actual^.email, 1, 15))]));
+                // Encontramos un contacto en común - mostrar conexión especial
+                WriteLn(f, Format('  usuario_%d -> usuario_%d [color="#CC0000", style="bold,dashed", penwidth=3, arrowsize=1.0, label="❤️ %s", fontcolor="#CC0000", fontsize=9];',
+                                 [i, j, SanearTexto(Copy(actual^.email, 1, 12))]));
                 Inc(relacionesComunes);
                 Break; // Solo mostrar una conexión por par de usuarios
               end;
@@ -823,15 +856,19 @@ begin
           end;
         end;
       end;
-      
-      // Agregar información estadística
       WriteLn(f, '');
+      
+      // ✅ CLUSTER DE ESTADÍSTICAS - MÁS VISUAL
       WriteLn(f, '  subgraph cluster_estadisticas {');
-      WriteLn(f, '    label="📊 Estadísticas de Relaciones";');
-      WriteLn(f, '    style=filled;');
+      WriteLn(f, '    rank=sink;'); // ✅ FORZAR que aparezca al final
+      WriteLn(f, '    label="📊 ESTADÍSTICAS DE LA RED";');
+      WriteLn(f, '    style="rounded,filled";');
       WriteLn(f, '    fillcolor="#FFFACD";');
-      WriteLn(f, '    fontcolor=brown;');
-      WriteLn(f, '    stats [label="📈 RESUMEN DE RELACIONES\\n\\n👤 Total usuarios: ' + IntToStr(contadorUsuarios) + '\\n📧 Total contactos únicos: ' + IntToStr(contactosEncontrados.Count) + '\\n🔗 Total relaciones: ' + IntToStr(contadorRelaciones) + '\\n❤️ Contactos en común: ' + IntToStr(relacionesComunes) + '\\n\\n📅 Generado: ' + FormatDateTime('dd/mm/yyyy hh:nn', Now) + '", shape="note", fillcolor="#FFFFFF"];');
+      WriteLn(f, '    fontcolor="#8B4513";');
+      WriteLn(f, '    fontweight=bold;');
+      WriteLn(f, '    margin=15;');
+      WriteLn(f, '');
+      WriteLn(f, '    stats [label="📈 ANÁLISIS DE CONECTIVIDAD\\n\\n👤 Total usuarios activos: ' + IntToStr(contadorUsuarios) + '\\n📧 Total contactos únicos: ' + IntToStr(contactosEncontrados.Count) + '\\n🔗 Total conexiones: ' + IntToStr(contadorRelaciones) + '\\n❤️ Contactos compartidos: ' + IntToStr(relacionesComunes) + '\\n\\n📊 Densidad de red: ' + Format('%.1f%%', [(relacionesComunes * 100.0) / (contadorRelaciones + 1)]) + '\\n\\n📅 Generado: ' + FormatDateTime('dd/mm/yyyy hh:nn', Now) + '", shape="note", style="rounded,filled", fillcolor="#FFFFFF", fontcolor="#333333", width=3.5, height=2.5];');
       WriteLn(f, '  }');
     end;
     

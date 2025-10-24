@@ -1,39 +1,39 @@
 {
     "Usuarios": [
         {
-            "Usuario": "lgarcia",
+            "Usuario": "aux-luis",
             "Contactos": [
-                "mitzep",
-                "mshuttleworth"
+                "aux-marcos",
+                "aux-mark"
             ]
         },
         {
-            "Usuario": "smejia",
+            "Usuario": "aux-steven",
             "Contactos": [
-                "lgarcia",
-                "mitzep"
+                "aux-luis",
+                "aux-marcos"
             ]
         },
         {
-            "Usuario": "bfox",
+            "Usuario": "aux-brian",
             "Contactos": [
-                "smejia",
-                "jcorbet"
+                "aux-steven",
+                "aux-jon"
             ]
         },
         {
-            "Usuario": "mbaker",
+            "Usuario": "aux-mitchell",
             "Contactos": [
-                "lgarcia",
-                "imurdock",
-                "mitzep"
+                "aux-luis",
+                "aux-ian",
+                "aux-marcos"
             ]
         },
         {
-            "Usuario": "mitzep",
+            "Usuario": "aux-marcos",
             "Contactos": [
-                "gkroah-hartman",
-                "jcorbet"
+                "aux-greg",
+                "aux-jon"
             ]
         }
         

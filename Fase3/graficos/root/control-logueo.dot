@@ -22,7 +22,11 @@ digraph ControlLogin {
     fillcolor="#FFFACD";
     fontcolor=brown;
 
-    sesion_1 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 16:06:55\\n🚪 Salida: CONECTADO\\n⏱️ Duración: En sesión\\n\\n🟢 ACTIVO", fillcolor="#FFD700", shape="diamond"];
+    sesion_1 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 23:24:39\\n🚪 Salida: CONECTADO\\n⏱️ Duración: En sesión\\n\\n🟢 ACTIVO", fillcolor="#FFD700", shape="diamond"];
+    sesion_2 [label="👤 aux-luis@edd.com\\n\\n📅 Entrada: 23-10-2025 23:23:59\\n🚪 Salida: 23-10-2025 23:24:35\\n⏱️ Duración: 1 min\\n\\n🔴 FINALIZADA", fillcolor="#FFB6C1", shape="ellipse"];
+    sesion_1 -> sesion_2 [label="anterior", color="gray"];
+    sesion_3 [label="👑 ADMINISTRADOR ROOT\\nroot@sistema.admin\\n\\n📅 Entrada: 23-10-2025 23:23:49\\n🚪 Salida: 23-10-2025 23:23:51\\n⏱️ Duración: 0 min\\n\\n🔴 FINALIZADA", fillcolor="#FFD700", shape="diamond"];
+    sesion_2 -> sesion_3 [label="anterior", color="gray"];
   }
 
   subgraph cluster_estadisticas {
@@ -30,7 +34,7 @@ digraph ControlLogin {
     style=filled;
     fillcolor="#E0E0E0";
     fontcolor=black;
-    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: 1\\n🟢 Sesiones activas: 1\\n🔴 Sesiones finalizadas: 0\\n\\n📅 Generado: 23-10-2025 16:07", shape="note", fillcolor="#FFFFFF"];
+    stats [label="📈 RESUMEN DE ACCESOS\\n\\n🔢 Total registros: 3\\n🟢 Sesiones activas: 1\\n🔴 Sesiones finalizadas: 2\\n\\n📅 Generado: 23-10-2025 23:24", shape="note", fillcolor="#FFFFFF"];
     seguridad [label="🛡️ INFORMACIÓN DE SEGURIDAD\\n\\n• Monitoreo en tiempo real\\n• Control de accesos activos\\n• Auditoría de usuarios\\n• Detección de sesiones anómalas\\n\\n⚠️ Revisar sesiones sin salida", shape="note", fillcolor="#FFF8DC"];
   }
 }
