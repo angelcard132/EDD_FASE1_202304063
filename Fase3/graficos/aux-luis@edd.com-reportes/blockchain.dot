@@ -1,0 +1,10 @@
+digraph BlockchainCorreos {
+  rankdir=LR;
+  node [shape=record, style=filled, fontname="Arial"];
+  edge [color="#4F81BD", penwidth=2];
+  label="⛓️ BLOCKCHAIN DE CORREOS\\nUsuario: aux-luis@edd.com"; labelloc=t; fontsize=14; fontcolor=blue;
+
+  bloque_0 [label="🔗 GÉNESIS\\nIndex: 0\\nTimestamp: 24-10-25::21:41:34\\nHash: 000035f00005aa0f...\\nNonce: 6893", fillcolor="#FFD700"];
+
+  info [label="ℹ️ INFORMACIÓN BLOCKCHAIN\\nTotal bloques: 1\\nDificultad: 4\\nAlgoritmo: Proof of Work\\nInserción: Más reciente al inicio", shape=note, fillcolor="#FFFFCC"];
+}

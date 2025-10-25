@@ -378,7 +378,7 @@ begin
   WriteLn('✅ Carga masiva estándar exitosa');
 end;
 
-{ ✅ CARGA MASIVA CON CONTACTOS (3 parámetros) }
+{ CARGA MASIVA CON CONTACTOS (3 parámetros) }
 procedure CargaMasivaDesdeJSON(
   const usuariosFile, correosFile, contactosFile: String;
   var lista: TListaSimple; var programados: TCola; var borradores: PCorreoAVL; var favoritos: PNodoB
@@ -601,7 +601,7 @@ begin
   end;
 end;
 
-// ✅ NUEVA función auxiliar para el reporte de relaciones
+
 function TieneContacto(const usuario, emailContacto: String): Boolean;
 var
   actual: PContactoManual;
